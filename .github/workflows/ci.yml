@@ -1,0 +1,25 @@
+name: CI
+
+# 코드를 push하거나 PR을 올릴 때 자동으로 빌드가 깨지지 않는지 검사합니다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # NOTE: lint / typecheck / test 는 아직 통과하지 않아 제외되어 있습니다.
+      # 2단계에서 오류를 정리한 뒤 아래 줄의 주석을 해제해 검사를 강화하세요.
+      # - run: npm run lint
+      # - run: npm run typecheck
+      # - run: npm run test

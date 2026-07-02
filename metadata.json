@@ -1,0 +1,6 @@
+{
+  "name": "Avalon Board Game Club Manager 5.0",
+  "description": "Integrated terminal for managing the Avalon board game club: members, game library, daily attendance, group planning, and session history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 6. Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // 1. isAdmin() is true only when logged in and the admin document exists
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    // 2. isMasterAdmin() checks the role field in admins collection
+    function isMasterAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'master';
+    }
+
+    // 4. members, games, sessions, attendees: readable by all signed-in users, writable only by admins
+    match /members/{memberId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isMasterAdmin();
+    }
+
+    match /games/{gameId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isMasterAdmin();
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isMasterAdmin();
+    }
+
+    match /attendees/{attendeeId} {
+      allow read: if isSignedIn();
+      allow create: if (isAdmin() || isMasterAdmin()) &&
+                    request.resource.data.keys().hasAll(['name', 'importDate', 'status']) &&
+                    request.resource.data.name is string &&
+                    request.resource.data.status in ['대기', '편성됨', '결석'];
+      allow update: if (isAdmin() || isMasterAdmin()) &&
+                    request.resource.data.keys().hasAll(['name', 'importDate', 'status']) &&
+                    request.resource.data.name is string &&
+                    request.resource.data.status in ['대기', '편성됨', '결석'];
+      allow delete: if isAdmin() || isMasterAdmin();
+    }
+
+    // 3. DailyPlannings: schema validation
+    match /DailyPlannings/{planningId} {
+      allow read: if isSignedIn();
+      allow create: if (isAdmin() || isMasterAdmin()) && 
+                    request.resource.data.keys().hasAll(['date', 'groups', 'createdAt']) &&
+                    request.resource.data.date is string &&
+                    request.resource.data.groups is list &&
+                    request.resource.data.createdAt is timestamp &&
+                    request.resource.data.createdAt == request.time;
+      allow update: if (isAdmin() || isMasterAdmin()) && 
+                    request.resource.data.keys().hasAll(['date', 'groups', 'createdAt']) &&
+                    request.resource.data.date is string &&
+                    request.resource.data.groups is list &&
+                    request.resource.data.createdAt is timestamp &&
+                    (request.resource.data.createdAt == request.time || request.resource.data.createdAt == resource.data.createdAt);
+      allow delete: if isAdmin() || isMasterAdmin();
+    }
+
+    // 5. admins: read/write only for master admins
+    match /admins/{adminEmail} {
+      allow read, write: if isMasterAdmin();
+    }
+  }
+}
