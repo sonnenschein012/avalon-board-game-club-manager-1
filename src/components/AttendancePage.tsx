@@ -15,7 +15,7 @@ interface AttendancePageProps {
   isAdminModeActive?: boolean;
 }
 
-export default function AttendancePage({ onMoveToRecord, isAdminModeActive }: AttendancePageProps) {
+export default function AttendancePage({ onMoveToRecord, isAdminModeActive = false }: AttendancePageProps) {
   const {
     attendees,
     members,
@@ -69,7 +69,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive }: At
     handleDropToGroup,
     handleDropToUnassigned,
     handleMoveToRecord,
-  } = useAttendanceLogic({ onMoveToRecord });
+  } = useAttendanceLogic(onMoveToRecord ? { onMoveToRecord } : {});
 
   return (
     <div className="space-y-6">
@@ -126,7 +126,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive }: At
           isAdminModeActive={isAdminModeActive}
           sessionName={sessionName}
           setSessionName={setSessionName}
-          sessionDate={sessionDate}
+          sessionDate={sessionDate ?? ''}
           setSessionDate={setSessionDate}
           groups={groups}
           setGroups={setGroups}

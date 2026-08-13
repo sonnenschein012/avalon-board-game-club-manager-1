@@ -14,7 +14,7 @@ interface ArchiveWidgetChartsProps {
   w5Data: Record<string, unknown>[];
   setFormulaModal: (m: 'w5' | 'w6' | 'w7' | null) => void;
   w6Data: Record<string, unknown>[];
-  w7MMI: {gameId: string, mmi: number, game?: Game}[];
+  w7MMI: {gameId: string, mmi: number, game?: Game | undefined}[];
 }
 
 export default function ArchiveWidgetCharts({

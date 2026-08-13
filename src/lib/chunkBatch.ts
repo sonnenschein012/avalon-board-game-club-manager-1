@@ -1,11 +1,11 @@
-import { writeBatch, Firestore, DocumentReference, UpdateData, WithFieldValue, DocumentData } from 'firebase/firestore';
+import { writeBatch, Firestore, DocumentReference, DocumentData } from 'firebase/firestore';
 
 export async function commitBatchesInChunks(
   db: Firestore,
   operations: Array<{
     type: 'set' | 'update' | 'delete';
     ref: DocumentReference;
-    data?: any;
+    data?: DocumentData;
   }>,
   chunkSize: number = 400
 ) {

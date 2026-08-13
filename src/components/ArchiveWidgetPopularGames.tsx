@@ -10,7 +10,7 @@ interface ArchiveWidgetPopularGamesProps {
   setW2Genres: (g: string[]) => void;
   w2Difficulties: string[];
   setW2Difficulties: (d: string[]) => void;
-  w2PopularGames: {gameId: string, count: number, uniqueCount: number, fixation: number, game?: Game}[];
+  w2PopularGames: {gameId: string, count: number, uniqueCount: number, fixation: number, game?: Game | undefined}[];
   AVAILABLE_GENRES: string[];
   DIFFICULTY_RANGES: {label: string}[];
 }

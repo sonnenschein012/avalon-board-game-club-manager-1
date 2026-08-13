@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { History, Plus, FileUp, Loader2 } from 'lucide-react';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import MemberProfileModal from './MemberProfileModal';
@@ -6,7 +6,8 @@ import PageHeader from './PageHeader';
 import { useSessionsLogic } from '../hooks/useSessionsLogic';
 import SessionFormModal from './SessionFormModal';
 import SessionList from './SessionList';
-import { StoredSessionGroup } from '../types';
+import GroupGamesEditModal from './GroupGamesEditModal';
+import { StoredSessionGroup, Session } from '../types';
 
 interface SessionsPageProps {
   draftSession?: { name: string, date: string, groups: StoredSessionGroup[] } | null;
@@ -15,6 +16,8 @@ interface SessionsPageProps {
 }
 
 export default function SessionsPage({ draftSession, onClearDraft, isAdminModeActive = false }: SessionsPageProps) {
+  const [editingGroupInfo, setEditingGroupInfo] = useState<{ session: Session, group: StoredSessionGroup } | null>(null);
+
   const {
     members, games,
     isAdding,
@@ -87,7 +90,7 @@ export default function SessionsPage({ draftSession, onClearDraft, isAdminModeAc
         sessionData={{
           sessionName,
           setSessionName,
-          sessionDate,
+          sessionDate: sessionDate ?? '',
           setSessionDate
         }}
         coreData={{
@@ -116,9 +119,19 @@ export default function SessionsPage({ draftSession, onClearDraft, isAdminModeAc
         handleEdit={handleEdit}
         setItemToDelete={setItemToDelete}
         setViewingMember={setViewingMember}
+        handleEditGroup={(session, group) => setEditingGroupInfo({ session, group })}
       />
 
-      <ConfirmDeleteModal 
+      {editingGroupInfo && (
+        <GroupGamesEditModal
+          session={editingGroupInfo.session}
+          group={editingGroupInfo.group}
+          games={games}
+          onClose={() => setEditingGroupInfo(null)}
+        />
+      )}
+
+      <ConfirmDeleteModal
         isOpen={!!itemToDelete}
         title="세션 기록 삭제"
         message={`'${itemToDelete?.name}' 세션 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`}

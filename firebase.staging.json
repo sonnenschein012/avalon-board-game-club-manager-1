@@ -1,24 +1,16 @@
 {
   "firestore": [
     {
-      "database": "ai-studio-cb68814f-9f80-4e46-95cd-4725aa93e8cb",
+      "database": "(default)",
       "rules": "firestore.rules",
       "indexes": "firestore.indexes.json"
     }
   ],
-  "emulators": {
-    "firestore": {
-      "port": 8080
-    },
-    "ui": {
-      "enabled": false
-    }
-  },
   "hosting": {
-    "target": "avalondgu-site",
+    "site": "avalon-manager-stg-260813",
     "public": "dist",
     "ignore": [
-      "firebase.json",
+      "firebase.staging.json",
       "**/.*",
       "**/node_modules/**"
     ],

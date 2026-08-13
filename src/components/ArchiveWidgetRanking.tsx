@@ -10,7 +10,7 @@ interface ArchiveWidgetRankingProps {
   setIncludeBoardMembers: (b: boolean) => void;
   attendanceMetric: 'count' | 'rate';
   setAttendanceMetric: (m: 'count' | 'rate') => void;
-  w1Ranking: {id: string, count: number, member?: Member}[];
+  w1Ranking: {id: string, count: number, member?: Member | undefined}[];
 }
 
 export default function ArchiveWidgetRanking({

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getGroupCostDets, CostCalculationContext } from './groupCostFunction';
 import { Member } from '../../types';
+import type { Timestamp } from 'firebase/firestore';
 
 describe('groupCostFunction', () => {
   const createContext = (overrides?: Partial<CostCalculationContext>): CostCalculationContext => ({
@@ -25,7 +26,7 @@ describe('groupCostFunction', () => {
     nickname: '',
     phone: '',
     preferredGenre: [],
-    createdAt: { toMillis: () => 0 } as any,
+    createdAt: { toMillis: () => 0 } as unknown as Timestamp,
     ...overrides,
   });
 

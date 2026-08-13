@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Member, Game, Session, Admin } from '../types';
 import { toast } from 'sonner';
 import { formatTimestamp } from '../lib/utils';
-import { onAuthStateChanged } from 'firebase/auth';
 
 import SettingsAdminPanel from './SettingsAdminPanel';
 import SettingsExportPanel from './SettingsExportPanel';
@@ -27,7 +26,6 @@ export default function SettingsPage({
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [addingAdmin, setAddingAdmin] = useState(false);
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   const fetchAdmins = async () => {
     try {
@@ -44,10 +42,6 @@ export default function SettingsPage({
 
   useEffect(() => {
     fetchAdmins();
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUserEmail(user?.email || null);
-    });
-    return () => unsubscribe();
   }, []);
 
 
@@ -229,7 +223,7 @@ export default function SettingsPage({
       const rows: string[][] = [];
 
       sessions.forEach(s => {
-        const dateStr = s.date?.toDate ? s.date.toDate().toISOString().split('T')[0] : formatTimestamp(s.date);
+        const dateStr = s.date?.toDate ? (s.date.toDate().toISOString().split('T')[0] ?? '') : formatTimestamp(s.date);
         s.groups.forEach((g, idx) => {
           const groupName = g.name || `TEAM ${idx + 1}`;
           const membersList = g.memberIds.map(mId => membersMap.get(mId) || 'Unknown').join(', ');
@@ -239,7 +233,7 @@ export default function SettingsPage({
       });
 
       // sort by date descending
-      rows.sort((a, b) => b[0].localeCompare(a[0]));
+      rows.sort((a, b) => (b[0] ?? '').localeCompare(a[0] ?? ''));
 
       const csvContent = [
         headers.map(escapeCSV).join(','),

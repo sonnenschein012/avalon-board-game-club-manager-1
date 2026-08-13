@@ -6,7 +6,7 @@ interface GameListProps {
   filteredGames: Game[];
   getPlayCount: (game: Game) => number;
   setEditingId: (id: string | null) => void;
-  setFormData: (data: Partial<Game>) => void;
+  setFormData: React.Dispatch<React.SetStateAction<{ title: string, minPlayers: number, maxPlayers: number, bestMinPlayers: number, bestMaxPlayers: number, complexity: number, memo: string, genres: string[] }>>;
   setIsAdding: (val: boolean) => void;
   setItemToDelete: (val: { id: string, title: string }) => void;
 }
@@ -50,7 +50,7 @@ export default function GameList({
                 <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-slate-500 rounded-full" 
-                    style={{ width: `${(game.complexity / 5) * 100}%` }}
+                    style={{ width: `${((game.complexity ?? 0) / 5) * 100}%` }}
                   />
                 </div>
                 <span className="text-xs font-black text-navy w-6 text-right">{Number(game.complexity).toFixed(1)}</span>

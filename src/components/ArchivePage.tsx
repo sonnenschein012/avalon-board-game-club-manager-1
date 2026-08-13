@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PageHeader from './PageHeader';
 import { BarChart } from 'lucide-react';
 import { useArchiveLogic } from '../hooks/useArchiveLogic';
@@ -21,7 +21,6 @@ const DIFFICULTY_RANGES = [
 export default function ArchivePage() {
   const {
     games,
-    members,
     selectedSemester,
     setSelectedSemester,
     availableSemesters,

@@ -130,7 +130,7 @@ export function importAttendeesFile(
         const importId = Math.random().toString(36).substring(7);
         let count = 0;
         const wokenUpNames: string[] = [];
-        const operations: any[] = [];
+        const operations: Parameters<typeof commitBatchesInChunks>[1] = [];
 
         attendees.forEach(a => {
           operations.push({ type: 'delete', ref: doc(db, 'attendees', a.id) });

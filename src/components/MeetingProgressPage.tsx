@@ -119,7 +119,7 @@ export default function MeetingProgressPage({ onSidebarToggle }: { onSidebarTogg
           boardHeight={boardHeight}
           customTitle={customTitle}
           setCustomTitle={setCustomTitle}
-          selectedDate={selectedDate}
+          selectedDate={selectedDate ?? ''}
           guides={guides}
           setGuides={setGuides}
           dailyPlanning={dailyPlanning}
@@ -161,4 +161,3 @@ export default function MeetingProgressPage({ onSidebarToggle }: { onSidebarTogg
     </div>
   );
 }
-

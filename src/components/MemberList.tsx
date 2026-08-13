@@ -12,7 +12,7 @@ interface MemberListProps {
   setEditingId: (id: string | null) => void;
   setViewingMember: (member: Member | null) => void;
   setItemToDelete: (val: { id: string, name: string }) => void;
-  setFormData: (data: MemberFormData) => void;
+  setFormData: React.Dispatch<React.SetStateAction<MemberFormData>>;
   setIsAdding: (val: boolean) => void;
   formData: MemberFormData;
   handleSubmit: (e: React.FormEvent) => void;

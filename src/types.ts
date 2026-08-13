@@ -82,3 +82,97 @@ export interface Admin {
   role: 'master' | 'admin';
   createdAt: Timestamp;
 }
+
+export type InterviewRoundStatus = 'draft' | 'collecting' | 'closed' | 'interviewing' | 'finished';
+
+export interface InterviewMessageTemplates {
+  availability: string;
+  reminder: string;
+  confirmation: string;
+}
+
+export interface InterviewRound {
+  id: string;
+  name: string;
+  surveyOpensAt: Timestamp;
+  surveyClosesAt: Timestamp;
+  interviewDates: string[];
+  dayStartTime: string;
+  dayEndTime: string;
+  availabilitySlotMinutes: number;
+  assignmentSlotMinutes: number;
+  status: InterviewRoundStatus;
+  instructions: string;
+  messageTemplates: InterviewMessageTemplates;
+  allowedSlots: string[];
+  schemaVersion: 1;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface InterviewPublicRound {
+  id: string;
+  name: string;
+  surveyOpensAt: Timestamp;
+  surveyClosesAt: Timestamp;
+  interviewDates: string[];
+  dayStartTime: string;
+  dayEndTime: string;
+  availabilitySlotMinutes: number;
+  status: InterviewRoundStatus;
+  instructions: string;
+  allowedSlots: string[];
+  active: boolean;
+  schemaVersion: 1;
+  updatedAt: Timestamp;
+}
+
+export interface InterviewApplicationField {
+  header: string;
+  value: string;
+}
+
+export interface InterviewMessageStatus {
+  firstMarkedSentAt: Timestamp | null;
+  lastMarkedSentAt: Timestamp | null;
+  assignmentRevision?: number;
+}
+
+export interface InterviewAssignment {
+  slotId?: string;
+  startsAt: Timestamp;
+  durationMinutes: number;
+  interviewerId: string;
+  confirmationRevision?: number;
+}
+
+export interface InterviewApplicant {
+  id: string;
+  roundId: string;
+  applicantNumber: string;
+  name: string;
+  phone: string;
+  applicationData: InterviewApplicationField[];
+  accessToken: string;
+  sourceRowNumber: number;
+  availabilityMessage: InterviewMessageStatus;
+  reminderMessage?: InterviewMessageStatus;
+  confirmationMessage: InterviewMessageStatus;
+  assignment: InterviewAssignment | null;
+  assignmentRevision?: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface InterviewAccess {
+  id: string;
+  roundId: string;
+  applicantId: string;
+  displayName: string;
+  availability: string[];
+  submittedAt: Timestamp | null;
+  updatedAt: Timestamp | null;
+  responseUpdatedAt?: Timestamp | null;
+  active: boolean;
+  createdAt: Timestamp;
+}

@@ -56,8 +56,8 @@ function calculatePairEffects(gMems: Member[], ctx: CostCalculationContext): { r
   let requestReward = 0;
   for (let i = 0; i < gMems.length; i++) {
     for (let j = i + 1; j < gMems.length; j++) {
-      const id1 = gMems[i].id;
-      const id2 = gMems[j].id;
+      const id1 = gMems[i]!.id;
+      const id2 = gMems[j]!.id;
       const pair = [id1, id2].sort().join('|');
       
       if ((ctx.memberPairRecentCounts[pair] || 0) >= 2) reunionPenalty += 2;

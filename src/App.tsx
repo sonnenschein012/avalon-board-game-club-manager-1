@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth, signInWithGoogle, logout, testConnection, checkAdminStatus } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart } from 'lucide-react';
+import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart, CalendarClock } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { StoredSessionGroup } from './types';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
@@ -20,6 +20,9 @@ import ArchivePage from './components/ArchivePage';
 import AvalonLogo from './components/AvalonLogo';
 import Sidebar from './components/Sidebar';
 import LoginGate from './components/LoginGate';
+import InterviewRoundsPage from './components/InterviewRoundsPage';
+import InterviewRoundPage from './components/InterviewRoundPage';
+import PublicInterviewPage from './components/PublicInterviewPage';
 
 const PrivateRoute = ({ user, isAdmin, children }: { user: User | null; isAdmin: boolean; children: React.ReactNode }) => {
   if (!user || !isAdmin) {
@@ -65,7 +68,9 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    testConnection();
+    if (!window.location.pathname.startsWith('/interview/')) {
+      testConnection();
+    }
     
     const handleAdminModeToggle = () => {
       setIsAdminModeActive(prev => {
@@ -100,7 +105,9 @@ export default function App() {
     };
   }, []);
 
-  if (loading) {
+  const isPublicInterviewRoute = location.pathname.startsWith('/interview/');
+
+  if (loading && !isPublicInterviewRoute) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-white">
         <div className="animate-pulse space-y-4 text-center">
@@ -120,9 +127,10 @@ export default function App() {
     { id: 'meeting', label: '모임 진행 및 추천', icon: PlayCircle, category: 'Operations', path: '/meeting' },
     { id: 'sessions', label: '세션 기록', icon: History, category: 'Operations', path: '/sessions' },
     { id: 'archive', label: '통계 및 아카이브', icon: BarChart, category: 'Operations', path: '/archive' },
+    { id: 'interviews', label: '신입부원 면접', icon: CalendarClock, category: 'Operations', path: '/interviews' },
   ];
 
-  const currentTab = tabs.find(t => t.path === location.pathname) || { label: '설정 및 내보내기' };
+  const currentTab = tabs.find(t => t.path === location.pathname || (t.path !== '/' && location.pathname.startsWith(`${t.path}/`))) || { label: '설정 및 내보내기' };
 
   const protectedLayout = (children: React.ReactNode) => (
     <div className="min-h-screen flex flex-col md:flex-row bg-white text-navy pb-16 md:pb-0">
@@ -136,7 +144,6 @@ export default function App() {
 
       {/* Content Area */}
       <main className="flex-1 overflow-auto flex flex-col w-full md:w-auto">
-        <Toaster position="bottom-right" />
         <header className="h-14 md:h-16 bg-white border-b border-slate-100 md:border-transparent px-4 md:px-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-widest">
             <span>Admin</span>
@@ -185,7 +192,9 @@ export default function App() {
   );
 
   return (
-    <Routes>
+    <>
+      <Toaster position="bottom-right" />
+      <Routes>
       <Route path="/" element={
         !user || !isAdmin ? (
           <LoginGate
@@ -225,12 +234,24 @@ export default function App() {
           {protectedLayout(<ArchivePage />)}
         </PrivateRoute>
       } />
+      <Route path="/interviews" element={
+        <PrivateRoute user={user} isAdmin={isAdmin}>
+          {protectedLayout(<InterviewRoundsPage />)}
+        </PrivateRoute>
+      } />
+      <Route path="/interviews/:roundId" element={
+        <PrivateRoute user={user} isAdmin={isAdmin}>
+          {protectedLayout(<InterviewRoundPage />)}
+        </PrivateRoute>
+      } />
+      <Route path="/interview/:token" element={<PublicInterviewPage />} />
       <Route path="/settings" element={
         <PrivateRoute user={user} isAdmin={isAdmin}>
           {protectedLayout(<SettingsPage isAdminModeActive={isAdminModeActive} setIsAdminModeActive={setIsAdminModeActive} isMasterAdmin={isMasterAdmin} />)}
         </PrivateRoute>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

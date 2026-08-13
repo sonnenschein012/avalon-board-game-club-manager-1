@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-Last verified against codebase: 2026-06-20
+Last verified against codebase: 2026-08-13
 *(Update this marker whenever the layer structure changes.)*
 
 This document provides the primary architectural guidelines that AI agents and human developers MUST read before modifying this codebase.
@@ -93,3 +93,14 @@ This codebase assumes the following ESLint rules to protect layer boundaries:
 2. **Violation Condition:** Attempting to import `src/services/**` or `firebase/**` paths from inside `src/domain/**` files.
 3. **Error Message:** `"Domain layer must be strictly pure. Do not import services or Firebase directly into the domain."`
 4. **Action Required:** When AI agents encounter this error, they MUST NOT use forced bypasses (`eslint-disable`). Instead, immediately abandon the file design and refactor to delegate the responsibility to `src/hooks/`.
+
+## 7. Interview Management Vertical Slice
+
+The interview feature follows the same existing layers without adding a repository or backend server:
+
+- `src/components/Interview*.tsx`, `PublicInterviewPage.tsx`, `AvailabilityGrid.tsx`: admin and token-page UI
+- `src/hooks/useInterview*.ts`, `usePublicInterviewLogic.ts`: realtime state and use-case orchestration
+- `src/domain/interviews/`: pure slot generation, availability aggregation/validation, schedule impact, CSV staging, and message rendering
+- `src/services/interviewsService.ts`, `publicInterviewService.ts`: Firestore and browser I/O
+
+Slot IDs are timezone-free local values in the canonical `YYYY-MM-DD|HH:mm` form. Do not pass them directly to `new Date(...)`; parse them first. Assignments retain that `slotId`, store an absolute Asia/Seoul Firestore timestamp, and include `interviewerId`. V1 writes `interviewerId: "default"`, while the field permits later expansion to multiple individual interviewers without changing the assignment shape. `interviewAssignmentLocks` is an admin-only transaction lock keyed by round, individual interviewer, and slot; it prevents two admins from committing the same interviewer time concurrently.
