@@ -4,6 +4,8 @@ export type InterviewMessagePlaceholder =
   | 'deadline'
   | 'interviewDate'
   | 'interviewTime'
+  | 'oldInterviewDate'
+  | 'oldInterviewTime'
   | 'roundName';
 
 export type InterviewMessagePlaceholders = Partial<Record<InterviewMessagePlaceholder, string>>;
@@ -14,6 +16,8 @@ const SUPPORTED_PLACEHOLDERS = new Set<InterviewMessagePlaceholder>([
   'deadline',
   'interviewDate',
   'interviewTime',
+  'oldInterviewDate',
+  'oldInterviewTime',
   'roundName',
 ]);
 

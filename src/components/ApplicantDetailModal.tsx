@@ -5,6 +5,7 @@ import type { InterviewRound } from '../types';
 import type { InterviewApplicantWithAccess } from '../services/interviewsService';
 import { renderInterviewMessage } from '../domain/interviews/messages';
 import { parseSlotId } from '../domain/interviews/scheduling';
+import { summarizeAvailabilitySlots } from '../domain/interviews/availabilitySummary';
 
 interface ApplicantDetailModalProps {
   applicant: InterviewApplicantWithAccess | null;
@@ -45,16 +46,26 @@ function getAssignmentParts(applicant: InterviewApplicantWithAccess | null) {
   };
 }
 
+function getStoredAssignmentParts(assignment: InterviewApplicantWithAccess['assignment']) {
+  const date = assignment?.startsAt.toDate();
+  const parsed = assignment?.slotId ? parseSlotId(assignment.slotId) : null;
+  return {
+    date: parsed?.date ?? (date ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(date) : ''),
+    time: parsed?.time ?? (date ? new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }).format(date) : ''),
+  };
+}
+
 export default function ApplicantDetailModal({ applicant, round, onClose, onMarkSent }: ApplicantDetailModalProps) {
   const [pendingMessageKind, setPendingMessageKind] = useState<'availability' | 'reminder' | 'confirmation' | null>(null);
   const messages = useMemo(() => {
     if (!applicant) return { availability: '', reminder: '', confirmation: '' };
     const assignmentParts = getAssignmentParts(applicant);
-    const placeholders = { name: applicant.name, link: applicant.link, deadline: round.surveyClosesAt.toDate().toLocaleString('ko-KR'), interviewDate: assignmentParts.date, interviewTime: assignmentParts.time, roundName: round.name };
+    const previousParts = getStoredAssignmentParts(applicant.previousAssignment ?? null);
+    const placeholders = { name: applicant.name, link: applicant.link, deadline: round.surveyClosesAt.toDate().toLocaleString('ko-KR'), interviewDate: assignmentParts.date, interviewTime: assignmentParts.time, oldInterviewDate: previousParts.date, oldInterviewTime: previousParts.time, roundName: round.name };
     return {
       availability: renderInterviewMessage(round.messageTemplates.availability, placeholders),
       reminder: renderInterviewMessage(round.messageTemplates.reminder, placeholders),
-      confirmation: renderInterviewMessage(round.messageTemplates.confirmation, placeholders),
+      confirmation: renderInterviewMessage(applicant.previousAssignment ? round.messageTemplates.reschedule : round.messageTemplates.confirmation, placeholders),
     };
   }, [applicant, round]);
   if (!applicant) return null;
@@ -68,10 +79,7 @@ export default function ApplicantDetailModal({ applicant, round, onClose, onMark
       toast.error(`${label}을(를) 복사하지 못했습니다.`);
     }
   };
-  const selectedAvailability = applicant.access?.availability.map(slot => {
-    const parsed = parseSlotId(slot);
-    return parsed ? `${parsed.date} ${parsed.time}` : slot;
-  }) ?? [];
+  const selectedAvailability = summarizeAvailabilitySlots(applicant.access?.availability ?? [], round.availabilitySlotMinutes);
 
   const toggleSentStatus = async (
     kind: 'availability' | 'reminder' | 'confirmation',
@@ -98,7 +106,7 @@ export default function ApplicantDetailModal({ applicant, round, onClose, onMark
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><div><h2 className="text-lg font-black text-navy">{applicant.name}</h2><p className="text-xs text-slate-400">{applicant.applicantNumber} · {applicant.phone}</p></div><button onClick={onClose} className="p-2 text-slate-400"><X size={18} /></button></div><div className="space-y-5 p-5">
     <section className="grid gap-2 sm:grid-cols-3"><button onClick={() => copyWithFeedback(applicant.phone, '전화번호')} className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-navy"><Phone size={14} />전화번호 복사</button><button onClick={() => copyWithFeedback(applicant.link, '개인 링크')} className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-navy"><Copy size={14} />개인 링크 복사</button><a href={applicant.link} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-navy"><ExternalLink size={14} />링크 열기</a></section>
-    <section className="grid gap-3 rounded-2xl bg-indigo-50 p-4 text-xs sm:grid-cols-2"><div><p className="font-bold text-slate-400">가능시간 응답</p><p className="mt-1 font-black text-navy">{applicant.access?.submittedAt ? '응답 완료' : '미응답'}</p><p className="mt-1 text-slate-500">지원자 최종 수정 {formatTimestamp(applicant.access?.responseUpdatedAt ?? applicant.access?.updatedAt)}</p></div><div><p className="font-bold text-slate-400">최종 면접시간</p><p className="mt-1 font-black text-navy">{applicant.assignment ? `${assignmentParts.date} ${assignmentParts.time} KST` : '미배정'}</p></div><div className="sm:col-span-2"><p className="font-bold text-slate-400">선택한 시간</p><p className="mt-1 leading-5 text-slate-600">{selectedAvailability.join(', ') || '-'}</p></div></section>
+    <section className="grid gap-3 rounded-2xl bg-indigo-50 p-4 text-xs sm:grid-cols-2"><div><p className="font-bold text-slate-400">가능시간 응답</p><p className="mt-1 font-black text-navy">{applicant.access?.submittedAt ? '응답 완료' : '미응답'}</p><p className="mt-1 text-slate-500">지원자 최종 수정 {formatTimestamp(applicant.access?.responseUpdatedAt ?? applicant.access?.updatedAt)}</p></div><div><p className="font-bold text-slate-400">최종 면접시간</p><p className="mt-1 font-black text-navy">{applicant.assignment ? `${assignmentParts.date} ${assignmentParts.time} KST` : '미배정'}</p></div><div className="space-y-2 sm:col-span-2"><p className="font-bold text-slate-400">선택한 가능시간</p>{selectedAvailability.length > 0 ? selectedAvailability.map(row => <div key={row.dateKey} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 rounded-xl bg-white/80 px-3 py-2"><span className="font-black text-navy">{row.dateLabel}</span><span className="font-medium leading-5 text-slate-600">{row.ranges.join(', ')}</span></div>) : <p className="rounded-xl bg-white/80 px-3 py-2 text-slate-500">선택한 시간이 없습니다.</p>}</div></section>
     <section className="rounded-2xl border border-slate-100 p-4"><h3 className="mb-3 text-xs font-black text-navy">지원서 원본 정보</h3><dl className="grid gap-3 sm:grid-cols-2">{applicant.applicationData.map((field, index) => <div key={`${field.header}-${index}`}><dt className="text-[10px] font-bold text-slate-400">{field.header || `(열 ${index + 1})`}</dt><dd className="whitespace-pre-wrap text-sm text-slate-700">{field.value || '-'}</dd></div>)}</dl></section>
     {(['availability', 'reminder', 'confirmation'] as const).map(kind => {
       const message = messages[kind];
@@ -118,7 +126,7 @@ export default function ApplicantDetailModal({ applicant, round, onClose, onMark
         ? '가능시간 조사 안내'
         : kind === 'reminder'
           ? '미응답 재안내'
-          : '최종 면접 안내';
+          : applicant.previousAssignment ? '일정 변경 안내' : '최종 면접 안내';
       return <section key={kind} className="rounded-2xl bg-slate-50 p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-black text-navy">{title}</h3>

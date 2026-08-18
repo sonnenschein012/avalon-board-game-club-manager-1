@@ -85,10 +85,22 @@ export interface Admin {
 
 export type InterviewRoundStatus = 'draft' | 'collecting' | 'closed' | 'interviewing' | 'finished';
 
+export interface InterviewDaySchedule {
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface InterviewQuestion {
+  id: string;
+  text: string;
+}
+
 export interface InterviewMessageTemplates {
   availability: string;
   reminder: string;
   confirmation: string;
+  reschedule: string;
 }
 
 export interface InterviewRound {
@@ -104,8 +116,12 @@ export interface InterviewRound {
   status: InterviewRoundStatus;
   instructions: string;
   messageTemplates: InterviewMessageTemplates;
+  interviewQuestions: InterviewQuestion[];
   allowedSlots: string[];
-  schemaVersion: 1;
+  daySchedules: InterviewDaySchedule[];
+  timeZone: 'Asia/Seoul';
+  scheduleRevision: number;
+  schemaVersion: 2;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -123,7 +139,10 @@ export interface InterviewPublicRound {
   instructions: string;
   allowedSlots: string[];
   active: boolean;
-  schemaVersion: 1;
+  daySchedules: InterviewDaySchedule[];
+  timeZone: 'Asia/Seoul';
+  scheduleRevision: number;
+  schemaVersion: 2;
   updatedAt: Timestamp;
 }
 
@@ -143,8 +162,23 @@ export interface InterviewAssignment {
   startsAt: Timestamp;
   durationMinutes: number;
   interviewerId: string;
+  interviewerName: string;
+  status: InterviewAssignmentStatus;
+  locked: boolean;
+  source: 'manual' | 'automatic';
   confirmationRevision?: number;
 }
+
+export type InterviewAssignmentStatus =
+  | 'scheduled'
+  | 'confirmed'
+  | 'change_requested'
+  | 'completed'
+  | 'no_show'
+  | 'cancelled'
+  | 'needs_reschedule';
+
+export type InterviewApplicantLifecycle = 'active' | 'archived';
 
 export interface InterviewApplicant {
   id: string;
@@ -154,14 +188,76 @@ export interface InterviewApplicant {
   phone: string;
   applicationData: InterviewApplicationField[];
   accessToken: string;
-  sourceRowNumber: number;
+  sourceRowNumber: number | null;
+  source: 'manual' | 'csv';
+  lifecycle: InterviewApplicantLifecycle;
+  archivedAt: Timestamp | null;
+  archivedReason: string | null;
   availabilityMessage: InterviewMessageStatus;
   reminderMessage?: InterviewMessageStatus;
   confirmationMessage: InterviewMessageStatus;
   assignment: InterviewAssignment | null;
+  previousAssignment?: InterviewAssignment | null;
   assignmentRevision?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface InterviewerProfile {
+  id: string;
+  name: string;
+  email: string | null;
+  active: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface InterviewRoundInterviewer {
+  id: string;
+  roundId: string;
+  interviewerId: string;
+  displayName: string;
+  email: string | null;
+  availability: string[];
+  active: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface InterviewChangeRequest {
+  id: string;
+  roundId: string;
+  applicantId: string;
+  applicantName: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  reason: string;
+  requestedAt: Timestamp;
+  resolvedAt: Timestamp | null;
+  resolvedBy: string | null;
+}
+
+export interface InterviewAssignmentEvent {
+  id: string;
+  roundId: string;
+  applicantId: string;
+  type: 'assigned' | 'changed' | 'unassigned' | 'status_changed' | 'locked' | 'unlocked';
+  previousAssignment: InterviewAssignment | null;
+  nextAssignment: InterviewAssignment | null;
+  createdAt: Timestamp;
+  createdBy: string | null;
+}
+
+export interface InterviewNote {
+  id: string;
+  roundId: string;
+  applicantId: string;
+  interviewerId: string;
+  interviewerName: string;
+  generalNotes: string;
+  answers: Record<string, string>;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  updatedBy: string | null;
 }
 
 export interface InterviewAccess {
@@ -174,5 +270,12 @@ export interface InterviewAccess {
   updatedAt: Timestamp | null;
   responseUpdatedAt?: Timestamp | null;
   active: boolean;
+  assignmentSummary?: {
+    slotId: string;
+    interviewerName: string;
+    status: InterviewAssignmentStatus;
+    revision: number;
+  } | null;
+  changeRequestStatus?: 'none' | 'open' | 'resolved' | 'dismissed';
   createdAt: Timestamp;
 }

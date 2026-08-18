@@ -163,6 +163,10 @@ describe('interview scheduling domain', () => {
       startsAt: Timestamp.fromDate(new Date(iso)),
       durationMinutes,
       interviewerId,
+      interviewerName: interviewerId,
+      status: 'scheduled' as const,
+      locked: false,
+      source: 'manual' as const,
     });
 
     expect(assignmentsOverlap(
@@ -185,6 +189,10 @@ describe('interview scheduling domain', () => {
       startsAt: Timestamp.fromDate(new Date('2026-08-27T10:00:00.000Z')),
       durationMinutes,
       interviewerId: 'default',
+      interviewerName: 'default',
+      status: 'scheduled' as const,
+      locked: false,
+      source: 'manual' as const,
     });
     expect(getAssignmentScheduleImpact(
       ['2026-08-27|19:00'],

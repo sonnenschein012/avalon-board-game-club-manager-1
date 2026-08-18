@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
-import type { InterviewAccess, InterviewApplicant, InterviewAssignment, InterviewRound } from '../types';
+import type { InterviewAccess, InterviewApplicant, InterviewAssignment, InterviewChangeRequest, InterviewRound, InterviewRoundInterviewer } from '../types';
 import {
   aggregateAvailability as aggregateAvailabilityResponses,
   assignmentsOverlap,
@@ -11,18 +11,32 @@ import {
   parseSlotId,
 } from '../domain/interviews/scheduling';
 import {
+  addRoundInterviewer,
+  applyInterviewAssignmentProposals,
   applyInterviewScheduleChange,
+  createInterviewApplicant,
   getInterviewLink,
-  getInterviewRound,
-  importInterviewApplicants,
   markInterviewMessageSent,
+  mergeInterviewApplicants,
+  removeRoundInterviewer,
+  resolveInterviewChangeRequest,
   saveInterviewAssignment,
+  setInterviewApplicantArchived,
   subscribeInterviewAccess,
   subscribeInterviewApplicants,
+  subscribeInterviewChangeRequests,
+  subscribeInterviewRound,
+  subscribeRoundInterviewers,
+  updateInterviewApplicant,
+  updateInterviewAssignmentState,
+  updateRoundInterviewerAvailability,
+  type ApplicantDraft,
   type ApplicantImportRow,
   type InterviewApplicantWithAccess,
   type InterviewRoundDraft,
 } from '../services/interviewsService';
+import { previewApplicantMerge } from '../domain/interviews/applicantMerge';
+import { generateAutoAssignment, type AutoAssignmentMode, type AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 
 export type InterviewApplicantFilter =
   | 'all'
@@ -34,28 +48,29 @@ export type InterviewApplicantFilter =
   | 'availability-sent'
   | 'availability-sent-pending'
   | 'confirmation-unsent'
-  | 'confirmation-sent';
+  | 'confirmation-sent'
+  | 'archived';
 
 export function useInterviewRoundLogic(roundId: string) {
   const [round, setRound] = useState<InterviewRound | null>(null);
   const [applicants, setApplicants] = useState<InterviewApplicant[]>([]);
   const [access, setAccess] = useState<InterviewAccess[]>([]);
   const [loading, setLoading] = useState(true);
+  const [interviewers, setInterviewers] = useState<InterviewRoundInterviewer[]>([]);
+  const [changeRequests, setChangeRequests] = useState<InterviewChangeRequest[]>([]);
+  const [autoDraft, setAutoDraft] = useState<AutoAssignmentResult | null>(null);
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
-    let alive = true;
-    getInterviewRound(roundId).then(value => {
-      if (alive) { setRound(value); setLoading(false); }
-    }).catch(error => {
-      console.error(error);
-      toast.error('면접 회차를 불러오지 못했습니다.');
-      if (alive) setLoading(false);
+    const stopRound = subscribeInterviewRound(roundId, value => { setRound(value); setLoading(false); }, error => {
+      console.error(error); toast.error('면접 회차를 불러오지 못했습니다.'); setLoading(false);
     });
     const stopApplicants = subscribeInterviewApplicants(roundId, setApplicants, console.error);
     const stopAccess = subscribeInterviewAccess(roundId, setAccess, console.error);
-    return () => { alive = false; stopApplicants(); stopAccess(); };
+    const stopInterviewers = subscribeRoundInterviewers(roundId, setInterviewers, console.error);
+    const stopRequests = subscribeInterviewChangeRequests(roundId, setChangeRequests, console.error);
+    return () => { stopRound(); stopApplicants(); stopAccess(); stopInterviewers(); stopRequests(); };
   }, [roundId]);
 
   const joinedApplicants = useMemo<InterviewApplicantWithAccess[]>(() => {
@@ -70,6 +85,9 @@ export function useInterviewRoundLogic(roundId: string) {
   const filteredApplicants = useMemo(() => joinedApplicants.filter(applicant => {
     const q = search.trim().toLowerCase();
     if (q && !`${applicant.applicantNumber} ${applicant.name} ${applicant.phone}`.toLowerCase().includes(q)) return false;
+    const lifecycle = applicant.lifecycle ?? 'active';
+    if (filter === 'archived') return lifecycle === 'archived';
+    if (lifecycle === 'archived') return false;
     const responded = Boolean(applicant.access?.submittedAt);
     const availabilitySent = Boolean(applicant.availabilityMessage.firstMarkedSentAt);
     const confirmationSent = Boolean(applicant.confirmationMessage.firstMarkedSentAt);
@@ -100,17 +118,22 @@ export function useInterviewRoundLogic(roundId: string) {
     return result;
   }, [access, joinedApplicants, round]);
 
+  const previewImportRows = (rows: ApplicantImportRow[]) => previewApplicantMerge(
+    applicants.map(applicant => ({
+      id: applicant.id, applicantNumber: applicant.applicantNumber, name: applicant.name, phone: applicant.phone,
+      applicationData: applicant.applicationData, accessToken: applicant.accessToken,
+    })), rows,
+  );
+
   const importRows = async (rows: ApplicantImportRow[]) => {
-    const existingNumbers = new Set(applicants.map(applicant => applicant.applicantNumber.trim()));
-    const duplicates = rows.filter(row => existingNumbers.has(row.applicantNumber.trim()));
-    if (duplicates.length > 0) {
-      const examples = duplicates.slice(0, 5).map(row => row.applicantNumber).join(', ');
-      toast.error(`이미 등록된 지원번호가 있습니다: ${examples}${duplicates.length > 5 ? ' 외' : ''}`);
-      return false;
-    }
+    const preview = previewImportRows(rows);
+    if (preview.counts.review > 0) { toast.error('확인이 필요한 행을 먼저 수정해주세요.'); return false; }
     try {
-      const count = await importInterviewApplicants(roundId, rows);
-      toast.success(`${count}명의 지원자를 등록했습니다.`);
+      const result = await mergeInterviewApplicants(roundId, preview.items.flatMap(item => {
+        if (item.action !== 'create' && item.action !== 'update') return [];
+        return [{ ...item.row, action: item.action, ...(item.existing ? { existingId: item.existing.id } : {}) }];
+      }));
+      toast.success(`신규 ${result.created}명 · 업데이트 ${result.updated}명을 반영했습니다.`);
       return true;
     } catch (error) {
       console.error(error);
@@ -135,7 +158,7 @@ export function useInterviewRoundLogic(roundId: string) {
     }
   };
 
-  const assignmentFromSlot = (slot: string): InterviewAssignment | null => {
+  const assignmentFromSlot = (slot: string, interviewer: InterviewRoundInterviewer, source: 'manual' | 'automatic' = 'manual'): InterviewAssignment | null => {
     if (!round) return null;
     const parsed = parseSlotId(slot);
     if (!parsed) return null;
@@ -143,21 +166,27 @@ export function useInterviewRoundLogic(roundId: string) {
       slotId: slot,
       startsAt: Timestamp.fromDate(new Date(`${parsed.date}T${parsed.time}:00+09:00`)),
       durationMinutes: round.assignmentSlotMinutes,
-      interviewerId: 'default',
+      interviewerId: interviewer.interviewerId,
+      interviewerName: interviewer.displayName,
+      status: 'scheduled',
+      locked: source === 'manual',
+      source,
     };
   };
 
-  const getAssignmentConflict = (slot: string, applicantId: string) => {
-    const assignment = assignmentFromSlot(slot);
+  const getAssignmentConflict = (slot: string, applicantId: string, interviewerId: string) => {
+    const interviewer = interviewers.find(item => item.interviewerId === interviewerId);
+    const assignment = interviewer ? assignmentFromSlot(slot, interviewer) : null;
     if (!assignment) return null;
     return joinedApplicants.find(other => (
       other.id !== applicantId
       && Boolean(other.assignment)
+      && !['no_show', 'cancelled', 'needs_reschedule'].includes(other.assignment!.status)
       && assignmentsOverlap(assignment, other.assignment!)
     )) ?? null;
   };
 
-  const assignApplicant = async (applicant: InterviewApplicantWithAccess, slot: string) => {
+  const assignApplicant = async (applicant: InterviewApplicantWithAccess, slot: string, interviewerId: string, lock = true) => {
     if (!round) return false;
     const candidates = availabilityToAssignmentCandidates(
       applicant.access?.availability ?? [],
@@ -168,14 +197,19 @@ export function useInterviewRoundLogic(roundId: string) {
       toast.error('지원자가 선택하지 않은 시간입니다.');
       return false;
     }
-    const assignment = assignmentFromSlot(slot);
+    const interviewer = interviewers.find(item => item.interviewerId === interviewerId && item.active);
+    if (!interviewer) { toast.error('면접관을 선택해주세요.'); return false; }
+    const interviewerCandidates = availabilityToAssignmentCandidates(interviewer.availability, round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+    if (!interviewerCandidates.includes(slot)) { toast.error('면접관이 가능하다고 등록하지 않은 시간입니다.'); return false; }
+    const assignment = assignmentFromSlot(slot, interviewer);
     if (!assignment) {
       toast.error('올바르지 않은 면접 시간입니다.');
       return false;
     }
-    const conflict = getAssignmentConflict(slot, applicant.id);
+    assignment.locked = lock;
+    const conflict = getAssignmentConflict(slot, applicant.id, interviewerId);
     if (conflict) {
-      toast.error(`기본 면접관 일정이 ${conflict.name} 지원자와 겹칩니다.`);
+      toast.error(`${interviewer.displayName} 면접관 일정이 ${conflict.name} 지원자와 겹칩니다.`);
       return false;
     }
     try {
@@ -252,11 +286,98 @@ export function useInterviewRoundLogic(roundId: string) {
     }
   };
 
+  const addApplicant = async (draft: ApplicantDraft) => {
+    try { await createInterviewApplicant(roundId, draft); toast.success('지원자를 추가했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '지원자를 추가하지 못했습니다.'); return false; }
+  };
+
+  const editApplicant = async (applicant: InterviewApplicantWithAccess, draft: ApplicantDraft) => {
+    try { await updateInterviewApplicant(applicant, draft); toast.success('지원자 정보를 수정했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '지원자 정보를 수정하지 못했습니다.'); return false; }
+  };
+
+  const archiveApplicant = async (applicant: InterviewApplicantWithAccess, archived: boolean) => {
+    try { await setInterviewApplicantArchived(applicant, archived); toast.success(archived ? '지원자를 보관 처리했습니다.' : '지원자를 복원했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error('지원자 상태를 바꾸지 못했습니다.'); return false; }
+  };
+
+  const addInterviewer = async (name: string, email?: string) => {
+    try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}) }); toast.success('면접관을 추가했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error('면접관을 추가하지 못했습니다.'); return false; }
+  };
+
+  const saveInterviewerAvailability = async (participantId: string, availability: string[]) => {
+    try { await updateRoundInterviewerAvailability(participantId, availability); toast.success('면접관 가능시간을 저장했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error('면접관 가능시간을 저장하지 못했습니다.'); return false; }
+  };
+
+  const removeInterviewer = async (participant: InterviewRoundInterviewer) => {
+    if (joinedApplicants.some(applicant => applicant.assignment?.interviewerId === participant.interviewerId)) {
+      toast.error('배정된 지원자가 있는 면접관은 먼저 일정을 변경해야 합니다.'); return false;
+    }
+    await removeRoundInterviewer(participant); toast.success('회차에서 면접관을 제외했습니다.'); return true;
+  };
+
+  const runAutoAssignment = (mode: AutoAssignmentMode, applicantId?: string) => {
+    if (!round) return null;
+    const result = generateAutoAssignment({
+      applicants: joinedApplicants.map(applicant => ({
+        id: applicant.id, name: applicant.name, availability: applicant.access?.availability ?? [],
+        lifecycle: applicant.lifecycle ?? 'active',
+        existingAssignment: applicant.assignment?.slotId ? {
+          slotId: applicant.assignment.slotId, interviewerId: applicant.assignment.interviewerId,
+          interviewerName: applicant.assignment.interviewerName, locked: applicant.assignment.locked,
+          source: applicant.assignment.source, status: applicant.assignment.status,
+        } : null,
+      })),
+      interviewers: interviewers.map(interviewer => ({
+        id: interviewer.interviewerId, name: interviewer.displayName, availability: interviewer.availability, active: interviewer.active,
+      })),
+      availabilitySlotMinutes: round.availabilitySlotMinutes,
+      assignmentSlotMinutes: round.assignmentSlotMinutes,
+      mode, ...(applicantId ? { applicantId } : {}),
+    });
+    setAutoDraft(result);
+    return result;
+  };
+
+  const applyAutoDraft = async () => {
+    if (!round || !autoDraft) return false;
+    try {
+      await applyInterviewAssignmentProposals(roundId, autoDraft.proposals.filter(proposal => !proposal.preserved).map(proposal => {
+        const parsed = parseSlotId(proposal.slotId)!;
+        const current = joinedApplicants.find(item => item.id === proposal.applicantId)?.assignment;
+        return {
+          applicantId: proposal.applicantId, slotId: proposal.slotId,
+          startsAt: Timestamp.fromDate(new Date(`${parsed.date}T${parsed.time}:00+09:00`)),
+          durationMinutes: round.assignmentSlotMinutes, interviewerId: proposal.interviewerId,
+          interviewerName: proposal.interviewerName, locked: proposal.locked,
+          source: proposal.preserved ? current?.source ?? 'manual' : 'automatic',
+          status: proposal.preserved ? current?.status ?? 'scheduled' : 'scheduled',
+        };
+      }));
+      toast.success('검토한 자동 배정 초안을 반영했습니다.'); setAutoDraft(null); return true;
+    } catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '자동 배정을 반영하지 못했습니다.'); return false; }
+  };
+
+  const changeAssignmentState = async (applicantId: string, patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>) => {
+    try { await updateInterviewAssignmentState(applicantId, patch); toast.success('면접 상태를 변경했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error('면접 상태를 변경하지 못했습니다.'); return false; }
+  };
+
+  const resolveChangeRequest = async (requestId: string, status: 'resolved' | 'dismissed') => {
+    await resolveInterviewChangeRequest(requestId, status); toast.success('변경 요청을 처리했습니다.');
+  };
+
   return {
     round,
     applicants: joinedApplicants,
     filteredApplicants,
     access,
+    interviewers,
+    changeRequests,
+    autoDraft,
+    setAutoDraft,
     aggregateAvailability,
     loading,
     filter,
@@ -264,11 +385,22 @@ export function useInterviewRoundLogic(roundId: string) {
     search,
     setSearch,
     importRows,
+    previewImportRows,
+    addApplicant,
+    editApplicant,
+    archiveApplicant,
     markSent,
     getAssignmentConflict,
     assignApplicant,
     clearAssignment,
     previewScheduleImpact,
     applySchedule,
+    addInterviewer,
+    saveInterviewerAvailability,
+    removeInterviewer,
+    runAutoAssignment,
+    applyAutoDraft,
+    changeAssignmentState,
+    resolveChangeRequest,
   };
 }

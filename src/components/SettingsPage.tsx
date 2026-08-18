@@ -55,8 +55,10 @@ export default function SettingsPage({
     }
     setAddingAdmin(true);
     try {
-      await setDoc(doc(db, 'admins', newAdminEmail), {
-        email: newAdminEmail,
+      const normalizedEmail = newAdminEmail.trim().toLowerCase();
+      await setDoc(doc(db, 'admins', normalizedEmail), {
+        email: normalizedEmail,
+        role: 'admin',
         createdAt: serverTimestamp()
       });
       toast.success(`${newAdminEmail} 관리자가 추가되었습니다.`);
@@ -64,7 +66,7 @@ export default function SettingsPage({
       fetchAdmins();
     } catch (e) {
       toast.error('관리자 추가에 실패했습니다.');
-      handleFirestoreError(e, OperationType.CREATE, `admins/${newAdminEmail}`);
+      handleFirestoreError(e, OperationType.CREATE, `admins/${newAdminEmail.trim().toLowerCase()}`);
     } finally {
       setAddingAdmin(false);
     }

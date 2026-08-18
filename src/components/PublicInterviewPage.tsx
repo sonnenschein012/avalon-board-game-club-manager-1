@@ -1,9 +1,10 @@
-import { CalendarClock, CheckCircle2, Clock3, Loader2, LockKeyhole, Save } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarClock, CheckCircle2, Clock3, Loader2, LockKeyhole, Save, Send } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import AvalonLogo from './AvalonLogo';
 import AvailabilityGrid from './AvailabilityGrid';
 import { usePublicInterviewLogic } from '../hooks/usePublicInterviewLogic';
-import { parseSlotId } from '../domain/interviews/scheduling';
+import { summarizeAvailabilitySlots, type AvailabilitySummaryRow } from '../domain/interviews/availabilitySummary';
 import { formatDateTime } from '../lib/utils';
 
 const STATE_MESSAGES = {
@@ -23,69 +24,13 @@ function getEndTime(time: string, slotMinutes: number) {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-interface SlotSummaryRow {
-  date: string;
-  ranges: string;
-}
-
-function timeToMinutes(time: string) {
-  const [hourText, minuteText] = time.split(':');
-  return Number(hourText) * 60 + Number(minuteText);
-}
-
-function minutesToTime(totalMinutes: number) {
-  const normalizedMinutes = totalMinutes % (24 * 60);
-  const hour = Math.floor(normalizedMinutes / 60);
-  const minute = normalizedMinutes % 60;
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-}
-
-function summarizeSlots(slots: Iterable<string>, slotMinutes: number): SlotSummaryRow[] {
-  const slotsByDate = new Map<string, number[]>();
-
-  Array.from(slots).sort().forEach((slotId) => {
-    const parsed = parseSlotId(slotId);
-    if (!parsed) return;
-    const times = slotsByDate.get(parsed.date) ?? [];
-    times.push(timeToMinutes(parsed.time));
-    slotsByDate.set(parsed.date, times);
-  });
-
-  return Array.from(slotsByDate.entries()).map(([date, times]) => {
-    const parsedDate = new Date(`${date}T00:00:00`);
-    const dateLabel = new Intl.DateTimeFormat('ko-KR', {
-      month: 'numeric',
-      day: 'numeric',
-      weekday: 'short',
-    }).format(parsedDate);
-    const mergedRanges = [...new Set(times)]
-      .sort((left, right) => left - right)
-      .reduce<Array<{ start: number; end: number }>>((ranges, start) => {
-        const previous = ranges.at(-1);
-        if (previous && previous.end === start) {
-          previous.end = start + slotMinutes;
-        } else {
-          ranges.push({ start, end: start + slotMinutes });
-        }
-        return ranges;
-      }, []);
-
-    return {
-      date: dateLabel,
-      ranges: mergedRanges
-        .map(({ start, end }) => `${minutesToTime(start)}~${minutesToTime(end)}`)
-        .join(', '),
-    };
-  });
-}
-
 function SlotSummary({
   label,
   rows,
   emptyText,
 }: {
   label: string;
-  rows: SlotSummaryRow[];
+  rows: AvailabilitySummaryRow[];
   emptyText: string;
 }) {
   return (
@@ -94,9 +39,9 @@ function SlotSummary({
       {rows.length > 0 ? (
         <div className="space-y-1.5">
           {rows.map((row) => (
-            <div key={row.date} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 rounded-xl bg-white/75 px-3 py-2">
-              <span className="font-bold text-slate-700">{row.date}</span>
-              <span className="font-medium text-slate-600">{row.ranges}</span>
+            <div key={row.dateKey} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 rounded-xl bg-white/75 px-3 py-2">
+              <span className="font-bold text-slate-700">{row.dateLabel}</span>
+              <span className="font-medium text-slate-600">{row.ranges.join(', ')}</span>
             </div>
           ))}
         </div>
@@ -109,7 +54,8 @@ function SlotSummary({
 
 export default function PublicInterviewPage() {
   const { token } = useParams<{ token: string }>();
-  const { access, round, availability, state, error, saving, saved, toggleSlot, submit } = usePublicInterviewLogic(token);
+  const { access, round, availability, state, error, saving, saved, requestingChange, toggleSlot, submit, requestChange } = usePublicInterviewLogic(token);
+  const [changeReason, setChangeReason] = useState('');
 
   const confirmAndSubmit = () => {
     const selectedCount = availability.size;
@@ -153,6 +99,15 @@ export default function PublicInterviewPage() {
           )}
         </header>
 
+        {access?.assignmentSummary && (
+          <section className="rounded-3xl border border-amber-100 bg-amber-50 p-5 shadow-sm sm:p-7">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Assigned interview</p>
+            <h2 className="mt-2 text-lg font-black text-navy">확정된 면접 일정</h2>
+            <p className="mt-2 text-sm font-bold text-slate-700">{access.assignmentSummary.slotId.replace('|', ' ')}</p>
+            {access.changeRequestStatus === 'open' ? <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm font-bold text-amber-700">일정 변경 요청이 접수되었습니다. 운영진 확인 전까지 기존 일정은 유지됩니다.</p> : !['completed', 'no_show', 'cancelled'].includes(access.assignmentSummary.status) && <div className="mt-4 space-y-2"><label className="block text-xs font-bold text-slate-600">일정 변경이 필요한 이유 (선택)<textarea value={changeReason} maxLength={500} onChange={event => setChangeReason(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="가능한 대체 시간이나 사유를 적어주세요." /></label><button disabled={requestingChange} onClick={async () => { if (!window.confirm('일정 변경을 요청할까요? 요청만 접수되며 기존 면접시간은 자동으로 바뀌지 않습니다.')) return; if (await requestChange(changeReason)) setChangeReason(''); }} className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">{requestingChange ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}변경 요청 보내기</button></div>}
+          </section>
+        )}
+
         {stateMessage && (
           <section className="rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-sm">
             <LockKeyhole className="mx-auto text-gold" size={34} />
@@ -173,12 +128,12 @@ export default function PublicInterviewPage() {
             <div className="space-y-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm leading-6 text-slate-600">
               <SlotSummary
                 label="이전에 저장한 시간"
-                rows={access.submittedAt ? summarizeSlots(access.availability, round.availabilitySlotMinutes) : []}
+                rows={access.submittedAt ? summarizeAvailabilitySlots(access.availability, round.availabilitySlotMinutes) : []}
                 emptyText={access.submittedAt ? '가능한 시간 없음' : '아직 저장한 응답이 없습니다.'}
               />
               <SlotSummary
                 label="현재 선택한 시간"
-                rows={summarizeSlots(availability, round.availabilitySlotMinutes)}
+                rows={summarizeAvailabilitySlots(availability, round.availabilitySlotMinutes)}
                 emptyText="선택한 시간이 없습니다."
               />
               <p className="border-t border-indigo-100 pt-2 text-xs text-slate-500">

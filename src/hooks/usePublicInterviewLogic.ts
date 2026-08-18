@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InterviewAccess, InterviewPublicRound } from '../types';
-import { savePublicAvailability, subscribeToPublicInterview } from '../services/publicInterviewService';
+import { requestPublicInterviewChange, savePublicAvailability, subscribeToPublicInterview } from '../services/publicInterviewService';
 import { getSurveyPhase } from '../domain/interviews/scheduling';
 
 type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'before' | 'collecting' | 'closed' | 'error';
@@ -38,6 +38,7 @@ export function usePublicInterviewLogic(token: string | undefined) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [requestingChange, setRequestingChange] = useState(false);
   const [saved, setSaved] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const localEditRef = useRef(false);
@@ -109,6 +110,14 @@ export function usePublicInterviewLogic(token: string | undefined) {
     }
   };
 
+  const requestChange = async (reason: string) => {
+    if (!token || !access?.assignmentSummary || requestingChange) return false;
+    setRequestingChange(true);
+    try { await requestPublicInterviewChange(token, access, reason); return true; }
+    catch { setSaveError('변경 요청을 보내지 못했습니다. 잠시 후 다시 시도해주세요.'); return false; }
+    finally { setRequestingChange(false); }
+  };
+
   return {
     access,
     round,
@@ -116,8 +125,10 @@ export function usePublicInterviewLogic(token: string | undefined) {
     state,
     error: loadError ?? saveError,
     saving,
+    requestingChange,
     saved,
     toggleSlot,
     submit,
+    requestChange,
   };
 }

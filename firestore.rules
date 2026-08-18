@@ -79,6 +79,36 @@ service cloud.firestore {
         hasValidSubmissionTimestamps();
     }
 
+    function isValidPublicChangeRequestAccessUpdate(token) {
+      return resource.data.active == true &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['changeRequestStatus']) &&
+        request.resource.data.changeRequestStatus == 'open' &&
+        getAfter(/databases/$(database)/documents/interviewChangeRequests/$(token)).data.status == 'open';
+    }
+
+    function isValidPublicChangeRequest(token) {
+      let access = get(/databases/$(database)/documents/interviewAccess/$(token));
+      return exists(/databases/$(database)/documents/interviewAccess/$(token)) &&
+        access.data.active == true &&
+        request.resource.data.keys().hasOnly([
+          'roundId', 'applicantId', 'applicantName', 'status', 'reason',
+          'requestedAt', 'resolvedAt', 'resolvedBy'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'roundId', 'applicantId', 'applicantName', 'status', 'reason',
+          'requestedAt', 'resolvedAt', 'resolvedBy'
+        ]) &&
+        request.resource.data.roundId == access.data.roundId &&
+        request.resource.data.applicantId == access.data.applicantId &&
+        request.resource.data.applicantName == access.data.displayName &&
+        request.resource.data.status == 'open' &&
+        request.resource.data.reason is string &&
+        request.resource.data.reason.size() <= 500 &&
+        request.resource.data.requestedAt == request.time &&
+        request.resource.data.resolvedAt == null &&
+        request.resource.data.resolvedBy == null;
+    }
+
     // 4. members, games, sessions, attendees: readable by all signed-in users, writable only by admins
     match /members/{memberId} {
       allow read: if isSignedIn();
@@ -148,6 +178,33 @@ service cloud.firestore {
       allow read, write: if canManageInterviews();
     }
 
+    match /interviewApplicantKeys/{keyId} {
+      allow read, write: if canManageInterviews();
+    }
+
+    match /interviewerProfiles/{profileId} {
+      allow read, write: if canManageInterviews();
+    }
+
+    match /interviewRoundInterviewers/{participantId} {
+      allow read, write: if canManageInterviews();
+    }
+
+    match /interviewAssignmentEvents/{eventId} {
+      allow read, write: if canManageInterviews();
+    }
+
+    // Interview notes can contain sensitive application answers and internal
+    // observations, so they are never exposed through an applicant token.
+    match /interviewNotes/{noteId} {
+      allow read, write: if canManageInterviews();
+    }
+
+    match /interviewChangeRequests/{token} {
+      allow read, delete: if canManageInterviews();
+      allow create, update: if canManageInterviews() || isValidPublicChangeRequest(token);
+    }
+
     // A public round can be fetched only by its exact document path while it is
     // active. Collection enumeration and all writes remain admin-only.
     match /interviewPublicRounds/{roundId} {
@@ -167,7 +224,7 @@ service cloud.firestore {
         resource.data.active == true;
       allow list: if canManageInterviews();
       allow create, delete: if canManageInterviews();
-      allow update: if canManageInterviews() || isValidPublicResponseUpdate();
+      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicChangeRequestAccessUpdate(token);
     }
 
     // 6. Default deny for all other paths

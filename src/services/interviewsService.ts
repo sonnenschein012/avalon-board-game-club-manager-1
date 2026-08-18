@@ -8,6 +8,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -15,13 +16,21 @@ import {
   type DocumentReference,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { getAssignmentScheduleImpact } from '../domain/interviews/scheduling';
+import { auth, db } from '../lib/firebase';
+import { availabilityToAssignmentCandidates, getAssignmentScheduleImpact } from '../domain/interviews/scheduling';
+import { normalizeApplicantNumber } from '../domain/interviews/applicantMerge';
 import type {
   InterviewAccess,
   InterviewApplicant,
   InterviewApplicationField,
   InterviewAssignment,
+  InterviewAssignmentStatus,
+  InterviewDaySchedule,
+  InterviewQuestion,
+  InterviewNote,
+  InterviewerProfile,
+  InterviewRoundInterviewer,
+  InterviewChangeRequest,
   InterviewPublicRound,
   InterviewRound,
   InterviewRoundStatus,
@@ -42,6 +51,8 @@ export interface InterviewRoundDraft {
   instructions: string;
   messageTemplates: InterviewRound['messageTemplates'];
   allowedSlots: string[];
+  daySchedules: InterviewDaySchedule[];
+  interviewQuestions: InterviewQuestion[];
 }
 
 export interface ApplicantImportRow {
@@ -52,16 +63,39 @@ export interface ApplicantImportRow {
   sourceRowNumber: number;
 }
 
+export interface ApplicantDraft {
+  applicantNumber: string;
+  name: string;
+  phone: string;
+  applicationData: InterviewApplicationField[];
+}
+
+export interface ApplicantMergeCommitItem extends ApplicantImportRow {
+  action: 'create' | 'update';
+  existingId?: string;
+}
+
+export interface RoundInterviewerDraft {
+  name: string;
+  email?: string | null;
+}
+
+export interface AssignmentProposalWrite {
+  applicantId: string;
+  slotId: string;
+  startsAt: Timestamp;
+  durationMinutes: number;
+  interviewerId: string;
+  interviewerName: string;
+  locked: boolean;
+  source: 'manual' | 'automatic';
+  status?: InterviewAssignmentStatus;
+}
+
 export interface InterviewApplicantWithAccess extends InterviewApplicant {
   access: InterviewAccess | null;
   link: string;
 }
-
-type WriteOperation = {
-  type: 'set' | 'update' | 'delete';
-  ref: DocumentReference;
-  data?: DocumentData;
-};
 
 function mapSnapshot<T extends { id: string }>(snapshot: { docs: Array<{ id: string; data(): DocumentData }> }): T[] {
   return snapshot.docs.map(item => ({ id: item.id, ...item.data() } as T));
@@ -79,33 +113,25 @@ function sharedRoundData(draft: InterviewRoundDraft) {
     status: draft.status,
     instructions: draft.instructions,
     allowedSlots: draft.allowedSlots,
-    schemaVersion: 1 as const,
+    daySchedules: draft.daySchedules,
+    timeZone: 'Asia/Seoul' as const,
+    schemaVersion: 2 as const,
   };
 }
 
-function publicRoundData(draft: InterviewRoundDraft): Omit<InterviewPublicRound, 'id' | 'updatedAt'> & { updatedAt: ReturnType<typeof serverTimestamp> } {
-  return { ...sharedRoundData(draft), active: true, updatedAt: serverTimestamp() };
+function publicRoundData(draft: InterviewRoundDraft, scheduleRevision: number): Omit<InterviewPublicRound, 'id' | 'updatedAt'> & { updatedAt: ReturnType<typeof serverTimestamp> } {
+  return { ...sharedRoundData(draft), scheduleRevision, active: true, updatedAt: serverTimestamp() };
 }
 
-function adminRoundData(draft: InterviewRoundDraft) {
+function adminRoundData(draft: InterviewRoundDraft, scheduleRevision: number) {
   return {
     ...sharedRoundData(draft),
+    scheduleRevision,
     assignmentSlotMinutes: draft.assignmentSlotMinutes,
     messageTemplates: draft.messageTemplates,
+    interviewQuestions: draft.interviewQuestions,
     updatedAt: serverTimestamp(),
   };
-}
-
-async function commitOperations(operations: WriteOperation[], chunkSize = 400) {
-  for (let offset = 0; offset < operations.length; offset += chunkSize) {
-    const batch = writeBatch(db);
-    for (const operation of operations.slice(offset, offset + chunkSize)) {
-      if (operation.type === 'delete') batch.delete(operation.ref);
-      else if (operation.type === 'update' && operation.data) batch.update(operation.ref, operation.data);
-      else if (operation.type === 'set' && operation.data) batch.set(operation.ref, operation.data);
-    }
-    await batch.commit();
-  }
 }
 
 export function generateInterviewToken(): string {
@@ -123,6 +149,14 @@ export function getInterviewLink(token: string): string {
 function getAssignmentLockId(roundId: string, assignment: Pick<InterviewAssignment, 'interviewerId' | 'slotId'>) {
   if (!assignment.slotId) throw new Error('면접 배정 슬롯 ID가 없습니다.');
   return [roundId, assignment.interviewerId, assignment.slotId].map(encodeURIComponent).join('__');
+}
+
+function getApplicantKeyId(roundId: string, applicantNumber: string) {
+  return [roundId, normalizeApplicantNumber(applicantNumber)].map(encodeURIComponent).join('__');
+}
+
+function actorEmail() {
+  return auth.currentUser?.email?.trim().toLowerCase() ?? null;
 }
 
 export function subscribeInterviewRounds(
@@ -143,7 +177,7 @@ export function subscribeInterviewApplicants(
 ): Unsubscribe {
   return onSnapshot(
     query(collection(db, 'interviewApplicants'), where('roundId', '==', roundId)),
-    snapshot => onData(mapSnapshot<InterviewApplicant>(snapshot).sort((a, b) => a.sourceRowNumber - b.sourceRowNumber)),
+    snapshot => onData(mapSnapshot<InterviewApplicant>(snapshot).sort((a, b) => (a.sourceRowNumber ?? Number.MAX_SAFE_INTEGER) - (b.sourceRowNumber ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name))),
     onError,
   );
 }
@@ -179,59 +213,24 @@ export async function getInterviewRound(roundId: string): Promise<InterviewRound
   return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewRound) : null;
 }
 
+export function subscribeInterviewRound(
+  roundId: string,
+  onData: (round: InterviewRound | null) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(doc(db, 'interviewRounds', roundId), snapshot => {
+    onData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewRound) : null);
+  }, onError);
+}
+
 export async function createInterviewRound(draft: InterviewRoundDraft): Promise<string> {
   const roundRef = doc(collection(db, 'interviewRounds'));
   const publicRef = doc(db, 'interviewPublicRounds', roundRef.id);
   const batch = writeBatch(db);
-  batch.set(roundRef, { ...adminRoundData(draft), createdAt: serverTimestamp() });
-  batch.set(publicRef, publicRoundData(draft));
+  batch.set(roundRef, { ...adminRoundData(draft, 1), createdAt: serverTimestamp() });
+  batch.set(publicRef, publicRoundData(draft, 1));
   await batch.commit();
   return roundRef.id;
-}
-
-export async function importInterviewApplicants(roundId: string, rows: ApplicantImportRow[]): Promise<number> {
-  const operations: WriteOperation[] = [];
-  for (const row of rows) {
-    const applicantRef = doc(collection(db, 'interviewApplicants'));
-    const token = generateInterviewToken();
-    operations.push({
-      type: 'set',
-      ref: applicantRef,
-      data: {
-        roundId,
-        applicantNumber: row.applicantNumber,
-        name: row.name,
-        phone: row.phone,
-        applicationData: row.applicationData,
-        accessToken: token,
-        sourceRowNumber: row.sourceRowNumber,
-        availabilityMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
-        reminderMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
-        confirmationMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null, assignmentRevision: 0 },
-        assignment: null,
-        assignmentRevision: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-    });
-    operations.push({
-      type: 'set',
-      ref: doc(db, 'interviewAccess', token),
-      data: {
-        roundId,
-        applicantId: applicantRef.id,
-        displayName: row.name,
-        availability: [],
-        submittedAt: null,
-        updatedAt: null,
-        responseUpdatedAt: null,
-        active: true,
-        createdAt: serverTimestamp(),
-      },
-    });
-  }
-  await commitOperations(operations);
-  return rows.length;
 }
 
 export async function markInterviewMessageSent(
@@ -243,25 +242,34 @@ export async function markInterviewMessageSent(
   const snapshot = await getDoc(applicantRef);
   if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
   const previous = snapshot.data()[kind] as InterviewApplicant[typeof kind] | undefined;
-  const currentAssignment = snapshot.data().assignment as InterviewAssignment | null | undefined;
-  const assignmentRevision = snapshot.data().assignmentRevision as number | undefined;
+  const applicant = snapshot.data() as InterviewApplicant;
+  const currentAssignment = applicant.assignment;
+  const assignmentRevision = applicant.assignmentRevision;
   if (!markedSent) {
-    await updateDoc(applicantRef, {
+    const batch = writeBatch(db);
+    batch.update(applicantRef, {
       [`${kind}.firstMarkedSentAt`]: null,
       [`${kind}.lastMarkedSentAt`]: null,
       ...(kind === 'confirmationMessage' ? { [`${kind}.assignmentRevision`]: 0 } : {}),
+      ...(kind === 'confirmationMessage' && currentAssignment ? { 'assignment.status': 'scheduled' } : {}),
       updatedAt: serverTimestamp(),
     });
+    if (kind === 'confirmationMessage' && currentAssignment) batch.update(doc(db, 'interviewAccess', applicant.accessToken), { 'assignmentSummary.status': 'scheduled' });
+    await batch.commit();
     return;
   }
-  await updateDoc(applicantRef, {
+  const batch = writeBatch(db);
+  batch.update(applicantRef, {
     [`${kind}.firstMarkedSentAt`]: previous?.firstMarkedSentAt ?? serverTimestamp(),
     [`${kind}.lastMarkedSentAt`]: serverTimestamp(),
     ...(kind === 'confirmationMessage'
       ? { [`${kind}.assignmentRevision`]: assignmentRevision ?? currentAssignment?.confirmationRevision ?? 0 }
       : {}),
+    ...(kind === 'confirmationMessage' && currentAssignment ? { 'assignment.status': 'confirmed' } : {}),
     updatedAt: serverTimestamp(),
   });
+  if (kind === 'confirmationMessage' && currentAssignment) batch.update(doc(db, 'interviewAccess', applicant.accessToken), { 'assignmentSummary.status': 'confirmed' });
+  await batch.commit();
 }
 
 export async function saveInterviewAssignment(
@@ -280,10 +288,25 @@ export async function saveInterviewAssignment(
     let nextLockRef: DocumentReference | null = null;
     if (nextAssignment) {
       nextLockRef = doc(db, 'interviewAssignmentLocks', getAssignmentLockId(applicant.roundId, nextAssignment));
-      const lockSnapshot = await transaction.get(nextLockRef);
+      const [lockSnapshot, roundSnapshot, accessSnapshot, participantSnapshot] = await Promise.all([
+        transaction.get(nextLockRef),
+        transaction.get(doc(db, 'interviewRounds', applicant.roundId)),
+        transaction.get(doc(db, 'interviewAccess', applicant.accessToken)),
+        transaction.get(doc(db, 'interviewRoundInterviewers', `${applicant.roundId}__${nextAssignment.interviewerId}`)),
+      ]);
       if (lockSnapshot.exists() && lockSnapshot.data().applicantId !== applicantId) {
         throw new Error('같은 면접관에게 이미 배정된 시간입니다.');
       }
+      if (!roundSnapshot.exists() || !accessSnapshot.exists() || !participantSnapshot.exists()) throw new Error('최신 면접 가능시간 정보를 찾을 수 없습니다.');
+      const round = roundSnapshot.data() as InterviewRound;
+      const access = accessSnapshot.data() as InterviewAccess;
+      const participant = participantSnapshot.data() as InterviewRoundInterviewer;
+      const applicantCandidates = availabilityToAssignmentCandidates(access.availability, round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+      const interviewerCandidates = availabilityToAssignmentCandidates(participant.availability, round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+      if (!participant.active || !nextAssignment.slotId || !applicantCandidates.includes(nextAssignment.slotId) || !interviewerCandidates.includes(nextAssignment.slotId)) {
+        throw new Error('지원자와 면접관의 최신 가능시간이 겹치지 않습니다.');
+      }
+      if (nextAssignment.durationMinutes !== round.assignmentSlotMinutes) throw new Error('현재 회차의 면접 배정 단위와 다릅니다.');
     }
 
     if (currentAssignment?.slotId) {
@@ -303,8 +326,158 @@ export async function saveInterviewAssignment(
     }
     transaction.update(applicantRef, {
       assignment: nextAssignment,
+      previousAssignment: currentAssignment ?? null,
       assignmentRevision: nextRevision,
       updatedAt: serverTimestamp(),
+    });
+    transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+      assignmentSummary: nextAssignment?.slotId ? {
+        slotId: nextAssignment.slotId,
+        interviewerName: nextAssignment.interviewerName,
+        status: nextAssignment.status,
+        revision: nextRevision,
+      } : null,
+    });
+    const eventRef = doc(collection(db, 'interviewAssignmentEvents'));
+    transaction.set(eventRef, {
+      roundId: applicant.roundId,
+      applicantId,
+      type: !currentAssignment && nextAssignment ? 'assigned' : currentAssignment && !nextAssignment ? 'unassigned' : 'changed',
+      previousAssignment: currentAssignment ?? null,
+      nextAssignment,
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+  });
+}
+
+export async function applyInterviewAssignmentProposals(
+  roundId: string,
+  proposals: AssignmentProposalWrite[],
+): Promise<number> {
+  const resourceKeys = proposals.map(proposal => `${proposal.interviewerId}|${proposal.slotId}`);
+  if (new Set(resourceKeys).size !== resourceKeys.length) throw new Error('초안 안에 면접관 시간 충돌이 있습니다.');
+  if (new Set(proposals.map(proposal => proposal.applicantId)).size !== proposals.length) throw new Error('한 지원자가 초안에 두 번 포함되어 있습니다.');
+  await runTransaction(db, async transaction => {
+    const applicantRefs = proposals.map(proposal => doc(db, 'interviewApplicants', proposal.applicantId));
+    const applicantSnapshots = await Promise.all(applicantRefs.map(ref => transaction.get(ref)));
+    const roundSnapshot = await transaction.get(doc(db, 'interviewRounds', roundId));
+    if (!roundSnapshot.exists()) throw new Error('면접 회차를 찾을 수 없습니다.');
+    const round = roundSnapshot.data() as InterviewRound;
+    const accessSnapshots = await Promise.all(applicantSnapshots.map(snapshot => {
+      const applicant = snapshot.data() as InterviewApplicant | undefined;
+      return applicant?.accessToken ? transaction.get(doc(db, 'interviewAccess', applicant.accessToken)) : Promise.resolve(null);
+    }));
+    const participantIds = [...new Set(proposals.map(proposal => proposal.interviewerId))];
+    const participantSnapshots = await Promise.all(participantIds.map(interviewerId => transaction.get(doc(db, 'interviewRoundInterviewers', `${roundId}__${interviewerId}`))));
+    const participantByInterviewer = new Map(participantSnapshots.filter(snapshot => snapshot.exists()).map(snapshot => {
+      const data = snapshot.data() as InterviewRoundInterviewer;
+      return [data.interviewerId, data] as const;
+    }));
+    const nextLockRefs = proposals.map(proposal => doc(db, 'interviewAssignmentLocks', getAssignmentLockId(roundId, proposal)));
+    const nextLockSnapshots = await Promise.all(nextLockRefs.map(ref => transaction.get(ref)));
+    const proposalByApplicant = new Map(proposals.map(proposal => [proposal.applicantId, proposal]));
+    nextLockSnapshots.forEach((snapshot, index) => {
+      const proposal = proposals[index];
+      const holderId = snapshot.data()?.applicantId as string | undefined;
+      const holderProposal = holderId ? proposalByApplicant.get(holderId) : undefined;
+      const holderMovesAway = holderProposal && proposal
+        ? `${holderProposal.interviewerId}|${holderProposal.slotId}` !== `${proposal.interviewerId}|${proposal.slotId}`
+        : false;
+      if (snapshot.exists() && holderId !== proposal?.applicantId && !holderMovesAway) {
+        throw new Error('검토 중 다른 운영진이 같은 면접관 시간에 배정했습니다. 자동 배정을 다시 실행해주세요.');
+      }
+    });
+    applicantSnapshots.forEach((applicantSnapshot, index) => {
+      const proposal = proposals[index];
+      if (!applicantSnapshot?.exists() || !proposal) return;
+      const current = (applicantSnapshot.data() as InterviewApplicant).assignment;
+      if (!current?.slotId) return;
+      const currentLockRef = doc(db, 'interviewAssignmentLocks', getAssignmentLockId(roundId, current));
+      if (currentLockRef.path !== nextLockRefs[index]?.path) transaction.delete(currentLockRef);
+    });
+    proposals.forEach((proposal, index) => {
+      const applicantSnapshot = applicantSnapshots[index];
+      if (!applicantSnapshot?.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+      const applicant = applicantSnapshot.data() as InterviewApplicant;
+      if (applicant.roundId !== roundId) throw new Error('다른 회차의 지원자가 포함되어 있습니다.');
+      const current = applicant.assignment;
+      const access = accessSnapshots[index]?.data() as InterviewAccess | undefined;
+      const participant = participantByInterviewer.get(proposal.interviewerId);
+      const applicantCandidates = availabilityToAssignmentCandidates(access?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+      const interviewerCandidates = availabilityToAssignmentCandidates(participant?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+      if (!participant?.active || !applicantCandidates.includes(proposal.slotId) || !interviewerCandidates.includes(proposal.slotId)) {
+        throw new Error(`${applicant.name} 지원자의 초안 후보가 최신 가능시간과 다릅니다. 자동 배정을 다시 실행해주세요.`);
+      }
+      if (proposal.durationMinutes !== round.assignmentSlotMinutes) throw new Error('면접 배정 단위가 변경되었습니다. 자동 배정을 다시 실행해주세요.');
+      if (current?.locked && (current.slotId !== proposal.slotId || current.interviewerId !== proposal.interviewerId)) {
+        throw new Error(`${applicant.name} 지원자의 잠긴 배정이 변경되었습니다.`);
+      }
+      const revision = (applicant.assignmentRevision ?? current?.confirmationRevision ?? 0) + 1;
+      const next: InterviewAssignment = {
+        slotId: proposal.slotId,
+        startsAt: proposal.startsAt,
+        durationMinutes: proposal.durationMinutes,
+        interviewerId: proposal.interviewerId,
+        interviewerName: proposal.interviewerName,
+        status: proposal.status ?? current?.status ?? 'scheduled',
+        locked: proposal.locked,
+        source: proposal.source,
+        confirmationRevision: revision,
+      };
+      transaction.set(nextLockRefs[index]!, {
+        roundId,
+        applicantId: proposal.applicantId,
+        interviewerId: proposal.interviewerId,
+        slotId: proposal.slotId,
+        startsAt: proposal.startsAt,
+        durationMinutes: proposal.durationMinutes,
+        updatedAt: serverTimestamp(),
+      });
+      transaction.update(applicantRefs[index]!, { assignment: next, previousAssignment: current ?? null, assignmentRevision: revision, updatedAt: serverTimestamp() });
+      transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+        assignmentSummary: { slotId: next.slotId, interviewerName: next.interviewerName, status: next.status, revision },
+      });
+      transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+        roundId,
+        applicantId: proposal.applicantId,
+        type: current ? 'changed' : 'assigned',
+        previousAssignment: current ?? null,
+        nextAssignment: next,
+        createdAt: serverTimestamp(),
+        createdBy: actorEmail(),
+      });
+    });
+  });
+  return proposals.length;
+}
+
+export async function updateInterviewAssignmentState(
+  applicantId: string,
+  patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>,
+): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(applicantRef);
+    if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = snapshot.data() as InterviewApplicant;
+    if (!applicant.assignment) throw new Error('면접 배정이 없습니다.');
+    const next = { ...applicant.assignment, ...patch };
+    if (patch.status && ['no_show', 'cancelled', 'needs_reschedule'].includes(patch.status) && applicant.assignment.slotId) {
+      transaction.delete(doc(db, 'interviewAssignmentLocks', getAssignmentLockId(applicant.roundId, applicant.assignment)));
+    }
+    transaction.update(applicantRef, { assignment: next, updatedAt: serverTimestamp() });
+    transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+      'assignmentSummary.status': next.status,
+    });
+    transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+      roundId: applicant.roundId,
+      applicantId,
+      type: patch.locked === true ? 'locked' : patch.locked === false ? 'unlocked' : 'status_changed',
+      previousAssignment: applicant.assignment,
+      nextAssignment: next,
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
     });
   });
 }
@@ -353,8 +526,11 @@ export async function applyInterviewScheduleChange(
     );
     const applicantRefsById = new Map(latestApplicants.map(item => [item.applicantId, item.ref]));
 
-    transaction.update(doc(db, 'interviewRounds', roundId), adminRoundData(draft));
-    transaction.set(doc(db, 'interviewPublicRounds', roundId), publicRoundData(draft));
+    const roundRef = doc(db, 'interviewRounds', roundId);
+    const currentRoundSnapshot = await transaction.get(roundRef);
+    const nextScheduleRevision = ((currentRoundSnapshot.data()?.scheduleRevision as number | undefined) ?? 0) + 1;
+    transaction.update(roundRef, adminRoundData(draft, nextScheduleRevision));
+    transaction.set(doc(db, 'interviewPublicRounds', roundId), publicRoundData(draft, nextScheduleRevision));
     affected.forEach(item => transaction.update(item.ref, {
       availability: item.availability,
       updatedAt: serverTimestamp(),
@@ -371,11 +547,16 @@ export async function applyInterviewScheduleChange(
             getAssignmentLockId(roundId, applicant.assignment),
           ));
         }
-        transaction.update(ref, {
+          transaction.update(ref, {
           assignment: null,
+          previousAssignment: applicant?.assignment ?? null,
           assignmentRevision: currentRevision + 1,
           updatedAt: serverTimestamp(),
-        });
+          });
+          if (applicant) {
+            const latest = applicantSnapshots.find(snapshot => snapshot.id === item.applicantId)?.data() as InterviewApplicant | undefined;
+            if (latest?.accessToken) transaction.update(doc(db, 'interviewAccess', latest.accessToken), { assignmentSummary: null });
+          }
       }
     });
     return {
@@ -387,4 +568,214 @@ export async function applyInterviewScheduleChange(
 
 export async function setInterviewAccessActive(token: string, active: boolean): Promise<void> {
   await updateDoc(doc(db, 'interviewAccess', token), { active });
+}
+
+export async function createInterviewApplicant(roundId: string, draft: ApplicantDraft): Promise<string> {
+  const applicantRef = doc(collection(db, 'interviewApplicants'));
+  const keyRef = doc(db, 'interviewApplicantKeys', getApplicantKeyId(roundId, draft.applicantNumber));
+  const token = generateInterviewToken();
+  await runTransaction(db, async transaction => {
+    const keySnapshot = await transaction.get(keyRef);
+    if (keySnapshot.exists()) throw new Error('이미 등록된 지원번호입니다.');
+    transaction.set(keyRef, { roundId, applicantId: applicantRef.id, applicantNumber: normalizeApplicantNumber(draft.applicantNumber), createdAt: serverTimestamp() });
+    transaction.set(applicantRef, {
+      roundId,
+      applicantNumber: draft.applicantNumber.trim(),
+      name: draft.name.trim(),
+      phone: draft.phone.trim(),
+      applicationData: draft.applicationData,
+      accessToken: token,
+      sourceRowNumber: null,
+      source: 'manual',
+      lifecycle: 'active',
+      archivedAt: null,
+      archivedReason: null,
+      availabilityMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
+      reminderMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
+      confirmationMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null, assignmentRevision: 0 },
+      assignment: null,
+      previousAssignment: null,
+      assignmentRevision: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    transaction.set(doc(db, 'interviewAccess', token), {
+      roundId,
+      applicantId: applicantRef.id,
+      displayName: draft.name.trim(),
+      availability: [],
+      submittedAt: null,
+      updatedAt: null,
+      responseUpdatedAt: null,
+      active: true,
+      assignmentSummary: null,
+      changeRequestStatus: 'none',
+      createdAt: serverTimestamp(),
+    });
+  });
+  return applicantRef.id;
+}
+
+export async function updateInterviewApplicant(applicant: InterviewApplicant, draft: ApplicantDraft): Promise<void> {
+  const oldKeyRef = doc(db, 'interviewApplicantKeys', getApplicantKeyId(applicant.roundId, applicant.applicantNumber));
+  const newKeyRef = doc(db, 'interviewApplicantKeys', getApplicantKeyId(applicant.roundId, draft.applicantNumber));
+  await runTransaction(db, async transaction => {
+    const newKeySnapshot = await transaction.get(newKeyRef);
+    if (newKeySnapshot.exists() && newKeySnapshot.data().applicantId !== applicant.id) throw new Error('이미 등록된 지원번호입니다.');
+    if (oldKeyRef.path !== newKeyRef.path) transaction.delete(oldKeyRef);
+    transaction.set(newKeyRef, { roundId: applicant.roundId, applicantId: applicant.id, applicantNumber: normalizeApplicantNumber(draft.applicantNumber), updatedAt: serverTimestamp() });
+    transaction.update(doc(db, 'interviewApplicants', applicant.id), {
+      applicantNumber: draft.applicantNumber.trim(),
+      name: draft.name.trim(),
+      phone: draft.phone.trim(),
+      applicationData: draft.applicationData,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(doc(db, 'interviewAccess', applicant.accessToken), { displayName: draft.name.trim() });
+  });
+}
+
+export async function setInterviewApplicantArchived(applicant: InterviewApplicant, archived: boolean, reason = ''): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewApplicants', applicant.id), {
+    lifecycle: archived ? 'archived' : 'active',
+    archivedAt: archived ? serverTimestamp() : null,
+    archivedReason: archived ? reason.trim() || '운영진 보관 처리' : null,
+    updatedAt: serverTimestamp(),
+  });
+  batch.update(doc(db, 'interviewAccess', applicant.accessToken), { active: !archived });
+  await batch.commit();
+}
+
+export async function mergeInterviewApplicants(roundId: string, items: ApplicantMergeCommitItem[]): Promise<{ created: number; updated: number }> {
+  if (items.length === 0) return { created: 0, updated: 0 };
+  await runTransaction(db, async transaction => {
+    const keyRefs = items.map(item => doc(db, 'interviewApplicantKeys', getApplicantKeyId(roundId, item.applicantNumber)));
+    const keySnapshots = await Promise.all(keyRefs.map(ref => transaction.get(ref)));
+    const updateSnapshots = await Promise.all(items.map(item => item.action === 'update' && item.existingId
+      ? transaction.get(doc(db, 'interviewApplicants', item.existingId))
+      : Promise.resolve(null)));
+    items.forEach((item, index) => {
+      const keySnapshot = keySnapshots[index];
+      if (item.action === 'create' && keySnapshot?.exists()) throw new Error(`${item.applicantNumber} 지원번호가 다른 작업에서 먼저 등록되었습니다.`);
+      if (item.action === 'update' && !item.existingId) throw new Error('업데이트할 지원자 ID가 없습니다.');
+    });
+    items.forEach((item, index) => {
+      if (item.action === 'update') {
+        const applicantRef = doc(db, 'interviewApplicants', item.existingId!);
+        transaction.update(applicantRef, {
+          name: item.name.trim(), phone: item.phone.trim(), applicationData: item.applicationData,
+          sourceRowNumber: item.sourceRowNumber, source: 'csv', updatedAt: serverTimestamp(),
+        });
+        const existingApplicant = updateSnapshots[index]?.data() as InterviewApplicant | undefined;
+        if (existingApplicant?.accessToken) transaction.update(doc(db, 'interviewAccess', existingApplicant.accessToken), { displayName: item.name.trim() });
+        const existing = keySnapshots[index]?.data();
+        if (!existing) transaction.set(keyRefs[index]!, { roundId, applicantId: item.existingId, applicantNumber: normalizeApplicantNumber(item.applicantNumber), createdAt: serverTimestamp() });
+        return;
+      }
+      const applicantRef = doc(collection(db, 'interviewApplicants'));
+      const token = generateInterviewToken();
+      transaction.set(keyRefs[index]!, { roundId, applicantId: applicantRef.id, applicantNumber: normalizeApplicantNumber(item.applicantNumber), createdAt: serverTimestamp() });
+      transaction.set(applicantRef, {
+        roundId, applicantNumber: item.applicantNumber.trim(), name: item.name.trim(), phone: item.phone.trim(),
+        applicationData: item.applicationData, accessToken: token, sourceRowNumber: item.sourceRowNumber,
+        source: 'csv', lifecycle: 'active', archivedAt: null, archivedReason: null,
+        availabilityMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
+        reminderMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
+        confirmationMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null, assignmentRevision: 0 },
+        assignment: null, previousAssignment: null, assignmentRevision: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
+      transaction.set(doc(db, 'interviewAccess', token), {
+        roundId, applicantId: applicantRef.id, displayName: item.name.trim(), availability: [], submittedAt: null,
+        updatedAt: null, responseUpdatedAt: null, active: true, createdAt: serverTimestamp(),
+        assignmentSummary: null, changeRequestStatus: 'none',
+      });
+    });
+  });
+  return {
+    created: items.filter(item => item.action === 'create').length,
+    updated: items.filter(item => item.action === 'update').length,
+  };
+}
+
+export function subscribeRoundInterviewers(
+  roundId: string,
+  onData: (items: InterviewRoundInterviewer[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(query(collection(db, 'interviewRoundInterviewers'), where('roundId', '==', roundId)), snapshot => {
+    onData(mapSnapshot<InterviewRoundInterviewer>(snapshot).sort((left, right) => left.displayName.localeCompare(right.displayName)));
+  }, onError);
+}
+
+export async function addRoundInterviewer(roundId: string, draft: RoundInterviewerDraft): Promise<string> {
+  const profileRef = doc(collection(db, 'interviewerProfiles'));
+  const participantRef = doc(db, 'interviewRoundInterviewers', `${roundId}__${profileRef.id}`);
+  const normalizedEmail = draft.email?.trim().toLowerCase() || null;
+  const batch = writeBatch(db);
+  const profile: Omit<InterviewerProfile, 'id' | 'createdAt' | 'updatedAt'> = { name: draft.name.trim(), email: normalizedEmail, active: true };
+  batch.set(profileRef, { ...profile, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  batch.set(participantRef, {
+    roundId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, availability: [], active: true,
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+  return profileRef.id;
+}
+
+export async function updateRoundInterviewerAvailability(participantId: string, availability: string[]): Promise<void> {
+  await updateDoc(doc(db, 'interviewRoundInterviewers', participantId), { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+}
+
+export async function removeRoundInterviewer(participant: InterviewRoundInterviewer): Promise<void> {
+  await updateDoc(doc(db, 'interviewRoundInterviewers', participant.id), { active: false, updatedAt: serverTimestamp() });
+}
+
+export function subscribeInterviewChangeRequests(
+  roundId: string,
+  onData: (items: InterviewChangeRequest[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(query(collection(db, 'interviewChangeRequests'), where('roundId', '==', roundId)), snapshot => {
+    onData(mapSnapshot<InterviewChangeRequest>(snapshot).sort((left, right) => right.requestedAt.toMillis() - left.requestedAt.toMillis()));
+  }, onError);
+}
+
+export async function resolveInterviewChangeRequest(requestId: string, status: 'resolved' | 'dismissed'): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewChangeRequests', requestId), {
+    status, resolvedAt: serverTimestamp(), resolvedBy: actorEmail(),
+  });
+  batch.update(doc(db, 'interviewAccess', requestId), { changeRequestStatus: status });
+  await batch.commit();
+}
+
+export function subscribeInterviewNote(
+  roundId: string,
+  applicantId: string,
+  onData: (note: InterviewNote | null) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  const noteId = `${roundId}__${applicantId}`;
+  return onSnapshot(doc(db, 'interviewNotes', noteId), snapshot => {
+    onData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewNote) : null);
+  }, onError);
+}
+
+export async function saveInterviewNote(input: {
+  roundId: string;
+  applicantId: string;
+  interviewerId: string;
+  interviewerName: string;
+  generalNotes: string;
+  answers: Record<string, string>;
+}): Promise<void> {
+  const noteRef = doc(db, 'interviewNotes', `${input.roundId}__${input.applicantId}`);
+  const snapshot = await getDoc(noteRef);
+  await setDoc(noteRef, {
+    ...input,
+    ...(snapshot.exists() ? {} : { createdAt: serverTimestamp() }),
+    updatedAt: serverTimestamp(),
+    updatedBy: actorEmail(),
+  }, { merge: true });
 }

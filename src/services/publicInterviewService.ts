@@ -1,4 +1,4 @@
-import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { InterviewAccess, InterviewPublicRound } from '../types';
 
@@ -83,4 +83,20 @@ export async function savePublicAvailability(token: string, availability: string
     handleFirestoreError(error, OperationType.UPDATE, 'interviewAccess/[redacted]');
     throw error;
   }
+}
+
+export async function requestPublicInterviewChange(token: string, access: InterviewAccess, reason: string) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'interviewChangeRequests', token), {
+    roundId: access.roundId,
+    applicantId: access.applicantId,
+    applicantName: access.displayName,
+    status: 'open',
+    reason: reason.trim().slice(0, 500),
+    requestedAt: serverTimestamp(),
+    resolvedAt: null,
+    resolvedBy: null,
+  });
+  batch.update(doc(db, 'interviewAccess', token), { changeRequestStatus: 'open' });
+  await batch.commit();
 }

@@ -12,6 +12,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 let testEnv: RulesTestEnvironment | undefined;
@@ -229,6 +230,18 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(setDoc(lockRef, { roundId, applicantId, interviewerId: 'default' }));
     await assertSucceeds(getDoc(lockRef));
     await assertSucceeds(deleteDoc(lockRef));
+    const noteRef = doc(adminDb, 'interviewNotes', `${roundId}__${applicantId}`);
+    await assertSucceeds(setDoc(noteRef, {
+      roundId,
+      applicantId,
+      interviewerId: 'default',
+      interviewerName: '기본 면접관',
+      generalNotes: '관리자 내부 기록',
+      answers: {},
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(getDoc(noteRef));
   });
 
   it('로그인했지만 관리자가 아닌 사용자는 면접 비공개 데이터에 접근할 수 없다', async () => {
@@ -241,6 +254,8 @@ describe('Firestore Security Rules', () => {
     await assertFails(getDocs(collection(userDb, 'interviewRounds')));
     await assertFails(getDocs(collection(userDb, 'interviewApplicants')));
     await assertFails(getDocs(collection(userDb, 'interviewAssignmentLocks')));
+    await assertFails(getDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`)));
+    await assertFails(setDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`), { generalNotes: '볼 수 없어야 함' }));
     await assertFails(setDoc(doc(userDb, 'interviewRounds', 'new-round'), { name: '공격자가 만든 회차' }));
 
     // 기존 컬렉션의 signed-in read 정책은 이번 변경에서 그대로 유지한다.
@@ -262,6 +277,7 @@ describe('Firestore Security Rules', () => {
 
     await assertSucceeds(getDoc(doc(publicDb, 'interviewPublicRounds', roundId)));
     await assertSucceeds(getDoc(doc(publicDb, 'interviewAccess', token)));
+    await assertFails(getDoc(doc(publicDb, 'interviewNotes', `${roundId}__applicant-1`)));
     await assertSucceeds(getDoc(doc(publicDb, 'interviewAccess', 'missing-token')));
     await assertFails(getDoc(doc(publicDb, 'interviewPublicRounds', 'inactive-round')));
     await assertFails(getDoc(doc(publicDb, 'interviewAccess', 'inactive-token')));
@@ -457,5 +473,36 @@ describe('Firestore Security Rules', () => {
         updatedAt: serverTimestamp(),
       }));
     }
+  });
+
+  it('공개 사용자는 자신의 token으로 일정 변경 요청만 만들 수 있다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    const { token, roundId, applicantId } = await seedInterviewFixture();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const batch = writeBatch(publicDb);
+    batch.set(doc(publicDb, 'interviewChangeRequests', token), {
+      roundId,
+      applicantId,
+      applicantName: '지원자',
+      status: 'open',
+      reason: '다른 시간 요청',
+      requestedAt: serverTimestamp(),
+      resolvedAt: null,
+      resolvedBy: null,
+    });
+    batch.update(doc(publicDb, 'interviewAccess', token), { changeRequestStatus: 'open' });
+    await assertSucceeds(batch.commit());
+
+    await assertFails(setDoc(doc(publicDb, 'interviewChangeRequests', 'forged-token'), {
+      roundId,
+      applicantId,
+      applicantName: '지원자',
+      status: 'open',
+      reason: '위조 요청',
+      requestedAt: serverTimestamp(),
+      resolvedAt: null,
+      resolvedBy: null,
+    }));
+    await assertFails(updateDoc(doc(publicDb, 'interviewAccess', token), { assignmentSummary: null }));
   });
 });

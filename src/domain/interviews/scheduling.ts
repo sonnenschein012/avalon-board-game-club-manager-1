@@ -1,4 +1,5 @@
-import type { InterviewAccess, InterviewAssignment } from '../../types';
+import type { InterviewAccess, InterviewAssignment, InterviewDaySchedule } from '../../types';
+export type { InterviewDaySchedule } from '../../types';
 
 const SLOT_ID_SEPARATOR = '|';
 const MINUTES_PER_DAY = 24 * 60;
@@ -7,12 +8,6 @@ const MILLISECONDS_PER_MINUTE = 60_000;
 export interface ParsedSlotId {
   date: string;
   time: string;
-}
-
-export interface InterviewDaySchedule {
-  date: string;
-  startTime: string;
-  endTime: string;
 }
 
 export type SurveyPhase = 'before' | 'open' | 'closed';

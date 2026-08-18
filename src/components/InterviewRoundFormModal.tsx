@@ -32,8 +32,11 @@ export function roundToDraft(round?: InterviewRound | null): InterviewRoundDraft
       availability: '{name} 님의 면접 가능 시간을 {deadline}까지 선택해주세요. {link}',
       reminder: '{name} 님, 아직 면접 가능 시간 응답이 확인되지 않았습니다. {deadline}까지 제출해주세요. {link}',
       confirmation: '{name} 님의 면접 시간이 {interviewDate} {interviewTime}으로 확정되었습니다.',
+      reschedule: '안녕하세요, 아발론입니다. 요청하신 일정 조정에 따라 면접시간이 변경되었습니다.\n\n기존: {oldInterviewDate} {oldInterviewTime}\n변경: {interviewDate} {interviewTime}\n\n변경된 시간에 전화드릴 예정입니다.',
     },
+    interviewQuestions: round?.interviewQuestions ?? [],
     allowedSlots: round?.allowedSlots ?? [],
+    daySchedules: round?.daySchedules ?? [],
   };
 }
 
@@ -96,6 +99,7 @@ function getCalendarCells(month: Date): Array<string | null> {
 }
 
 function schedulesFromDraft(draft: InterviewRoundDraft): InterviewDaySchedule[] {
+  if (draft.daySchedules.length > 0) return [...draft.daySchedules].sort((left, right) => left.date.localeCompare(right.date));
   const timesByDate = new Map<string, string[]>();
   draft.allowedSlots.forEach(slotId => {
     const parsed = parseSlotId(slotId);
@@ -277,6 +281,10 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
         dayStartTime: sortedSchedules.map(schedule => schedule.startTime).sort()[0] ?? draft.dayStartTime,
         dayEndTime: sortedSchedules.map(schedule => schedule.endTime).sort().at(-1) ?? draft.dayEndTime,
         allowedSlots: generatedSlots,
+        daySchedules: sortedSchedules,
+        interviewQuestions: draft.interviewQuestions
+          .map(question => ({ ...question, text: question.text.trim() }))
+          .filter(question => question.text.length > 0),
       });
       if (saved !== false) onClose();
     } finally {
@@ -358,9 +366,14 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
           </section>
 
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
+            <div className="flex items-center justify-between gap-3"><div><h3 className="text-xs font-black uppercase tracking-wider text-navy">면접 질문</h3><p className="mt-1 text-[11px] text-slate-400">면접관 대시보드에서 지원자별 답변을 바로 기록할 수 있습니다.</p></div><button type="button" onClick={() => setDraft({ ...draft, interviewQuestions: [...draft.interviewQuestions, { id: crypto.randomUUID(), text: '' }] })} className="flex items-center gap-1 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-black text-navy"><Plus size={14} />질문 추가</button></div>
+            <div className="space-y-2">{draft.interviewQuestions.map((question, index) => <div key={question.id} className="flex items-start gap-2"><span className="mt-2.5 w-6 shrink-0 text-center text-xs font-black text-slate-400">{index + 1}</span><textarea value={question.text} onChange={event => setDraft({ ...draft, interviewQuestions: draft.interviewQuestions.map(item => item.id === question.id ? { ...item, text: event.target.value } : item) })} className="min-h-16 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="면접 질문을 입력하세요." /><button type="button" aria-label="질문 삭제" onClick={() => setDraft({ ...draft, interviewQuestions: draft.interviewQuestions.filter(item => item.id !== question.id) })} className="mt-1 rounded-lg p-2 text-red-500"><Trash2 size={14} /></button></div>)}</div>
+          </section>
+
+          <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">메시지 템플릿</h3>
-            <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {roundName}'}</p>
-            {(['availability', 'reminder', 'confirmation'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : '최종 면접 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
+            <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {roundName}'}</p>
+            {(['availability', 'reminder', 'confirmation', 'reschedule'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : '일정 변경 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
           </section>
         </div>
 
