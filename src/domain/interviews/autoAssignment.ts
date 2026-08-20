@@ -1,5 +1,6 @@
-import { availabilityToAssignmentCandidates, parseSlotId } from './scheduling';
+import { availabilityToAssignmentCandidates } from './scheduling';
 
+/** `applicant` is the V3 path; bulk modes remain for the existing V2 screen. */
 export type AutoAssignmentMode = 'all' | 'unassigned' | 'applicant';
 
 export interface AutoAssignmentExisting {
@@ -9,13 +10,19 @@ export interface AutoAssignmentExisting {
   locked: boolean;
   source: 'manual' | 'automatic';
   status: 'scheduled' | 'confirmed' | 'change_requested' | 'completed' | 'no_show' | 'cancelled' | 'needs_reschedule';
+  /** True only when an already-sent confirmation describes this assignment revision. */
+  confirmationCurrent?: boolean;
 }
 
 export interface AutoAssignmentApplicant {
   id: string;
   name: string;
   availability: string[];
-  lifecycle?: 'active' | 'archived';
+  lifecycle?: 'active' | 'archived' | 'withdrawn';
+  /** Supports callers which keep application status separately from lifecycle. */
+  withdrawn?: boolean;
+  interviewStatus?: 'scheduled' | 'completed' | 'action_needed';
+  assignmentRevision?: number;
   existingAssignment?: AutoAssignmentExisting | null;
 }
 
@@ -43,20 +50,13 @@ export interface AutoAssignmentProposal {
   slotId: string;
   locked: boolean;
   preserved: boolean;
+  /** True when the current assignment is locked or its confirmation is current. */
+  protected: boolean;
+  expectedAssignmentRevision: number;
 }
 
-export type AutoAssignmentFailureReason =
-  | 'no_availability'
-  | 'no_interviewer_overlap'
-  | 'all_candidates_occupied'
-  | 'excluded_state';
-
-export interface AutoAssignmentFailure {
-  applicantId: string;
-  applicantName: string;
-  reason: AutoAssignmentFailureReason;
-}
-
+export type AutoAssignmentFailureReason = 'no_availability' | 'no_interviewer_overlap' | 'all_candidates_occupied' | 'excluded_state';
+export interface AutoAssignmentFailure { applicantId: string; applicantName: string; reason: AutoAssignmentFailureReason; }
 export interface AutoAssignmentResult {
   proposals: AutoAssignmentProposal[];
   failures: AutoAssignmentFailure[];
@@ -110,159 +110,248 @@ function minCostMaxFlow(graph: Edge[][], source: number, sink: number): void {
   }
 }
 
-function shouldFix(applicant: AutoAssignmentApplicant, input: AutoAssignmentInput): boolean {
+function resourceKey(assignment: Pick<AutoAssignmentExisting, 'interviewerId' | 'slotId'>): string {
+  return `${assignment.interviewerId}|${assignment.slotId}`;
+}
+
+function isExcluded(applicant: AutoAssignmentApplicant): boolean {
+  if (applicant.lifecycle === 'archived' || applicant.lifecycle === 'withdrawn' || applicant.withdrawn) return true;
+  if (applicant.interviewStatus === 'completed' || applicant.interviewStatus === 'action_needed') return true;
+  const status = applicant.existingAssignment?.status;
+  return status === 'completed' || status === 'no_show' || status === 'cancelled'
+    || status === 'change_requested' || status === 'needs_reschedule';
+}
+
+function isCurrentProtected(assignment: AutoAssignmentExisting | null | undefined): boolean {
+  return Boolean(assignment && (assignment.locked || assignment.confirmationCurrent === true));
+}
+
+function keepsResourceReserved(applicant: AutoAssignmentApplicant): boolean {
+  const status = applicant.existingAssignment?.status;
+  return Boolean(applicant.existingAssignment && status && (
+    status === 'completed'
+    || applicant.interviewStatus === 'completed'
+    || applicant.interviewStatus === 'action_needed'
+    || status === 'no_show'
+    || status === 'cancelled'
+    || status === 'change_requested'
+    || status === 'needs_reschedule'
+    || applicant.lifecycle === 'archived'
+  ));
+}
+
+function proposalFromExisting(applicant: AutoAssignmentApplicant): AutoAssignmentProposal | null {
   const assignment = applicant.existingAssignment;
-  if (!assignment) return false;
-  if (assignment.status === 'no_show' || assignment.status === 'cancelled' || assignment.status === 'needs_reschedule') return false;
-  if (assignment.locked || assignment.status === 'completed') return true;
-  if (input.mode === 'unassigned') return true;
-  return input.mode === 'applicant' && applicant.id !== input.applicantId;
+  if (!assignment) return null;
+  return {
+    applicantId: applicant.id, applicantName: applicant.name,
+    interviewerId: assignment.interviewerId, interviewerName: assignment.interviewerName,
+    slotId: assignment.slotId, locked: assignment.locked, preserved: true,
+    protected: isCurrentProtected(assignment),
+    expectedAssignmentRevision: applicant.assignmentRevision ?? 0,
+  };
 }
 
-function slotOrdinal(slotId: string): number {
-  const parsed = parseSlotId(slotId);
-  if (!parsed) return Number.MAX_SAFE_INTEGER;
-  const [hour = '0', minute = '0'] = parsed.time.split(':');
-  return Date.parse(`${parsed.date}T00:00:00Z`) / 60_000 + Number(hour) * 60 + Number(minute);
-}
-
-export function generateAutoAssignment(input: AutoAssignmentInput): AutoAssignmentResult {
-  const activeInterviewers = input.interviewers.filter(item => item.active !== false);
-  const interviewerCandidates = new Map(activeInterviewers.map(interviewer => [
-    interviewer.id,
-    new Set(availabilityToAssignmentCandidates(interviewer.availability, input.availabilitySlotMinutes, input.assignmentSlotMinutes)),
-  ]));
-  const fixed = input.applicants.filter(applicant => shouldFix(applicant, input) && applicant.existingAssignment);
-  const reservedResources = new Set(fixed.map(applicant => {
-    const assignment = applicant.existingAssignment!;
-    return `${assignment.interviewerId}|${assignment.slotId}`;
-  }));
-  const fixedLoads = new Map<string, number>();
-  const fixedSlots = new Map<string, number[]>();
-  fixed.forEach(applicant => {
-    const interviewerId = applicant.existingAssignment!.interviewerId;
-    fixedLoads.set(interviewerId, (fixedLoads.get(interviewerId) ?? 0) + 1);
-    const slots = fixedSlots.get(interviewerId) ?? [];
-    slots.push(slotOrdinal(applicant.existingAssignment!.slotId));
-    fixedSlots.set(interviewerId, slots);
-  });
-  const proposals: AutoAssignmentProposal[] = fixed.map(applicant => ({
-    applicantId: applicant.id,
-    applicantName: applicant.name,
-    interviewerId: applicant.existingAssignment!.interviewerId,
-    interviewerName: applicant.existingAssignment!.interviewerName,
-    slotId: applicant.existingAssignment!.slotId,
-    locked: applicant.existingAssignment!.locked,
-    preserved: true,
-  }));
-
-  const eligible = input.applicants.filter(applicant => {
-    if (applicant.lifecycle === 'archived' || shouldFix(applicant, input)) return false;
-    if (input.mode === 'applicant' && applicant.id !== input.applicantId) return false;
-    const status = applicant.existingAssignment?.status;
-    return status !== 'completed' && status !== 'no_show' && status !== 'cancelled';
-  });
-  const candidatesByApplicant = new Map<string, Candidate[]>();
-  const hasInterviewerOverlap = new Map<string, boolean>();
-  eligible.forEach(applicant => {
-    const applicantSlots = availabilityToAssignmentCandidates(applicant.availability, input.availabilitySlotMinutes, input.assignmentSlotMinutes);
-    const candidates: Candidate[] = [];
-    let hasOverlap = false;
-    activeInterviewers.forEach(interviewer => {
-      const interviewerSlots = interviewerCandidates.get(interviewer.id) ?? new Set<string>();
-      applicantSlots.forEach(slotId => {
-        const resourceKey = `${interviewer.id}|${slotId}`;
-        if (interviewerSlots.has(slotId)) hasOverlap = true;
-        if (interviewerSlots.has(slotId) && !reservedResources.has(resourceKey)) {
-          candidates.push({ resourceKey, slotId, interviewerId: interviewer.id, interviewerName: interviewer.name });
-        }
-      });
+function candidateList(
+  applicant: AutoAssignmentApplicant,
+  interviewers: readonly AutoAssignmentInterviewer[],
+  interviewerSlots: ReadonlyMap<string, Set<string>>,
+  availabilitySlotMinutes: number,
+  assignmentSlotMinutes: number,
+): Candidate[] {
+  const applicantSlots = availabilityToAssignmentCandidates(applicant.availability, availabilitySlotMinutes, assignmentSlotMinutes);
+  const candidates = new Map<string, Candidate>();
+  for (const interviewer of interviewers) {
+    const available = interviewerSlots.get(interviewer.id) ?? new Set<string>();
+    for (const slotId of applicantSlots) {
+      if (!available.has(slotId)) continue;
+      const candidate = { resourceKey: `${interviewer.id}|${slotId}`, slotId, interviewerId: interviewer.id, interviewerName: interviewer.name };
+      candidates.set(candidate.resourceKey, candidate);
+    }
+  }
+  // Preserve a still-active tentative booking even if availability was edited
+  // after it was made; a rearrangement must not silently drop that person.
+  const current = applicant.existingAssignment;
+  if (current && interviewers.some(item => item.id === current.interviewerId)) {
+    candidates.set(resourceKey(current), {
+      resourceKey: resourceKey(current), slotId: current.slotId,
+      interviewerId: current.interviewerId, interviewerName: current.interviewerName,
     });
-    candidates.sort((left, right) => left.resourceKey.localeCompare(right.resourceKey));
-    candidatesByApplicant.set(applicant.id, candidates);
-    hasInterviewerOverlap.set(applicant.id, hasOverlap);
-  });
+  }
+  return [...candidates.values()].sort((left, right) => left.resourceKey.localeCompare(right.resourceKey));
+}
 
-  const resources = [...new Map([...candidatesByApplicant.values()].flat().map(candidate => [candidate.resourceKey, candidate])).values()];
-  const interviewerIds = [...new Set(resources.map(resource => resource.interviewerId))].sort();
+function hasAnyInterviewerOverlap(
+  applicant: AutoAssignmentApplicant,
+  interviewerSlots: ReadonlyMap<string, Set<string>>,
+  availabilitySlotMinutes: number,
+  assignmentSlotMinutes: number,
+): boolean {
+  if (applicant.availability.length === 0) return false;
+  const slots = availabilityToAssignmentCandidates(applicant.availability, availabilitySlotMinutes, assignmentSlotMinutes);
+  return [...interviewerSlots.values()].some(interviewer => slots.some(slot => interviewer.has(slot)));
+}
+
+/** Matches as many applicants as possible, then changes as few existing slots as possible. */
+function match(applicants: readonly AutoAssignmentApplicant[], candidatesByApplicant: ReadonlyMap<string, Candidate[]>): Map<string, Candidate> {
+  const resources = [...new Map([...candidatesByApplicant.values()].flat().map(candidate => [candidate.resourceKey, candidate])).values()]
+    .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey));
   const source = 0;
   const applicantOffset = 1;
-  const resourceOffset = applicantOffset + eligible.length;
-  const interviewerOffset = resourceOffset + resources.length;
-  const sink = interviewerOffset + interviewerIds.length;
+  const resourceOffset = applicantOffset + applicants.length;
+  const sink = resourceOffset + resources.length;
   const graph: Edge[][] = Array.from({ length: sink + 1 }, () => []);
   const resourceIndex = new Map(resources.map((resource, index) => [resource.resourceKey, resourceOffset + index]));
-  const interviewerIndex = new Map(interviewerIds.map((id, index) => [id, interviewerOffset + index]));
 
-  eligible.forEach((applicant, index) => {
-    const applicantNode = applicantOffset + index;
-    const candidates = candidatesByApplicant.get(applicant.id) ?? [];
-    addEdge(graph, source, applicantNode, 1, candidates.length * 10_000);
-    candidates.forEach((candidate, candidateIndex) => {
-      const current = applicant.existingAssignment;
-      const preserved = current?.slotId === candidate.slotId && current.interviewerId === candidate.interviewerId;
-      const preservationCost = preserved ? -5_000 : current ? 2_000 : 0;
-      const anchors = fixedSlots.get(candidate.interviewerId) ?? [];
-      const compactnessCost = anchors.length > 0
-        ? Math.min(...anchors.map(anchor => Math.abs(slotOrdinal(candidate.slotId) - anchor))) * 2
-        : candidateIndex;
-      addEdge(graph, applicantNode, resourceIndex.get(candidate.resourceKey)!, 1, preservationCost + compactnessCost + candidateIndex);
+  applicants.forEach((applicant, applicantIndex) => {
+    const node = applicantOffset + applicantIndex;
+    addEdge(graph, source, node, 1, 0);
+    const currentKey = applicant.existingAssignment ? resourceKey(applicant.existingAssignment) : null;
+    (candidatesByApplicant.get(applicant.id) ?? []).forEach((candidate, candidateIndex) => {
+      // One move outweighs all tie-breaking costs, so a valid rearrangement
+      // changes the fewest tentative assignments possible.
+      const moveCost = currentKey && currentKey !== candidate.resourceKey ? 1_000_000 : 0;
+      addEdge(graph, node, resourceIndex.get(candidate.resourceKey)!, 1, moveCost + candidateIndex);
     });
   });
-  resources.forEach((resource, index) => {
-    addEdge(graph, resourceOffset + index, interviewerIndex.get(resource.interviewerId)!, 1, 0);
-  });
-  interviewerIds.forEach(id => {
-    const interviewerNode = interviewerIndex.get(id)!;
-    const capacity = resources.filter(resource => resource.interviewerId === id).length;
-    const baseLoad = fixedLoads.get(id) ?? 0;
-    for (let unit = 0; unit < capacity; unit += 1) {
-      addEdge(graph, interviewerNode, sink, 1, (baseLoad + unit) * (baseLoad + unit) * 100);
-    }
-  });
+  resources.forEach((_, index) => addEdge(graph, resourceOffset + index, sink, 1, 0));
   minCostMaxFlow(graph, source, sink);
 
-  eligible.forEach((applicant, index) => {
-    const applicantNode = applicantOffset + index;
-    const chosenEdge = graph[applicantNode]?.find(edge => (
-      edge.to >= resourceOffset && edge.to < interviewerOffset && edge.capacity === 0
-    ));
-    if (!chosenEdge) return;
-    const candidate = resources[chosenEdge.to - resourceOffset];
-    if (!candidate) return;
-    const current = applicant.existingAssignment;
-    proposals.push({
-      applicantId: applicant.id,
-      applicantName: applicant.name,
-      interviewerId: candidate.interviewerId,
-      interviewerName: candidate.interviewerName,
-      slotId: candidate.slotId,
-      locked: false,
-      preserved: current?.slotId === candidate.slotId && current.interviewerId === candidate.interviewerId,
-    });
+  const assignments = new Map<string, Candidate>();
+  applicants.forEach((applicant, applicantIndex) => {
+    const chosen = graph[applicantOffset + applicantIndex]?.find(edge => edge.to >= resourceOffset && edge.to < sink && edge.capacity === 0);
+    const candidate = chosen ? resources[chosen.to - resourceOffset] : null;
+    if (candidate) assignments.set(applicant.id, candidate);
   });
+  return assignments;
+}
 
-  const proposalIds = new Set(proposals.map(proposal => proposal.applicantId));
-  const failures: AutoAssignmentFailure[] = input.applicants.flatMap<AutoAssignmentFailure>(applicant => {
-    if (proposalIds.has(applicant.id)) return [];
-    if (input.mode === 'applicant' && applicant.id !== input.applicantId) return [];
-    if (applicant.lifecycle === 'archived' || ['completed', 'no_show', 'cancelled'].includes(applicant.existingAssignment?.status ?? '')) {
-      return [{ applicantId: applicant.id, applicantName: applicant.name, reason: 'excluded_state' as const }];
-    }
-    if (applicant.availability.length === 0) return [{ applicantId: applicant.id, applicantName: applicant.name, reason: 'no_availability' as const }];
-    return [{
-      applicantId: applicant.id,
-      applicantName: applicant.name,
-      reason: !hasInterviewerOverlap.get(applicant.id) ? 'no_interviewer_overlap' as const : 'all_candidates_occupied' as const,
-    }];
-  });
+function failureFor(applicant: AutoAssignmentApplicant, hasOverlap: boolean): AutoAssignmentFailure {
+  if (isExcluded(applicant)) return { applicantId: applicant.id, applicantName: applicant.name, reason: 'excluded_state' };
+  if (applicant.availability.length === 0) return { applicantId: applicant.id, applicantName: applicant.name, reason: 'no_availability' };
+  return { applicantId: applicant.id, applicantName: applicant.name, reason: hasOverlap ? 'all_candidates_occupied' : 'no_interviewer_overlap' };
+}
+
+function resultFromProposals(proposals: AutoAssignmentProposal[], failures: AutoAssignmentFailure[], applicants: readonly AutoAssignmentApplicant[]): AutoAssignmentResult {
   const interviewerLoads: Record<string, number> = {};
   proposals.forEach(proposal => { interviewerLoads[proposal.interviewerId] = (interviewerLoads[proposal.interviewerId] ?? 0) + 1; });
   return {
-    proposals: proposals.sort((left, right) => left.slotId.localeCompare(right.slotId) || left.interviewerName.localeCompare(right.interviewerName)),
+    proposals: proposals.sort((left, right) => left.slotId.localeCompare(right.slotId) || left.interviewerName.localeCompare(right.interviewerName) || left.applicantName.localeCompare(right.applicantName)),
     failures,
-    totalApplicants: input.applicants.filter(item => item.lifecycle !== 'archived').length,
+    totalApplicants: applicants.filter(applicant => !isExcluded(applicant)).length,
     assignedCount: proposals.length,
     interviewerLoads,
   };
+}
+
+function generateForApplicant(input: AutoAssignmentInput, activeInterviewers: AutoAssignmentInterviewer[], interviewerSlots: Map<string, Set<string>>): AutoAssignmentResult {
+  const target = input.applicants.find(applicant => applicant.id === input.applicantId);
+  if (!target) return resultFromProposals([], [], input.applicants);
+  const existingProposals = input.applicants.filter(applicant => !isExcluded(applicant)).flatMap(applicant => proposalFromExisting(applicant) ?? []);
+  const overlap = hasAnyInterviewerOverlap(target, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes);
+  if (isExcluded(target)) return resultFromProposals(existingProposals, [failureFor(target, overlap)], input.applicants);
+
+  const targetCandidates = candidateList(target, activeInterviewers, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes);
+  const others = input.applicants.filter(applicant => applicant.id !== target.id && !isExcluded(applicant) && applicant.existingAssignment);
+  const excludedReservations = input.applicants.filter(applicant => applicant.id !== target.id && isExcluded(applicant) && keepsResourceReserved(applicant));
+  const occupied = new Set([...others, ...excludedReservations].map(applicant => resourceKey(applicant.existingAssignment!)));
+  const ownKey = target.existingAssignment ? resourceKey(target.existingAssignment) : null;
+
+  // Stage 1: assign an actually empty resource and leave everyone else alone.
+  const stageOne = targetCandidates.find(candidate => candidate.resourceKey === ownKey && !occupied.has(candidate.resourceKey))
+    ?? targetCandidates.find(candidate => !occupied.has(candidate.resourceKey));
+  if (stageOne) {
+    const proposals = existingProposals.filter(proposal => proposal.applicantId !== target.id);
+    proposals.push({
+      applicantId: target.id, applicantName: target.name,
+      interviewerId: stageOne.interviewerId, interviewerName: stageOne.interviewerName,
+      slotId: stageOne.slotId, locked: false, preserved: stageOne.resourceKey === ownKey,
+      protected: stageOne.resourceKey === ownKey && isCurrentProtected(target.existingAssignment),
+      expectedAssignmentRevision: target.assignmentRevision ?? 0,
+    });
+    return resultFromProposals(proposals, [], input.applicants);
+  }
+
+  // Stage 2: only unconfirmed and unlocked appointments may move. The target
+  // is accepted only if every person in the limited rearrangement keeps a slot.
+  if (isCurrentProtected(target.existingAssignment)) {
+    return resultFromProposals(existingProposals, [failureFor(target, overlap)], input.applicants);
+  }
+  const fixed = others.filter(applicant => {
+    const assignment = applicant.existingAssignment!;
+    return isCurrentProtected(assignment) || !activeInterviewers.some(interviewer => interviewer.id === assignment.interviewerId);
+  });
+  const movable = others.filter(applicant => !fixed.includes(applicant));
+  const reserved = new Set([...fixed, ...excludedReservations].map(applicant => resourceKey(applicant.existingAssignment!)));
+  const participants = [target, ...movable].sort((left, right) => left.id.localeCompare(right.id));
+  const candidatesByApplicant = new Map<string, Candidate[]>();
+  participants.forEach(applicant => {
+    candidatesByApplicant.set(applicant.id, candidateList(
+      applicant, activeInterviewers, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes,
+    ).filter(candidate => !reserved.has(candidate.resourceKey)));
+  });
+  const assignments = match(participants, candidatesByApplicant);
+  if (!assignments.has(target.id) || assignments.size !== participants.length) {
+    return resultFromProposals(existingProposals, [failureFor(target, overlap)], input.applicants);
+  }
+
+  const proposals = existingProposals.filter(proposal => !assignments.has(proposal.applicantId));
+  participants.forEach(applicant => {
+    const candidate = assignments.get(applicant.id)!;
+    const currentKey = applicant.existingAssignment ? resourceKey(applicant.existingAssignment) : null;
+    proposals.push({
+      applicantId: applicant.id, applicantName: applicant.name,
+      interviewerId: candidate.interviewerId, interviewerName: candidate.interviewerName,
+      slotId: candidate.slotId, locked: false, preserved: candidate.resourceKey === currentKey,
+      protected: false,
+      expectedAssignmentRevision: applicant.assignmentRevision ?? 0,
+    });
+  });
+  return resultFromProposals(proposals, [], input.applicants);
+}
+
+function generateBulk(input: AutoAssignmentInput, activeInterviewers: AutoAssignmentInterviewer[], interviewerSlots: Map<string, Set<string>>): AutoAssignmentResult {
+  const fixed = input.applicants.filter(applicant => {
+    if (isExcluded(applicant) || !applicant.existingAssignment) return false;
+    return input.mode === 'unassigned' || isCurrentProtected(applicant.existingAssignment);
+  });
+  const excludedReservations = input.applicants.filter(applicant => isExcluded(applicant) && keepsResourceReserved(applicant));
+  const reserved = new Set([...fixed, ...excludedReservations].map(applicant => resourceKey(applicant.existingAssignment!)));
+  const candidates = input.applicants.filter(applicant => !isExcluded(applicant) && !fixed.includes(applicant));
+  const candidatesByApplicant = new Map<string, Candidate[]>();
+  const overlaps = new Map<string, boolean>();
+  candidates.forEach(applicant => {
+    candidatesByApplicant.set(applicant.id, candidateList(
+      applicant, activeInterviewers, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes,
+    ).filter(candidate => !reserved.has(candidate.resourceKey)));
+    overlaps.set(applicant.id, hasAnyInterviewerOverlap(applicant, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes));
+  });
+  const assignments = match(candidates, candidatesByApplicant);
+  const proposals = fixed.flatMap(applicant => proposalFromExisting(applicant) ?? []);
+  candidates.forEach(applicant => {
+    const candidate = assignments.get(applicant.id);
+    if (!candidate) return;
+    const currentKey = applicant.existingAssignment ? resourceKey(applicant.existingAssignment) : null;
+    proposals.push({
+      applicantId: applicant.id, applicantName: applicant.name,
+      interviewerId: candidate.interviewerId, interviewerName: candidate.interviewerName,
+      slotId: candidate.slotId, locked: false, preserved: candidate.resourceKey === currentKey,
+      protected: false,
+      expectedAssignmentRevision: applicant.assignmentRevision ?? 0,
+    });
+  });
+  const proposalIds = new Set(proposals.map(proposal => proposal.applicantId));
+  const failures = input.applicants.flatMap(applicant => proposalIds.has(applicant.id) ? [] : [failureFor(applicant, overlaps.get(applicant.id) ?? false)]);
+  return resultFromProposals(proposals, failures, input.applicants);
+}
+
+export function generateAutoAssignment(input: AutoAssignmentInput): AutoAssignmentResult {
+  const activeInterviewers = input.interviewers.filter(interviewer => interviewer.active !== false);
+  const interviewerSlots = new Map(activeInterviewers.map(interviewer => [
+    interviewer.id,
+    new Set(availabilityToAssignmentCandidates(interviewer.availability, input.availabilitySlotMinutes, input.assignmentSlotMinutes)),
+  ]));
+  return input.mode === 'applicant'
+    ? generateForApplicant(input, activeInterviewers, interviewerSlots)
+    : generateBulk(input, activeInterviewers, interviewerSlots);
 }

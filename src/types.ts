@@ -67,6 +67,8 @@ export interface Session {
   date: Timestamp;
   name: string; // e.g. "2025-04-24 정기 모임"
   groups: StoredSessionGroup[];
+  /** Immutable list of board members when this session was created. */
+  boardMemberIds?: string[];
 }
 
 export interface FirestoreErrorInfo {
@@ -180,6 +182,19 @@ export type InterviewAssignmentStatus =
 
 export type InterviewApplicantLifecycle = 'active' | 'archived';
 
+export type InterviewApplicantStatus = 'active' | 'withdrawn';
+
+export type InterviewProgressStatus = 'scheduled' | 'completed' | 'action_needed';
+
+export type InterviewOverallRating =
+  | 'strongly_recommend'
+  | 'recommend'
+  | 'neutral'
+  | 'not_recommend'
+  | 'strongly_not_recommend';
+
+export type InterviewSelectionStatus = 'pending' | 'selected' | 'rejected';
+
 export interface InterviewApplicant {
   id: string;
   roundId: string;
@@ -191,6 +206,9 @@ export interface InterviewApplicant {
   sourceRowNumber: number | null;
   source: 'manual' | 'csv';
   lifecycle: InterviewApplicantLifecycle;
+  applicationStatus?: InterviewApplicantStatus;
+  withdrawnAt?: Timestamp | null;
+  withdrawnBy?: string | null;
   archivedAt: Timestamp | null;
   archivedReason: string | null;
   availabilityMessage: InterviewMessageStatus;
@@ -199,6 +217,14 @@ export interface InterviewApplicant {
   assignment: InterviewAssignment | null;
   previousAssignment?: InterviewAssignment | null;
   assignmentRevision?: number;
+  interviewStatus?: InterviewProgressStatus;
+  actionNeededReason?: string | null;
+  overallRating?: InterviewOverallRating | null;
+  interviewCompletedAt?: Timestamp | null;
+  interviewCompletedBy?: string | null;
+  selectionStatus?: InterviewSelectionStatus;
+  selectionDecidedAt?: Timestamp | null;
+  selectionDecidedBy?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -240,9 +266,21 @@ export interface InterviewAssignmentEvent {
   id: string;
   roundId: string;
   applicantId: string;
-  type: 'assigned' | 'changed' | 'unassigned' | 'status_changed' | 'locked' | 'unlocked';
+  type:
+    | 'assigned'
+    | 'changed'
+    | 'unassigned'
+    | 'status_changed'
+    | 'locked'
+    | 'unlocked'
+    | 'schedule_reset'
+    | 'withdrawn'
+    | 'restored';
   previousAssignment: InterviewAssignment | null;
   nextAssignment: InterviewAssignment | null;
+  previousRevision?: number;
+  nextRevision?: number;
+  reason?: string | null;
   createdAt: Timestamp;
   createdBy: string | null;
 }
@@ -255,9 +293,36 @@ export interface InterviewNote {
   interviewerName: string;
   generalNotes: string;
   answers: Record<string, string>;
+  overallRating?: InterviewOverallRating | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   updatedBy: string | null;
+}
+
+export interface InterviewRecordEvent {
+  id: string;
+  roundId: string;
+  applicantId: string;
+  type: 'completed' | 'schedule_reset_snapshot' | 'withdrawal_snapshot' | 'rating_changed';
+  assignmentRevision: number;
+  assignment: InterviewAssignment | null;
+  interviewStatus: InterviewProgressStatus;
+  overallRating: InterviewOverallRating | null;
+  noteSnapshot: {
+    interviewerId: string;
+    interviewerName: string;
+    generalNotes: string;
+    answers: Record<string, string>;
+    overallRating: InterviewOverallRating | null;
+    createdAt: Timestamp | null;
+    updatedAt: Timestamp | null;
+    updatedBy: string | null;
+  } | null;
+  previousOverallRating?: InterviewOverallRating | null;
+  nextOverallRating?: InterviewOverallRating | null;
+  reason?: string | null;
+  createdAt: Timestamp;
+  createdBy: string | null;
 }
 
 export interface InterviewAccess {
@@ -269,6 +334,11 @@ export interface InterviewAccess {
   submittedAt: Timestamp | null;
   updatedAt: Timestamp | null;
   responseUpdatedAt?: Timestamp | null;
+  firstAccessedAt?: Timestamp | null;
+  tokenRevision?: number;
+  supersededBy?: string | null;
+  supersededAt?: Timestamp | null;
+  reissuedFrom?: string | null;
   active: boolean;
   assignmentSummary?: {
     slotId: string;

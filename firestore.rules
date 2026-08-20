@@ -52,8 +52,23 @@ service cloud.firestore {
       let availability = request.resource.data.availability;
       return availability is list &&
         round.data.allowedSlots is list &&
+        resource.data.firstAccessedAt is timestamp &&
         availability.size() == availability.toSet().size() &&
         availability.toSet().hasOnly(round.data.allowedSlots);
+    }
+
+    // Spark 요금제 호환 정책: 최초 접속 시각은 Firestore 서버 시각으로
+    // 한 번만 기록한다. 날짜별 4일 범위 계산은 공개 페이지에서 이 값을
+    // 기준으로 수행한다. Firestore Rules만으로는 KST 달력 계산·동적 슬롯
+    // 목록 생성을 검증할 수 없으므로, 직접 API 요청의 범위까지는 강제하지
+    // 않고 회차 전체의 허용 슬롯만 검증한다.
+    function isValidPublicFirstAccessUpdate() {
+      return resource.data.active == true &&
+        resource.data.firstAccessedAt == null &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstAccessedAt']) &&
+        request.resource.data.firstAccessedAt is timestamp &&
+        request.resource.data.firstAccessedAt == request.time &&
+        isSurveyWindowOpen(resource.data.roundId);
     }
 
     function hasValidSubmissionTimestamps() {
@@ -191,13 +206,19 @@ service cloud.firestore {
     }
 
     match /interviewAssignmentEvents/{eventId} {
-      allow read, write: if canManageInterviews();
+      allow read, create: if canManageInterviews();
     }
 
     // Interview notes can contain sensitive application answers and internal
     // observations, so they are never exposed through an applicant token.
     match /interviewNotes/{noteId} {
       allow read, write: if canManageInterviews();
+    }
+
+    // Immutable-style snapshots keep completed and reset/withdrawn interview
+    // attempts extractable for V4 without exposing them to applicant links.
+    match /interviewRecordEvents/{eventId} {
+      allow read, create: if canManageInterviews();
     }
 
     match /interviewChangeRequests/{token} {
@@ -224,7 +245,7 @@ service cloud.firestore {
         resource.data.active == true;
       allow list: if canManageInterviews();
       allow create, delete: if canManageInterviews();
-      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicChangeRequestAccessUpdate(token);
+      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
     }
 
     // 6. Default deny for all other paths

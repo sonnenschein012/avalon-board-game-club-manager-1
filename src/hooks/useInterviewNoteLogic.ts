@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import type { InterviewNote, InterviewRoundInterviewer } from '../types';
+import type { InterviewNote, InterviewOverallRating, InterviewRoundInterviewer } from '../types';
 import { saveInterviewNote, subscribeInterviewNote } from '../services/interviewsService';
 
 interface NoteDraft {
   generalNotes: string;
   answers: Record<string, string>;
+  overallRating: InterviewOverallRating | null;
 }
 
-const EMPTY_NOTE: NoteDraft = { generalNotes: '', answers: {} };
+const EMPTY_NOTE: NoteDraft = { generalNotes: '', answers: {}, overallRating: null };
 
 export function useInterviewNoteLogic(
   roundId: string,
@@ -29,7 +30,11 @@ export function useInterviewNoteLogic(
     if (!applicantId) { setState('loading'); return; }
     setState('loading');
     return subscribeInterviewNote(roundId, applicantId, value => {
-      const next = value ? { generalNotes: value.generalNotes ?? '', answers: value.answers ?? {} } : EMPTY_NOTE;
+      const next = value ? {
+        generalNotes: value.generalNotes ?? '',
+        answers: value.answers ?? {},
+        overallRating: value.overallRating ?? null,
+      } : EMPTY_NOTE;
       const nextSerialized = JSON.stringify(next);
       const currentSerialized = JSON.stringify(draftRef.current);
       const hasUnsavedLocalChanges = initialized.current && currentSerialized !== lastSaved.current;
@@ -57,6 +62,7 @@ export function useInterviewNoteLogic(
         interviewerName: interviewer.displayName,
         generalNotes: draft.generalNotes,
         answers: draft.answers,
+        overallRating: draft.overallRating,
       }).then(() => {
         lastSaved.current = serialized;
         if (JSON.stringify(draftRef.current) === serialized) setState('saved');
@@ -76,13 +82,15 @@ export function useInterviewNoteLogic(
       interviewerName: interviewer.displayName,
       generalNotes: current.generalNotes,
       answers: current.answers,
-    });
+      overallRating: current.overallRating,
+    }).catch(() => undefined);
   }, [applicantId, interviewer, roundId]);
 
   return {
     note,
     generalNotes: draft.generalNotes,
     answers: draft.answers,
+    overallRating: draft.overallRating,
     state,
     setGeneralNotes: (generalNotes: string) => setDraft(current => {
       const next = { ...current, generalNotes };
@@ -91,6 +99,11 @@ export function useInterviewNoteLogic(
     }),
     setAnswer: (questionId: string, answer: string) => setDraft(current => {
       const next = { ...current, answers: { ...current.answers, [questionId]: answer } };
+      draftRef.current = next;
+      return next;
+    }),
+    setOverallRating: (overallRating: InterviewOverallRating | null) => setDraft(current => {
+      const next = { ...current, overallRating };
       draftRef.current = next;
       return next;
     }),

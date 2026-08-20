@@ -8,7 +8,6 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -19,6 +18,14 @@ import {
 import { auth, db } from '../lib/firebase';
 import { availabilityToAssignmentCandidates, getAssignmentScheduleImpact } from '../domain/interviews/scheduling';
 import { normalizeApplicantNumber } from '../domain/interviews/applicantMerge';
+import { OVERALL_RATINGS, prepareInterviewCompletion } from '../domain/interviews/interviewCompletion';
+import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
+import {
+  getApplicantAssignmentRevision,
+  prepareReissuedAccess,
+  prepareScheduleResetTransition,
+  prepareWithdrawalTransition,
+} from '../domain/interviews/interviewTransitions';
 import type {
   InterviewAccess,
   InterviewApplicant,
@@ -28,6 +35,9 @@ import type {
   InterviewDaySchedule,
   InterviewQuestion,
   InterviewNote,
+  InterviewOverallRating,
+  InterviewProgressStatus,
+  InterviewSelectionStatus,
   InterviewerProfile,
   InterviewRoundInterviewer,
   InterviewChangeRequest,
@@ -35,6 +45,21 @@ import type {
   InterviewRound,
   InterviewRoundStatus,
 } from '../types';
+
+function isActiveApplicant(applicant: InterviewApplicant) {
+  return (applicant.lifecycle ?? 'active') === 'active'
+    && (applicant.applicationStatus ?? 'active') === 'active';
+}
+
+function currentAssignmentRevision(applicant: InterviewApplicant) {
+  return getApplicantAssignmentRevision(applicant);
+}
+
+function isCurrentConfirmationSent(applicant: InterviewApplicant) {
+  return Boolean(applicant.assignment)
+    && applicant.confirmationMessage?.lastMarkedSentAt != null
+    && (applicant.confirmationMessage.assignmentRevision ?? 0) === currentAssignmentRevision(applicant);
+}
 
 export const INTERVIEW_LINK_ORIGIN = window.location.origin;
 
@@ -82,6 +107,8 @@ export interface RoundInterviewerDraft {
 
 export interface AssignmentProposalWrite {
   applicantId: string;
+  /** Revision observed when the automatic-assignment draft was created. */
+  expectedAssignmentRevision: number;
   slotId: string;
   startsAt: Timestamp;
   durationMinutes: number;
@@ -146,6 +173,43 @@ export function getInterviewLink(token: string): string {
   return new URL(`/interview/${encodeURIComponent(token)}`, INTERVIEW_LINK_ORIGIN).toString();
 }
 
+export async function reissueInterviewAccessToken(applicantId: string): Promise<string> {
+  const nextToken = generateInterviewToken();
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const applicantSnapshot = await transaction.get(applicantRef);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    const previousToken = applicant.accessToken;
+    const previousAccessRef = doc(db, 'interviewAccess', previousToken);
+    const nextAccessRef = doc(db, 'interviewAccess', nextToken);
+    const [previousAccessSnapshot, nextAccessSnapshot] = await Promise.all([
+      transaction.get(previousAccessRef),
+      transaction.get(nextAccessRef),
+    ]);
+    if (!previousAccessSnapshot.exists()) throw new Error('기존 공개 링크 정보를 찾을 수 없습니다.');
+    if (nextAccessSnapshot.exists()) throw new Error('새 링크 생성이 충돌했습니다. 다시 시도해주세요.');
+    const previousAccess = previousAccessSnapshot.data() as InterviewAccess;
+    if (previousAccess.changeRequestStatus === 'open') {
+      throw new Error('처리 중인 일정 변경 요청을 먼저 해결한 뒤 링크를 재발급해주세요.');
+    }
+    transaction.set(nextAccessRef, {
+      ...prepareReissuedAccess(previousAccess, previousToken, isActiveApplicant(applicant)),
+      createdAt: serverTimestamp(),
+    });
+    transaction.update(previousAccessRef, {
+      active: false,
+      supersededBy: nextToken,
+      supersededAt: serverTimestamp(),
+    });
+    transaction.update(applicantRef, {
+      accessToken: nextToken,
+      updatedAt: serverTimestamp(),
+    });
+  });
+  return nextToken;
+}
+
 function getAssignmentLockId(roundId: string, assignment: Pick<InterviewAssignment, 'interviewerId' | 'slotId'>) {
   if (!assignment.slotId) throw new Error('면접 배정 슬롯 ID가 없습니다.');
   return [roundId, assignment.interviewerId, assignment.slotId].map(encodeURIComponent).join('__');
@@ -157,6 +221,30 @@ function getApplicantKeyId(roundId: string, applicantNumber: string) {
 
 function actorEmail() {
   return auth.currentUser?.email?.trim().toLowerCase() ?? null;
+}
+
+function interviewRecordSnapshot(applicant: InterviewApplicant, note?: InterviewNote) {
+  const overallRating = note?.overallRating ?? applicant.overallRating ?? null;
+  return {
+    assignmentRevision: currentAssignmentRevision(applicant),
+    assignment: applicant.assignment ?? null,
+    interviewStatus: getInterviewProgressStatus(applicant),
+    overallRating,
+    noteSnapshot: note ? {
+      interviewerId: note.interviewerId ?? '',
+      interviewerName: note.interviewerName ?? '',
+      generalNotes: note.generalNotes ?? '',
+      answers: note.answers ?? {},
+      overallRating,
+      createdAt: note.createdAt ?? null,
+      updatedAt: note.updatedAt ?? null,
+      updatedBy: note.updatedBy ?? null,
+    } : null,
+  };
+}
+
+function hasInterviewRecord(applicant: InterviewApplicant, note?: InterviewNote) {
+  return Boolean(note || applicant.overallRating || getInterviewProgressStatus(applicant) === 'completed');
 }
 
 export function subscribeInterviewRounds(
@@ -189,7 +277,7 @@ export function subscribeInterviewAccess(
 ): Unsubscribe {
   return onSnapshot(
     query(collection(db, 'interviewAccess'), where('roundId', '==', roundId)),
-    snapshot => onData(mapSnapshot<InterviewAccess>(snapshot)),
+    snapshot => onData(mapSnapshot<InterviewAccess>(snapshot).filter(item => !item.supersededBy)),
     onError,
   );
 }
@@ -205,7 +293,7 @@ export function subscribeAllInterviewAccess(
   onData: (access: InterviewAccess[]) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(collection(db, 'interviewAccess'), snapshot => onData(mapSnapshot<InterviewAccess>(snapshot)), onError);
+  return onSnapshot(collection(db, 'interviewAccess'), snapshot => onData(mapSnapshot<InterviewAccess>(snapshot).filter(item => !item.supersededBy)), onError);
 }
 
 export async function getInterviewRound(roundId: string): Promise<InterviewRound | null> {
@@ -239,37 +327,40 @@ export async function markInterviewMessageSent(
   markedSent = true,
 ): Promise<void> {
   const applicantRef = doc(db, 'interviewApplicants', applicantId);
-  const snapshot = await getDoc(applicantRef);
-  if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
-  const previous = snapshot.data()[kind] as InterviewApplicant[typeof kind] | undefined;
-  const applicant = snapshot.data() as InterviewApplicant;
-  const currentAssignment = applicant.assignment;
-  const assignmentRevision = applicant.assignmentRevision;
-  if (!markedSent) {
-    const batch = writeBatch(db);
-    batch.update(applicantRef, {
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(applicantRef);
+    if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = snapshot.data() as InterviewApplicant;
+    const previous = applicant[kind] as InterviewApplicant[typeof kind] | undefined;
+    const currentAssignment = applicant.assignment;
+    if (kind === 'confirmationMessage' && markedSent) {
+      if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자에게는 확정 안내를 기록할 수 없습니다.');
+      if (!currentAssignment) throw new Error('현재 면접 배정이 없어 확정 안내를 기록할 수 없습니다.');
+    }
+
+    const revision = currentAssignmentRevision(applicant);
+    const messagePatch = markedSent ? {
+      [`${kind}.firstMarkedSentAt`]: previous?.firstMarkedSentAt ?? serverTimestamp(),
+      [`${kind}.lastMarkedSentAt`]: serverTimestamp(),
+      ...(kind === 'confirmationMessage' ? { [`${kind}.assignmentRevision`]: revision } : {}),
+    } : {
       [`${kind}.firstMarkedSentAt`]: null,
       [`${kind}.lastMarkedSentAt`]: null,
       ...(kind === 'confirmationMessage' ? { [`${kind}.assignmentRevision`]: 0 } : {}),
-      ...(kind === 'confirmationMessage' && currentAssignment ? { 'assignment.status': 'scheduled' } : {}),
+    };
+    transaction.update(applicantRef, {
+      ...messagePatch,
+      ...(kind === 'confirmationMessage' && currentAssignment
+        ? { 'assignment.status': markedSent ? 'confirmed' : 'scheduled' }
+        : {}),
       updatedAt: serverTimestamp(),
     });
-    if (kind === 'confirmationMessage' && currentAssignment) batch.update(doc(db, 'interviewAccess', applicant.accessToken), { 'assignmentSummary.status': 'scheduled' });
-    await batch.commit();
-    return;
-  }
-  const batch = writeBatch(db);
-  batch.update(applicantRef, {
-    [`${kind}.firstMarkedSentAt`]: previous?.firstMarkedSentAt ?? serverTimestamp(),
-    [`${kind}.lastMarkedSentAt`]: serverTimestamp(),
-    ...(kind === 'confirmationMessage'
-      ? { [`${kind}.assignmentRevision`]: assignmentRevision ?? currentAssignment?.confirmationRevision ?? 0 }
-      : {}),
-    ...(kind === 'confirmationMessage' && currentAssignment ? { 'assignment.status': 'confirmed' } : {}),
-    updatedAt: serverTimestamp(),
+    if (kind === 'confirmationMessage' && currentAssignment) {
+      transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+        'assignmentSummary.status': markedSent ? 'confirmed' : 'scheduled',
+      });
+    }
   });
-  if (kind === 'confirmationMessage' && currentAssignment) batch.update(doc(db, 'interviewAccess', applicant.accessToken), { 'assignmentSummary.status': 'confirmed' });
-  await batch.commit();
 }
 
 export async function saveInterviewAssignment(
@@ -281,9 +372,15 @@ export async function saveInterviewAssignment(
     const applicantSnapshot = await transaction.get(applicantRef);
     if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = applicantSnapshot.data() as InterviewApplicant;
+    if (assignment && !isActiveApplicant(applicant)) {
+      throw new Error('지원 철회 또는 보관된 지원자는 배정할 수 없습니다.');
+    }
     const currentAssignment = applicant.assignment;
-    const nextRevision = (applicant.assignmentRevision ?? currentAssignment?.confirmationRevision ?? 0) + 1;
-    const nextAssignment = assignment ? { ...assignment, confirmationRevision: nextRevision } : null;
+    const previousRevision = currentAssignmentRevision(applicant);
+    const nextRevision = previousRevision + 1;
+    const nextAssignment = assignment
+      ? { ...assignment, status: 'scheduled' as const, confirmationRevision: nextRevision }
+      : null;
 
     let nextLockRef: DocumentReference | null = null;
     if (nextAssignment) {
@@ -328,6 +425,7 @@ export async function saveInterviewAssignment(
       assignment: nextAssignment,
       previousAssignment: currentAssignment ?? null,
       assignmentRevision: nextRevision,
+      ...(nextAssignment ? { interviewStatus: 'scheduled', actionNeededReason: null } : {}),
       updatedAt: serverTimestamp(),
     });
     transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
@@ -345,6 +443,8 @@ export async function saveInterviewAssignment(
       type: !currentAssignment && nextAssignment ? 'assigned' : currentAssignment && !nextAssignment ? 'unassigned' : 'changed',
       previousAssignment: currentAssignment ?? null,
       nextAssignment,
+      previousRevision,
+      nextRevision,
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
@@ -401,8 +501,24 @@ export async function applyInterviewAssignmentProposals(
       if (!applicantSnapshot?.exists()) throw new Error('지원자를 찾을 수 없습니다.');
       const applicant = applicantSnapshot.data() as InterviewApplicant;
       if (applicant.roundId !== roundId) throw new Error('다른 회차의 지원자가 포함되어 있습니다.');
+      if (!isActiveApplicant(applicant)) throw new Error(`${applicant.name} 지원자는 지원 철회 또는 보관 상태입니다.`);
       const current = applicant.assignment;
+      const previousRevision = currentAssignmentRevision(applicant);
+      if (proposal.expectedAssignmentRevision !== previousRevision) {
+        throw new Error(`${applicant.name} 지원자의 일정이 초안 작성 후 변경되었습니다. 자동 배정을 다시 실행해주세요.`);
+      }
+      const progressStatus = applicant.interviewStatus
+        ?? (current?.status === 'completed' ? 'completed' : 'scheduled');
+      if (progressStatus === 'completed' || progressStatus === 'action_needed') {
+        throw new Error(`${applicant.name} 지원자는 면접 완료 또는 조치 필요 상태입니다. 먼저 별도 절차로 상태를 처리해주세요.`);
+      }
+      if (current && ['completed', 'no_show', 'cancelled', 'needs_reschedule'].includes(current.status)) {
+        throw new Error(`${applicant.name} 지원자의 현재 면접 상태에는 자동 배정을 적용할 수 없습니다.`);
+      }
       const access = accessSnapshots[index]?.data() as InterviewAccess | undefined;
+      if (access?.changeRequestStatus === 'open') {
+        throw new Error(`${applicant.name} 지원자는 일정 변경 요청을 처리한 뒤 자동 배정할 수 있습니다.`);
+      }
       const participant = participantByInterviewer.get(proposal.interviewerId);
       const applicantCandidates = availabilityToAssignmentCandidates(access?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes);
       const interviewerCandidates = availabilityToAssignmentCandidates(participant?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes);
@@ -413,14 +529,20 @@ export async function applyInterviewAssignmentProposals(
       if (current?.locked && (current.slotId !== proposal.slotId || current.interviewerId !== proposal.interviewerId)) {
         throw new Error(`${applicant.name} 지원자의 잠긴 배정이 변경되었습니다.`);
       }
-      const revision = (applicant.assignmentRevision ?? current?.confirmationRevision ?? 0) + 1;
+      const assignmentChanges = !current
+        || current.slotId !== proposal.slotId
+        || current.interviewerId !== proposal.interviewerId;
+      if (assignmentChanges && isCurrentConfirmationSent(applicant)) {
+        throw new Error(`${applicant.name} 지원자는 현재 일정의 확정 안내를 받아 자동으로 이동할 수 없습니다.`);
+      }
+      const revision = previousRevision + 1;
       const next: InterviewAssignment = {
         slotId: proposal.slotId,
         startsAt: proposal.startsAt,
         durationMinutes: proposal.durationMinutes,
         interviewerId: proposal.interviewerId,
         interviewerName: proposal.interviewerName,
-        status: proposal.status ?? current?.status ?? 'scheduled',
+        status: 'scheduled',
         locked: proposal.locked,
         source: proposal.source,
         confirmationRevision: revision,
@@ -434,7 +556,14 @@ export async function applyInterviewAssignmentProposals(
         durationMinutes: proposal.durationMinutes,
         updatedAt: serverTimestamp(),
       });
-      transaction.update(applicantRefs[index]!, { assignment: next, previousAssignment: current ?? null, assignmentRevision: revision, updatedAt: serverTimestamp() });
+      transaction.update(applicantRefs[index]!, {
+        assignment: next,
+        previousAssignment: current ?? null,
+        assignmentRevision: revision,
+        interviewStatus: 'scheduled',
+        actionNeededReason: null,
+        updatedAt: serverTimestamp(),
+      });
       transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
         assignmentSummary: { slotId: next.slotId, interviewerName: next.interviewerName, status: next.status, revision },
       });
@@ -444,6 +573,8 @@ export async function applyInterviewAssignmentProposals(
         type: current ? 'changed' : 'assigned',
         previousAssignment: current ?? null,
         nextAssignment: next,
+        previousRevision,
+        nextRevision: revision,
         createdAt: serverTimestamp(),
         createdBy: actorEmail(),
       });
@@ -462,11 +593,31 @@ export async function updateInterviewAssignmentState(
     if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = snapshot.data() as InterviewApplicant;
     if (!applicant.assignment) throw new Error('면접 배정이 없습니다.');
-    const next = { ...applicant.assignment, ...patch };
-    if (patch.status && ['no_show', 'cancelled', 'needs_reschedule'].includes(patch.status) && applicant.assignment.slotId) {
-      transaction.delete(doc(db, 'interviewAssignmentLocks', getAssignmentLockId(applicant.roundId, applicant.assignment)));
+    if (patch.status === 'completed') throw new Error('면접 완료는 종합평가와 함께 완료 기능에서 처리해야 합니다.');
+    if (patch.status && getInterviewProgressStatus(applicant) === 'completed') {
+      throw new Error('이미 완료된 면접의 배정 상태는 이 기능으로 변경할 수 없습니다.');
     }
-    transaction.update(applicantRef, { assignment: next, updatedAt: serverTimestamp() });
+    const next = { ...applicant.assignment, ...patch };
+    const actionNeeded = patch.status != null
+      && ['change_requested', 'no_show', 'cancelled', 'needs_reschedule'].includes(patch.status);
+    const actionNeededReason = patch.status === 'no_show'
+      ? '면접 불참'
+      : patch.status === 'cancelled'
+        ? '면접 취소'
+        : patch.status === 'needs_reschedule' || patch.status === 'change_requested'
+          ? '일정 재조율 필요'
+          : null;
+    transaction.update(applicantRef, {
+      assignment: next,
+      ...(actionNeeded ? {
+        interviewStatus: 'action_needed' satisfies InterviewProgressStatus,
+        actionNeededReason,
+      } : patch.status ? {
+        interviewStatus: 'scheduled' satisfies InterviewProgressStatus,
+        actionNeededReason: null,
+      } : {}),
+      updatedAt: serverTimestamp(),
+    });
     transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
       'assignmentSummary.status': next.status,
     });
@@ -476,6 +627,8 @@ export async function updateInterviewAssignmentState(
       type: patch.locked === true ? 'locked' : patch.locked === false ? 'unlocked' : 'status_changed',
       previousAssignment: applicant.assignment,
       nextAssignment: next,
+      previousRevision: currentAssignmentRevision(applicant),
+      nextRevision: currentAssignmentRevision(applicant),
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
@@ -515,7 +668,7 @@ export async function applyInterviewScheduleChange(
       if (!snapshot.exists()) return [];
       const data = snapshot.data() as InterviewApplicant;
       return data.roundId === roundId
-        ? [{ applicantId: snapshot.id, assignment: data.assignment, ref: snapshot.ref }]
+        ? [{ applicantId: snapshot.id, assignment: data.assignment, applicant: data, ref: snapshot.ref }]
         : [];
     });
     const assignmentImpact = getAssignmentScheduleImpact(
@@ -539,7 +692,7 @@ export async function applyInterviewScheduleChange(
       const ref = applicantRefsById.get(item.applicantId);
       if (ref) {
         const applicant = latestApplicants.find(candidate => candidate.applicantId === item.applicantId);
-        const currentRevision = applicant?.assignment?.confirmationRevision ?? 0;
+        const currentRevision = applicant ? currentAssignmentRevision(applicant.applicant) : 0;
         if (applicant?.assignment?.slotId) {
           transaction.delete(doc(
             db,
@@ -554,8 +707,19 @@ export async function applyInterviewScheduleChange(
           updatedAt: serverTimestamp(),
           });
           if (applicant) {
-            const latest = applicantSnapshots.find(snapshot => snapshot.id === item.applicantId)?.data() as InterviewApplicant | undefined;
-            if (latest?.accessToken) transaction.update(doc(db, 'interviewAccess', latest.accessToken), { assignmentSummary: null });
+            if (applicant.applicant.accessToken) transaction.update(doc(db, 'interviewAccess', applicant.applicant.accessToken), { assignmentSummary: null });
+            transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+              roundId,
+              applicantId: item.applicantId,
+              type: 'unassigned',
+              previousAssignment: applicant.assignment ?? null,
+              nextAssignment: null,
+              previousRevision: currentRevision,
+              nextRevision: currentRevision + 1,
+              reason: '회차 일정 설정 변경',
+              createdAt: serverTimestamp(),
+              createdBy: actorEmail(),
+            });
           }
       }
     });
@@ -568,6 +732,133 @@ export async function applyInterviewScheduleChange(
 
 export async function setInterviewAccessActive(token: string, active: boolean): Promise<void> {
   await updateDoc(doc(db, 'interviewAccess', token), { active });
+}
+
+export async function resetInterviewApplicantSchedule(applicantId: string): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const applicantSnapshot = await transaction.get(applicantRef);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    if (!isActiveApplicant(applicant)) {
+      throw new Error('지원 철회 또는 보관된 지원자는 정상 상태로 복구한 뒤 일정을 초기화할 수 있습니다.');
+    }
+    const accessRef = doc(db, 'interviewAccess', applicant.accessToken);
+    const accessSnapshot = await transaction.get(accessRef);
+    if (!accessSnapshot.exists()) throw new Error('지원자의 공개 링크 정보를 찾을 수 없습니다.');
+    const changeRequestRef = doc(db, 'interviewChangeRequests', applicant.accessToken);
+    const changeRequestSnapshot = await transaction.get(changeRequestRef);
+    const noteSnapshot = await transaction.get(doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`));
+    const note = noteSnapshot.data() as InterviewNote | undefined;
+
+    const transition = prepareScheduleResetTransition(applicant);
+    const { previousAssignment, previousRevision, nextRevision } = transition;
+    if (previousAssignment?.slotId) {
+      transaction.delete(doc(db, 'interviewAssignmentLocks', getAssignmentLockId(applicant.roundId, previousAssignment)));
+    }
+    transaction.update(applicantRef, {
+      ...transition.applicantPatch,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(accessRef, {
+      ...transition.accessPatch,
+      ...(accessSnapshot.data().changeRequestStatus === 'open' ? { changeRequestStatus: 'resolved' } : {}),
+    });
+    if (changeRequestSnapshot.exists() && changeRequestSnapshot.data().status === 'open') {
+      transaction.update(changeRequestRef, {
+        status: 'resolved',
+        resolvedAt: serverTimestamp(),
+        resolvedBy: actorEmail(),
+      });
+    }
+    transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+      roundId: applicant.roundId,
+      applicantId,
+      type: 'schedule_reset',
+      previousAssignment,
+      nextAssignment: null,
+      previousRevision,
+      nextRevision,
+      reason: '일정 초기화',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+    if (hasInterviewRecord(applicant, note)) {
+      transaction.set(doc(collection(db, 'interviewRecordEvents')), {
+        roundId: applicant.roundId,
+        applicantId,
+        type: 'schedule_reset_snapshot',
+        ...interviewRecordSnapshot(applicant, note),
+        reason: '일정 초기화 전 기록 보존',
+        createdAt: serverTimestamp(),
+        createdBy: actorEmail(),
+      });
+    }
+  });
+}
+
+export async function setInterviewApplicantWithdrawn(applicantId: string, withdrawn: boolean): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const applicantSnapshot = await transaction.get(applicantRef);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    const accessRef = doc(db, 'interviewAccess', applicant.accessToken);
+    const accessSnapshot = await transaction.get(accessRef);
+    if (!accessSnapshot.exists()) throw new Error('지원자의 공개 링크 정보를 찾을 수 없습니다.');
+    const changeRequestRef = doc(db, 'interviewChangeRequests', applicant.accessToken);
+    const changeRequestSnapshot = await transaction.get(changeRequestRef);
+    const noteSnapshot = await transaction.get(doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`));
+    const note = noteSnapshot.data() as InterviewNote | undefined;
+
+    const wasWithdrawn = (applicant.applicationStatus ?? 'active') === 'withdrawn';
+    if (wasWithdrawn === withdrawn) return;
+    const transition = prepareWithdrawalTransition(applicant, withdrawn);
+    const { activeAssignment, previousRevision, nextRevision } = transition;
+    if (withdrawn && activeAssignment?.slotId) {
+      transaction.delete(doc(db, 'interviewAssignmentLocks', getAssignmentLockId(applicant.roundId, activeAssignment)));
+    }
+    transaction.update(applicantRef, {
+      ...transition.applicantPatch,
+      withdrawnAt: withdrawn ? serverTimestamp() : null,
+      withdrawnBy: withdrawn ? actorEmail() : null,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(accessRef, {
+      ...transition.accessPatch,
+      ...(accessSnapshot.data().changeRequestStatus === 'open' ? { changeRequestStatus: 'dismissed' } : {}),
+    });
+    if (changeRequestSnapshot.exists() && changeRequestSnapshot.data().status === 'open') {
+      transaction.update(changeRequestRef, {
+        status: 'dismissed',
+        resolvedAt: serverTimestamp(),
+        resolvedBy: actorEmail(),
+      });
+    }
+    transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+      roundId: applicant.roundId,
+      applicantId,
+      type: withdrawn ? 'withdrawn' : 'restored',
+      previousAssignment: withdrawn ? activeAssignment : null,
+      nextAssignment: null,
+      previousRevision,
+      nextRevision,
+      reason: withdrawn ? '지원 철회' : '지원 철회 취소',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+    if (withdrawn && hasInterviewRecord(applicant, note)) {
+      transaction.set(doc(collection(db, 'interviewRecordEvents')), {
+        roundId: applicant.roundId,
+        applicantId,
+        type: 'withdrawal_snapshot',
+        ...interviewRecordSnapshot(applicant, note),
+        reason: '지원 철회 전 기록 보존',
+        createdAt: serverTimestamp(),
+        createdBy: actorEmail(),
+      });
+    }
+  });
 }
 
 export async function createInterviewApplicant(roundId: string, draft: ApplicantDraft): Promise<string> {
@@ -588,6 +879,9 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
       sourceRowNumber: null,
       source: 'manual',
       lifecycle: 'active',
+      applicationStatus: 'active',
+      withdrawnAt: null,
+      withdrawnBy: null,
       archivedAt: null,
       archivedReason: null,
       availabilityMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
@@ -596,6 +890,14 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
       assignment: null,
       previousAssignment: null,
       assignmentRevision: 0,
+      interviewStatus: 'scheduled',
+      actionNeededReason: null,
+      overallRating: null,
+      interviewCompletedAt: null,
+      interviewCompletedBy: null,
+      selectionStatus: 'pending',
+      selectionDecidedAt: null,
+      selectionDecidedBy: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -607,6 +909,11 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
       submittedAt: null,
       updatedAt: null,
       responseUpdatedAt: null,
+      firstAccessedAt: null,
+      tokenRevision: 1,
+      supersededBy: null,
+      supersededAt: null,
+      reissuedFrom: null,
       active: true,
       assignmentSummary: null,
       changeRequestStatus: 'none',
@@ -643,7 +950,9 @@ export async function setInterviewApplicantArchived(applicant: InterviewApplican
     archivedReason: archived ? reason.trim() || '운영진 보관 처리' : null,
     updatedAt: serverTimestamp(),
   });
-  batch.update(doc(db, 'interviewAccess', applicant.accessToken), { active: !archived });
+  batch.update(doc(db, 'interviewAccess', applicant.accessToken), {
+    active: !archived && (applicant.applicationStatus ?? 'active') === 'active',
+  });
   await batch.commit();
 }
 
@@ -679,15 +988,22 @@ export async function mergeInterviewApplicants(roundId: string, items: Applicant
       transaction.set(applicantRef, {
         roundId, applicantNumber: item.applicantNumber.trim(), name: item.name.trim(), phone: item.phone.trim(),
         applicationData: item.applicationData, accessToken: token, sourceRowNumber: item.sourceRowNumber,
-        source: 'csv', lifecycle: 'active', archivedAt: null, archivedReason: null,
+        source: 'csv', lifecycle: 'active', applicationStatus: 'active', withdrawnAt: null, withdrawnBy: null,
+        archivedAt: null, archivedReason: null,
         availabilityMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
         reminderMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null },
         confirmationMessage: { firstMarkedSentAt: null, lastMarkedSentAt: null, assignmentRevision: 0 },
-        assignment: null, previousAssignment: null, assignmentRevision: 0, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        assignment: null, previousAssignment: null, assignmentRevision: 0,
+        interviewStatus: 'scheduled', actionNeededReason: null, overallRating: null,
+        interviewCompletedAt: null, interviewCompletedBy: null,
+        selectionStatus: 'pending', selectionDecidedAt: null, selectionDecidedBy: null,
+        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
       transaction.set(doc(db, 'interviewAccess', token), {
         roundId, applicantId: applicantRef.id, displayName: item.name.trim(), availability: [], submittedAt: null,
-        updatedAt: null, responseUpdatedAt: null, active: true, createdAt: serverTimestamp(),
+        updatedAt: null, responseUpdatedAt: null, firstAccessedAt: null,
+        tokenRevision: 1, supersededBy: null, supersededAt: null, reissuedFrom: null,
+        active: true, createdAt: serverTimestamp(),
         assignmentSummary: null, changeRequestStatus: 'none',
       });
     });
@@ -769,13 +1085,247 @@ export async function saveInterviewNote(input: {
   interviewerName: string;
   generalNotes: string;
   answers: Record<string, string>;
+  overallRating?: InterviewOverallRating | null;
 }): Promise<void> {
+  if (input.overallRating != null && !OVERALL_RATINGS.includes(input.overallRating)) {
+    throw new Error('올바르지 않은 종합평가입니다.');
+  }
   const noteRef = doc(db, 'interviewNotes', `${input.roundId}__${input.applicantId}`);
-  const snapshot = await getDoc(noteRef);
-  await setDoc(noteRef, {
-    ...input,
-    ...(snapshot.exists() ? {} : { createdAt: serverTimestamp() }),
-    updatedAt: serverTimestamp(),
-    updatedBy: actorEmail(),
-  }, { merge: true });
+  const applicantRef = doc(db, 'interviewApplicants', input.applicantId);
+  await runTransaction(db, async transaction => {
+    const [noteSnapshot, applicantSnapshot] = await Promise.all([
+      transaction.get(noteRef),
+      transaction.get(applicantRef),
+    ]);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    if (applicant.roundId !== input.roundId) throw new Error('다른 면접 회차의 지원자입니다.');
+    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 면접 기록은 수정할 수 없습니다.');
+    // A pending autosave that races the final completion transaction must not
+    // overwrite the rating and notes that were atomically finalized there.
+    if (getInterviewProgressStatus(applicant) === 'completed') {
+      throw new Error('완료된 면접의 평가는 선발 상세에서 수정해주세요.');
+    }
+    transaction.set(noteRef, {
+      ...input,
+      ...(noteSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
+      updatedAt: serverTimestamp(),
+      updatedBy: actorEmail(),
+    }, { merge: true });
+    if ('overallRating' in input) {
+      transaction.update(applicantRef, {
+        overallRating: input.overallRating ?? null,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  });
+}
+
+export async function updateCompletedInterviewOverallRating(
+  applicantId: string,
+  overallRating: InterviewOverallRating,
+): Promise<void> {
+  if (!OVERALL_RATINGS.includes(overallRating)) throw new Error('올바르지 않은 종합평가입니다.');
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const applicantSnapshot = await transaction.get(applicantRef);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 평가는 수정할 수 없습니다.');
+    if (getInterviewProgressStatus(applicant) !== 'completed') throw new Error('완료된 면접의 평가만 이곳에서 수정할 수 있습니다.');
+    const noteRef = doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`);
+    const noteSnapshot = await transaction.get(noteRef);
+    const note = noteSnapshot.data() as InterviewNote | undefined;
+    const assignment = applicant.assignment ?? applicant.previousAssignment;
+    transaction.set(noteRef, {
+      roundId: applicant.roundId,
+      applicantId,
+      interviewerId: note?.interviewerId ?? assignment?.interviewerId ?? '',
+      interviewerName: note?.interviewerName ?? assignment?.interviewerName ?? '',
+      generalNotes: note?.generalNotes ?? '',
+      answers: note?.answers ?? {},
+      overallRating,
+      ...(noteSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
+      updatedAt: serverTimestamp(),
+      updatedBy: actorEmail(),
+    }, { merge: true });
+    transaction.update(applicantRef, {
+      overallRating,
+      updatedAt: serverTimestamp(),
+    });
+    const previousOverallRating = note?.overallRating ?? applicant.overallRating ?? null;
+    const updatedApplicant = { ...applicant, overallRating };
+    const updatedNote = {
+      ...(note ?? {}),
+      interviewerId: note?.interviewerId ?? assignment?.interviewerId ?? '',
+      interviewerName: note?.interviewerName ?? assignment?.interviewerName ?? '',
+      generalNotes: note?.generalNotes ?? '',
+      answers: note?.answers ?? {},
+      overallRating,
+    } as InterviewNote;
+    transaction.set(doc(collection(db, 'interviewRecordEvents')), {
+      roundId: applicant.roundId,
+      applicantId,
+      type: 'rating_changed',
+      ...interviewRecordSnapshot(updatedApplicant, updatedNote),
+      previousOverallRating,
+      nextOverallRating: overallRating,
+      reason: '면접 완료 후 종합평가 정정',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+  });
+}
+
+export async function setInterviewActionNeeded(applicantId: string, reason = ''): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(applicantRef);
+    if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = snapshot.data() as InterviewApplicant;
+    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 처리할 수 없습니다.');
+    if (getInterviewProgressStatus(applicant) === 'completed') {
+      throw new Error('이미 완료된 면접은 조치 필요로 변경할 수 없습니다.');
+    }
+    transaction.update(applicantRef, {
+      interviewStatus: 'action_needed' satisfies InterviewProgressStatus,
+      actionNeededReason: reason.trim().slice(0, 500) || null,
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+export async function restoreScheduledInterview(applicantId: string): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(applicantRef);
+    if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = snapshot.data() as InterviewApplicant;
+    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 처리할 수 없습니다.');
+    if (!applicant.assignment) throw new Error('현재 면접 배정이 없습니다.');
+    if (getInterviewProgressStatus(applicant) === 'completed') throw new Error('이미 완료된 면접입니다.');
+    const restoredAssignment = {
+      ...applicant.assignment,
+      status: isCurrentConfirmationSent(applicant) ? 'confirmed' as const : 'scheduled' as const,
+    };
+    transaction.update(applicantRef, {
+      assignment: restoredAssignment,
+      interviewStatus: 'scheduled' satisfies InterviewProgressStatus,
+      actionNeededReason: null,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+      'assignmentSummary.status': restoredAssignment.status,
+    });
+  });
+}
+
+export interface CompleteInterviewInput {
+  roundId: string;
+  applicantId: string;
+  interviewerId: string;
+  interviewerName: string;
+  generalNotes?: string;
+  answers?: Record<string, string>;
+  overallRating?: InterviewOverallRating | null;
+}
+
+export async function completeInterviewAtomically(input: CompleteInterviewInput): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', input.applicantId);
+  const noteRef = doc(db, 'interviewNotes', `${input.roundId}__${input.applicantId}`);
+  await runTransaction(db, async transaction => {
+    const [applicantSnapshot, noteSnapshot] = await Promise.all([
+      transaction.get(applicantRef),
+      transaction.get(noteRef),
+    ]);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    const existingNote = noteSnapshot.data() as InterviewNote | undefined;
+    const completion = prepareInterviewCompletion(applicant, existingNote ?? null, input);
+
+    transaction.set(noteRef, {
+      roundId: input.roundId,
+      applicantId: input.applicantId,
+      interviewerId: completion.interviewerId,
+      interviewerName: completion.interviewerName,
+      generalNotes: completion.generalNotes,
+      answers: completion.answers,
+      overallRating: completion.overallRating,
+      ...(noteSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
+      updatedAt: serverTimestamp(),
+      updatedBy: actorEmail(),
+    }, { merge: true });
+    transaction.update(applicantRef, {
+      assignment: completion.completedAssignment,
+      interviewStatus: 'completed' satisfies InterviewProgressStatus,
+      actionNeededReason: null,
+      overallRating: completion.overallRating,
+      interviewCompletedAt: serverTimestamp(),
+      interviewCompletedBy: actorEmail(),
+      selectionStatus: applicant.selectionStatus ?? 'pending',
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+      'assignmentSummary.status': 'completed',
+    });
+    transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+      roundId: applicant.roundId,
+      applicantId: input.applicantId,
+      type: 'status_changed',
+      previousAssignment: applicant.assignment,
+      nextAssignment: completion.completedAssignment,
+      previousRevision: currentAssignmentRevision(applicant),
+      nextRevision: currentAssignmentRevision(applicant),
+      reason: '면접 완료',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+    const completedApplicant = {
+      ...applicant,
+      assignment: completion.completedAssignment,
+      interviewStatus: 'completed' as const,
+      overallRating: completion.overallRating,
+    };
+    const completedNote = {
+      ...(existingNote ?? {}),
+      interviewerId: completion.interviewerId,
+      interviewerName: completion.interviewerName,
+      generalNotes: completion.generalNotes,
+      answers: completion.answers,
+      overallRating: completion.overallRating,
+    } as InterviewNote;
+    transaction.set(doc(collection(db, 'interviewRecordEvents')), {
+      roundId: applicant.roundId,
+      applicantId: input.applicantId,
+      type: 'completed',
+      ...interviewRecordSnapshot(completedApplicant, completedNote),
+      reason: '면접 완료 시점 기록',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+  });
+}
+
+export async function updateInterviewSelectionStatus(
+  applicantId: string,
+  selectionStatus: InterviewSelectionStatus,
+): Promise<void> {
+  const allowed: InterviewSelectionStatus[] = ['pending', 'selected', 'rejected'];
+  if (!allowed.includes(selectionStatus)) throw new Error('올바르지 않은 선발 상태입니다.');
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(applicantRef);
+    if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = snapshot.data() as InterviewApplicant;
+    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 선발 대상으로 처리할 수 없습니다.');
+    if (getInterviewProgressStatus(applicant) !== 'completed') {
+      throw new Error('면접 완료자만 선발 상태를 변경할 수 있습니다.');
+    }
+    transaction.update(applicantRef, {
+      selectionStatus,
+      selectionDecidedAt: selectionStatus === 'pending' ? null : serverTimestamp(),
+      selectionDecidedBy: selectionStatus === 'pending' ? null : actorEmail(),
+      updatedAt: serverTimestamp(),
+    });
+  });
 }

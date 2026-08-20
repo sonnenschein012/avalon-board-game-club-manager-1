@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { InterviewAccess, InterviewPublicRound } from '../types';
-import { requestPublicInterviewChange, savePublicAvailability, subscribeToPublicInterview } from '../services/publicInterviewService';
+import {
+  initializePublicInterviewAccess,
+  requestPublicInterviewChange,
+  savePublicAvailability,
+  subscribeToPublicInterview,
+} from '../services/publicInterviewService';
 import { getSurveyPhase } from '../domain/interviews/scheduling';
+import { calculateApplicantTimeWindow } from '../domain/interviews/publicTimeWindow';
 
 type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'before' | 'collecting' | 'closed' | 'error';
 
@@ -40,8 +46,10 @@ export function usePublicInterviewLogic(token: string | undefined) {
   const [saving, setSaving] = useState(false);
   const [requestingChange, setRequestingChange] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [initializationRetry, setInitializationRetry] = useState(0);
   const [now, setNow] = useState(() => new Date());
   const localEditRef = useRef(false);
+  const initializationKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30_000);
@@ -59,7 +67,18 @@ export function usePublicInterviewLogic(token: string | undefined) {
       (value) => {
         setAccess(value.access);
         setRound(value.round);
-        if (!localEditRef.current) {
+        const scheduleWasReset = Boolean(value.access)
+          && value.access?.firstAccessedAt == null
+          && value.access?.submittedAt == null;
+        if (scheduleWasReset) {
+          // The reset transaction is authoritative: discard even unsaved
+          // browser selections so the previous response cannot leak into the
+          // new first-access window while this page remains open.
+          localEditRef.current = false;
+          setAvailability(new Set());
+          setSaved(false);
+          setSaveError(null);
+        } else if (!localEditRef.current) {
           setAvailability(new Set(value.access?.availability ?? []));
         }
         setLoading(false);
@@ -72,11 +91,45 @@ export function usePublicInterviewLogic(token: string | undefined) {
     );
   }, [token]);
 
-  const state = useMemo<PublicInterviewState>(() => {
+  const baseState = useMemo<PublicInterviewState>(() => {
     if (loading) return 'loading';
     if (loadError) return 'error';
     return getPublicInterviewState(access, round, now);
   }, [access, loadError, loading, now, round]);
+
+  const needsAccessInitialization = baseState === 'collecting'
+    && Boolean(token && access && round)
+    && access?.firstAccessedAt == null;
+
+  useEffect(() => {
+    // Once the first access time is persisted, release the in-flight guard.
+    // If an administrator later resets this same token, the open page can
+    // create a fresh first-access basis without requiring a browser reload.
+    if (!needsAccessInitialization) initializationKeyRef.current = null;
+  }, [needsAccessInitialization]);
+
+  useEffect(() => {
+    if (!token || !needsAccessInitialization || !round) return;
+    const key = token;
+    if (initializationKeyRef.current === key) return;
+    initializationKeyRef.current = key;
+    void initializePublicInterviewAccess(token).catch(() => {
+      initializationKeyRef.current = null;
+      setLoadError('면접 가능시간 범위를 준비하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    });
+  }, [initializationRetry, needsAccessInitialization, round, token]);
+
+  const retryInitialization = () => {
+    initializationKeyRef.current = null;
+    setLoadError(null);
+    setInitializationRetry(previous => previous + 1);
+  };
+
+  const state: PublicInterviewState = needsAccessInitialization ? 'loading' : baseState;
+  const visibleSlots = useMemo(() => calculateApplicantTimeWindow(
+    toDate(access?.firstAccessedAt),
+    round?.allowedSlots ?? [],
+  ).activeSlots, [access?.firstAccessedAt, round?.allowedSlots]);
 
   const toggleSlot = (slotId: string, force?: boolean) => {
     if (state !== 'collecting') return;
@@ -97,7 +150,7 @@ export function usePublicInterviewLogic(token: string | undefined) {
     setSaving(true);
     setSaveError(null);
     try {
-      const allowed = new Set(round?.allowedSlots ?? []);
+      const allowed = new Set(visibleSlots);
       const normalized = Array.from(availability).filter((slot) => allowed.has(slot)).sort();
       await savePublicAvailability(token, normalized, access?.submittedAt == null);
       localEditRef.current = false;
@@ -121,6 +174,7 @@ export function usePublicInterviewLogic(token: string | undefined) {
   return {
     access,
     round,
+    visibleSlots,
     availability,
     state,
     error: loadError ?? saveError,
@@ -130,5 +184,6 @@ export function usePublicInterviewLogic(token: string | undefined) {
     toggleSlot,
     submit,
     requestChange,
+    retryInitialization,
   };
 }

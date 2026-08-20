@@ -92,6 +92,7 @@ async function seedInterviewFixture(options: InterviewFixtureOptions = {}) {
       submittedAt: null,
       updatedAt: null,
       responseUpdatedAt: null,
+      firstAccessedAt: new Date(),
       active: options.tokenActive ?? true,
       createdAt: new Date(),
     });
@@ -230,6 +231,11 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(setDoc(lockRef, { roundId, applicantId, interviewerId: 'default' }));
     await assertSucceeds(getDoc(lockRef));
     await assertSucceeds(deleteDoc(lockRef));
+    const assignmentEventRef = doc(adminDb, 'interviewAssignmentEvents', 'assignment-event-1');
+    await assertSucceeds(setDoc(assignmentEventRef, { roundId, applicantId, type: 'assigned' }));
+    await assertSucceeds(getDoc(assignmentEventRef));
+    await assertFails(updateDoc(assignmentEventRef, { type: 'changed' }));
+    await assertFails(deleteDoc(assignmentEventRef));
     const noteRef = doc(adminDb, 'interviewNotes', `${roundId}__${applicantId}`);
     await assertSucceeds(setDoc(noteRef, {
       roundId,
@@ -242,6 +248,11 @@ describe('Firestore Security Rules', () => {
       updatedAt: serverTimestamp(),
     }));
     await assertSucceeds(getDoc(noteRef));
+    const recordEventRef = doc(adminDb, 'interviewRecordEvents', 'event-1');
+    await assertSucceeds(setDoc(recordEventRef, { roundId, applicantId, type: 'completed' }));
+    await assertSucceeds(getDoc(recordEventRef));
+    await assertFails(updateDoc(recordEventRef, { type: 'rating_changed' }));
+    await assertFails(deleteDoc(recordEventRef));
   });
 
   it('로그인했지만 관리자가 아닌 사용자는 면접 비공개 데이터에 접근할 수 없다', async () => {
@@ -256,6 +267,15 @@ describe('Firestore Security Rules', () => {
     await assertFails(getDocs(collection(userDb, 'interviewAssignmentLocks')));
     await assertFails(getDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`)));
     await assertFails(setDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`), { generalNotes: '볼 수 없어야 함' }));
+    await assertFails(getDocs(collection(userDb, 'interviewRecordEvents')));
+    await assertFails(setDoc(doc(userDb, 'interviewRecordEvents', 'forged-event'), { roundId, applicantId }));
+    await assertFails(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
+      overallRating: 'strongly_recommend',
+      interviewStatus: 'completed',
+    }));
+    await assertFails(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
+      selectionStatus: 'selected',
+    }));
     await assertFails(setDoc(doc(userDb, 'interviewRounds', 'new-round'), { name: '공격자가 만든 회차' }));
 
     // 기존 컬렉션의 signed-in read 정책은 이번 변경에서 그대로 유지한다.
@@ -278,6 +298,7 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(getDoc(doc(publicDb, 'interviewPublicRounds', roundId)));
     await assertSucceeds(getDoc(doc(publicDb, 'interviewAccess', token)));
     await assertFails(getDoc(doc(publicDb, 'interviewNotes', `${roundId}__applicant-1`)));
+    await assertFails(getDocs(collection(publicDb, 'interviewRecordEvents')));
     await assertSucceeds(getDoc(doc(publicDb, 'interviewAccess', 'missing-token')));
     await assertFails(getDoc(doc(publicDb, 'interviewPublicRounds', 'inactive-round')));
     await assertFails(getDoc(doc(publicDb, 'interviewAccess', 'inactive-token')));
@@ -347,6 +368,41 @@ describe('Firestore Security Rules', () => {
       submittedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }));
+  });
+
+  it('Spark 호환 공개 availability는 회차의 허용 slot만 검증한다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    const { token } = await seedInterviewFixture();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const accessRef = doc(publicDb, 'interviewAccess', token);
+
+    await assertSucceeds(updateDoc(accessRef, {
+      availability: [ALLOWED_SLOT_A],
+      submittedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      responseUpdatedAt: serverTimestamp(),
+    }));
+    const submittedAt = (await getDoc(accessRef)).data()?.submittedAt;
+    await assertSucceeds(updateDoc(accessRef, {
+      availability: [ALLOWED_SLOT_B],
+      submittedAt,
+      updatedAt: serverTimestamp(),
+      responseUpdatedAt: serverTimestamp(),
+    }));
+  });
+
+  it('공개 사용자는 최초 접속 시각을 Firestore 서버 시각으로 한 번만 기록할 수 있다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    const { token } = await seedInterviewFixture();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'interviewAccess', token), { firstAccessedAt: null });
+    });
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const accessRef = doc(publicDb, 'interviewAccess', token);
+
+    await assertSucceeds(updateDoc(accessRef, { firstAccessedAt: serverTimestamp() }));
+    await assertFails(updateDoc(accessRef, { firstAccessedAt: serverTimestamp() }));
+    await assertFails(updateDoc(accessRef, { firstAccessedAt: new Date('2020-01-01T00:00:00Z') }));
   });
 
   it('공개 응답은 submittedAt과 updatedAt에 클라이언트 임의 시각을 사용할 수 없다', async () => {

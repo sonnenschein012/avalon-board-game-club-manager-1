@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
-import type { InterviewAccess, InterviewApplicant, InterviewAssignment, InterviewChangeRequest, InterviewRound, InterviewRoundInterviewer } from '../types';
+import type {
+  InterviewAccess,
+  InterviewApplicant,
+  InterviewAssignment,
+  InterviewChangeRequest,
+  InterviewOverallRating,
+  InterviewRound,
+  InterviewRoundInterviewer,
+  InterviewSelectionStatus,
+} from '../types';
 import {
   aggregateAvailability as aggregateAvailabilityResponses,
   assignmentsOverlap,
@@ -14,14 +23,20 @@ import {
   addRoundInterviewer,
   applyInterviewAssignmentProposals,
   applyInterviewScheduleChange,
+  completeInterviewAtomically,
   createInterviewApplicant,
   getInterviewLink,
   markInterviewMessageSent,
   mergeInterviewApplicants,
+  reissueInterviewAccessToken,
   removeRoundInterviewer,
   resolveInterviewChangeRequest,
+  resetInterviewApplicantSchedule,
+  restoreScheduledInterview,
   saveInterviewAssignment,
   setInterviewApplicantArchived,
+  setInterviewApplicantWithdrawn,
+  setInterviewActionNeeded,
   subscribeInterviewAccess,
   subscribeInterviewApplicants,
   subscribeInterviewChangeRequests,
@@ -29,6 +44,8 @@ import {
   subscribeRoundInterviewers,
   updateInterviewApplicant,
   updateInterviewAssignmentState,
+  updateCompletedInterviewOverallRating,
+  updateInterviewSelectionStatus,
   updateRoundInterviewerAvailability,
   type ApplicantDraft,
   type ApplicantImportRow,
@@ -37,6 +54,7 @@ import {
 } from '../services/interviewsService';
 import { previewApplicantMerge } from '../domain/interviews/applicantMerge';
 import { generateAutoAssignment, type AutoAssignmentMode, type AutoAssignmentResult } from '../domain/interviews/autoAssignment';
+import { getInterviewProgressStatus, isAssignmentConfirmationCurrent } from '../domain/interviews/interviewV3Policy';
 
 export type InterviewApplicantFilter =
   | 'all'
@@ -49,6 +67,7 @@ export type InterviewApplicantFilter =
   | 'availability-sent-pending'
   | 'confirmation-unsent'
   | 'confirmation-sent'
+  | 'withdrawn'
   | 'archived';
 
 export function useInterviewRoundLogic(roundId: string) {
@@ -74,10 +93,10 @@ export function useInterviewRoundLogic(roundId: string) {
   }, [roundId]);
 
   const joinedApplicants = useMemo<InterviewApplicantWithAccess[]>(() => {
-    const accessByApplicant = new Map(access.map(item => [item.applicantId, item]));
+    const accessByToken = new Map(access.map(item => [item.id, item]));
     return applicants.map(applicant => ({
       ...applicant,
-      access: accessByApplicant.get(applicant.id) ?? null,
+      access: accessByToken.get(applicant.accessToken) ?? null,
       link: getInterviewLink(applicant.accessToken),
     }));
   }, [access, applicants]);
@@ -88,6 +107,9 @@ export function useInterviewRoundLogic(roundId: string) {
     const lifecycle = applicant.lifecycle ?? 'active';
     if (filter === 'archived') return lifecycle === 'archived';
     if (lifecycle === 'archived') return false;
+    const applicationStatus = applicant.applicationStatus ?? 'active';
+    if (filter === 'withdrawn') return applicationStatus === 'withdrawn';
+    if (applicationStatus === 'withdrawn') return false;
     const responded = Boolean(applicant.access?.submittedAt);
     const availabilitySent = Boolean(applicant.availabilityMessage.firstMarkedSentAt);
     const confirmationSent = Boolean(applicant.confirmationMessage.firstMarkedSentAt);
@@ -181,7 +203,6 @@ export function useInterviewRoundLogic(roundId: string) {
     return joinedApplicants.find(other => (
       other.id !== applicantId
       && Boolean(other.assignment)
-      && !['no_show', 'cancelled', 'needs_reschedule'].includes(other.assignment!.status)
       && assignmentsOverlap(assignment, other.assignment!)
     )) ?? null;
   };
@@ -320,14 +341,21 @@ export function useInterviewRoundLogic(roundId: string) {
 
   const runAutoAssignment = (mode: AutoAssignmentMode, applicantId?: string) => {
     if (!round) return null;
+    const openChangeRequestApplicantIds = new Set(changeRequests.filter(item => item.status === 'open').map(item => item.applicantId));
     const result = generateAutoAssignment({
       applicants: joinedApplicants.map(applicant => ({
         id: applicant.id, name: applicant.name, availability: applicant.access?.availability ?? [],
         lifecycle: applicant.lifecycle ?? 'active',
+        withdrawn: (applicant.applicationStatus ?? 'active') === 'withdrawn',
+        interviewStatus: openChangeRequestApplicantIds.has(applicant.id)
+          ? 'action_needed'
+          : getInterviewProgressStatus(applicant),
+        assignmentRevision: applicant.assignmentRevision ?? applicant.assignment?.confirmationRevision ?? 0,
         existingAssignment: applicant.assignment?.slotId ? {
           slotId: applicant.assignment.slotId, interviewerId: applicant.assignment.interviewerId,
           interviewerName: applicant.assignment.interviewerName, locked: applicant.assignment.locked,
           source: applicant.assignment.source, status: applicant.assignment.status,
+          confirmationCurrent: isAssignmentConfirmationCurrent(applicant),
         } : null,
       })),
       interviewers: interviewers.map(interviewer => ({
@@ -354,6 +382,7 @@ export function useInterviewRoundLogic(roundId: string) {
           interviewerName: proposal.interviewerName, locked: proposal.locked,
           source: proposal.preserved ? current?.source ?? 'manual' : 'automatic',
           status: proposal.preserved ? current?.status ?? 'scheduled' : 'scheduled',
+          expectedAssignmentRevision: proposal.expectedAssignmentRevision,
         };
       }));
       toast.success('검토한 자동 배정 초안을 반영했습니다.'); setAutoDraft(null); return true;
@@ -367,6 +396,123 @@ export function useInterviewRoundLogic(roundId: string) {
 
   const resolveChangeRequest = async (requestId: string, status: 'resolved' | 'dismissed') => {
     await resolveInterviewChangeRequest(requestId, status); toast.success('변경 요청을 처리했습니다.');
+  };
+
+  const resetApplicantSchedule = async (applicantId: string) => {
+    try {
+      await resetInterviewApplicantSchedule(applicantId);
+      toast.success('일정을 초기화했습니다. 기존 배정은 이력으로 보존되며 새 접속부터 4일 범위를 다시 계산합니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '일정을 초기화하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const setApplicantWithdrawn = async (applicantId: string, withdrawn: boolean) => {
+    try {
+      await setInterviewApplicantWithdrawn(applicantId, withdrawn);
+      toast.success(withdrawn
+        ? '지원 철회 처리했습니다. 링크와 현재 활성 배정이 비활성화되었습니다.'
+        : '지원 철회를 취소했습니다. 기존 배정은 자동 복원되지 않습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '지원 상태를 변경하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const reissueApplicantLink = async (applicantId: string) => {
+    try {
+      const token = await reissueInterviewAccessToken(applicantId);
+      const link = getInterviewLink(token);
+      try {
+        await navigator.clipboard.writeText(link);
+        toast.success('새 링크를 발급해 복사했습니다. 최초 접속과 기존 응답은 그대로 유지됩니다.');
+      } catch {
+        toast.success('새 링크를 발급했습니다. 상세 화면에서 새 링크를 복사해주세요.');
+      }
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '링크를 재발급하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const markActionNeeded = async (applicantId: string, reason = '') => {
+    try {
+      await setInterviewActionNeeded(applicantId, reason);
+      toast.success('조치 필요 목록으로 이동했습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접 상태를 변경하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const restoreScheduled = async (applicantId: string) => {
+    try {
+      await restoreScheduledInterview(applicantId);
+      toast.success('예정 목록으로 되돌렸습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접 상태를 변경하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const completeApplicantInterview = async (applicantId: string, note: {
+    generalNotes?: string;
+    answers?: Record<string, string>;
+    overallRating: InterviewOverallRating | null;
+  }) => {
+    const applicant = joinedApplicants.find(item => item.id === applicantId);
+    if (!applicant?.assignment) {
+      toast.error('현재 면접 배정이 없습니다.');
+      return false;
+    }
+    try {
+      await completeInterviewAtomically({
+        roundId,
+        applicantId,
+        interviewerId: applicant.assignment.interviewerId,
+        interviewerName: applicant.assignment.interviewerName,
+        ...note,
+      });
+      toast.success('종합평가와 면접 완료 상태를 함께 저장했습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접을 완료하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const updateSelectionStatus = async (applicantId: string, status: InterviewSelectionStatus) => {
+    try {
+      await updateInterviewSelectionStatus(applicantId, status);
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '선발 상태를 저장하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const updateCompletedRating = async (applicantId: string, rating: InterviewOverallRating) => {
+    try {
+      await updateCompletedInterviewOverallRating(applicantId, rating);
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '종합평가를 수정하지 못했습니다.');
+      return false;
+    }
   };
 
   return {
@@ -402,5 +548,13 @@ export function useInterviewRoundLogic(roundId: string) {
     applyAutoDraft,
     changeAssignmentState,
     resolveChangeRequest,
+    resetApplicantSchedule,
+    setApplicantWithdrawn,
+    reissueApplicantLink,
+    markActionNeeded,
+    restoreScheduled,
+    completeApplicantInterview,
+    updateCompletedRating,
+    updateSelectionStatus,
   };
 }
