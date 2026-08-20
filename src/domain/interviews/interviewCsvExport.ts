@@ -1,5 +1,6 @@
 import type {
   InterviewApplicant,
+  InterviewApplicantWithAccess,
   InterviewAssignment,
   InterviewAssignmentEvent,
   InterviewChangeRequest,
@@ -8,7 +9,6 @@ import type {
   InterviewRecordEvent,
   InterviewRound,
 } from '../../types';
-import type { InterviewApplicantWithAccess } from '../../services/interviewsService';
 
 export interface InterviewCsvExportInput {
   round: InterviewRound;
@@ -47,6 +47,17 @@ function formatTimestamp(value: TimestampLike) {
   if (typeof value === 'string') return value;
   const date = value instanceof Date ? value : value.toDate?.();
   return date ? date.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '';
+}
+
+function timestampMillis(value: TimestampLike) {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const date = typeof value === 'string'
+    ? new Date(value)
+    : value instanceof Date
+      ? value
+      : value.toDate?.();
+  const millis = date?.getTime();
+  return millis != null && Number.isFinite(millis) ? millis : Number.NEGATIVE_INFINITY;
 }
 
 function formatSlot(slot: string | undefined) {
@@ -108,7 +119,7 @@ function getQuestionColumns(round: InterviewRound, notes: InterviewNote[]) {
 
 function historyForApplicant<T extends { applicantId: string }>(records: T[], applicantId: string, getOccurredAt: (record: T) => TimestampLike) {
   return records.filter(record => record.applicantId === applicantId)
-    .sort((left, right) => formatTimestamp(getOccurredAt(left)).localeCompare(formatTimestamp(getOccurredAt(right)), 'ko-KR'));
+    .sort((left, right) => timestampMillis(getOccurredAt(left)) - timestampMillis(getOccurredAt(right)));
 }
 
 /**

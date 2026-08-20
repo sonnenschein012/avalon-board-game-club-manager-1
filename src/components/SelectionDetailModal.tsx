@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Award, Check, CheckCircle2, Loader2, MessageSquareText, RotateCcw, X, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInterviewNoteLogic } from '../hooks/useInterviewNoteLogic';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewOverallRating, InterviewRound, InterviewSelectionStatus } from '../types';
 
 export interface SelectionDetailModalProps {

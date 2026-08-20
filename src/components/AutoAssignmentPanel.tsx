@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Lock, Play, RotateCcw } from 'lucide-react';
 import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewRound, InterviewRoundInterviewer } from '../types';
 import { availabilityToAssignmentCandidates, parseSlotId } from '../domain/interviews/scheduling';
 

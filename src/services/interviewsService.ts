@@ -21,6 +21,7 @@ import { availabilityToAssignmentCandidates, getAssignmentScheduleImpact } from 
 import { normalizeApplicantNumber } from '../domain/interviews/applicantMerge';
 import { OVERALL_RATINGS, prepareInterviewCompletion, prepareInterviewReopen } from '../domain/interviews/interviewCompletion';
 import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
+import { isSingleDocumentId } from '../domain/shared/documentId';
 import {
   getApplicantAssignmentRevision,
   prepareScheduleResetTransition,
@@ -121,10 +122,7 @@ export interface AssignmentProposalWrite {
   status?: InterviewAssignmentStatus;
 }
 
-export interface InterviewApplicantWithAccess extends InterviewApplicant {
-  access: InterviewAccess | null;
-  link: string;
-}
+export type { InterviewApplicantWithAccess } from '../types';
 
 export interface InterviewRoundExportRecords {
   notes: InterviewNote[];
@@ -285,6 +283,7 @@ export function subscribeAllInterviewAccess(
 }
 
 export async function getInterviewRound(roundId: string): Promise<InterviewRound | null> {
+  if (!isSingleDocumentId(roundId)) return null;
   const snapshot = await getDoc(doc(db, 'interviewRounds', roundId));
   return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewRound) : null;
 }
@@ -294,7 +293,7 @@ export function subscribeInterviewRound(
   onData: (round: InterviewRound | null) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  if (!roundId.trim()) {
+  if (!isSingleDocumentId(roundId)) {
     onData(null);
     return () => {};
   }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildInterviewCsvRows } from './interviewCsvExport';
-import type { InterviewApplicantWithAccess } from '../../services/interviewsService';
-import type { InterviewRound } from '../../types';
+import type { InterviewApplicantWithAccess, InterviewRound } from '../../types';
 
 const timestamp = (value: string) => ({ toDate: () => new Date(value) });
 
@@ -56,5 +55,24 @@ describe('buildInterviewCsvRows', () => {
       '일정 변경 요청 건수': '1',
     });
     expect(Object.keys(row).join(',')).not.toContain('secret-token');
+  });
+
+  it('sorts history by the underlying timestamp instead of localized display text', () => {
+    const [row] = buildInterviewCsvRows({
+      round,
+      applicants: [applicant],
+      notes: [],
+      assignmentEvents: [
+        { applicantId: applicant.id, type: 'changed', createdAt: timestamp('2026-10-01T00:00:00Z') } as never,
+        { applicantId: applicant.id, type: 'assigned', createdAt: timestamp('2026-02-01T00:00:00Z') } as never,
+      ],
+      recordEvents: [],
+      changeRequests: [],
+    });
+    if (!row) throw new Error('Expected one exported row.');
+    const history = row['배정 이력'];
+    if (!history) throw new Error('Expected assignment history.');
+
+    expect(history.indexOf('assigned')).toBeLessThan(history.indexOf('changed'));
   });
 });

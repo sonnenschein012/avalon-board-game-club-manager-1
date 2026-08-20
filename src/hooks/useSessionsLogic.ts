@@ -17,6 +17,12 @@ import { useFirestore } from './useFirestore';
 import { getSemester } from '../domain/semester/getSemester';
 import { DragEndEvent } from '@dnd-kit/core';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
+import { getDefaultSessionName, getLocalDateKey } from '../domain/attendance/sessionMetadata';
+
+const initialSessionMetadata = () => {
+  const date = getLocalDateKey(new Date());
+  return { date, name: getDefaultSessionName(date) };
+};
 
 export function useSessionsLogic(
   draftSession?: { name: string, date: string, groups: StoredSessionGroup[] } | null,
@@ -28,8 +34,8 @@ export function useSessionsLogic(
   
   const [isAdding, setIsAdding] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [sessionName, setSessionName] = useState(`${new Date().toLocaleDateString()} 정기 모임`);
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0] ?? '');
+  const [sessionName, setSessionName] = useState(() => initialSessionMetadata().name);
+  const [sessionDate, setSessionDate] = useState(() => initialSessionMetadata().date);
   const [groups, setGroups] = useState<StoredSessionGroup[]>([]);
   const [initialGroups, setInitialGroups] = useState<StoredSessionGroup[] | null>(null);
   const [unassignedIds, setUnassignedIds] = useState<string[]>([]);
@@ -192,10 +198,11 @@ export function useSessionsLogic(
   }, [draftSession, members, onClearDraft]);
 
   const handleAddNew = () => {
+    const metadata = initialSessionMetadata();
     setUnassignedIds(members.map(m => m.id));
     setGroups([]);
-    setSessionName(`${new Date().toLocaleDateString()} 정기 모임`);
-    setSessionDate(new Date().toISOString().split('T')[0] ?? '');
+    setSessionName(metadata.name);
+    setSessionDate(metadata.date);
     setEditingSessionId(null);
     setIsAdding(true);
   };
@@ -372,8 +379,8 @@ export function useSessionsLogic(
     setEditingSessionId(session.id);
     setSessionName(session.name || '');
     setSessionDate(session.date?.toDate
-      ? (session.date.toDate().toISOString().split('T')[0] ?? '')
-      : (new Date().toISOString().split('T')[0] ?? ''));
+      ? getLocalDateKey(session.date.toDate())
+      : getLocalDateKey(new Date()));
 
     const mappedGroups = session.groups.map(g => ({
       id: g.id || Math.random().toString(36).substring(7),

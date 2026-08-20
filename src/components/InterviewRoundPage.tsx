@@ -14,10 +14,10 @@ import InterviewSchedulePanel from './InterviewSchedulePanel';
 import SelectionPanel from './SelectionPanel';
 import { useInterviewRoundLogic, type InterviewApplicantFilter } from '../hooks/useInterviewRoundLogic';
 import { parseSlotId } from '../domain/interviews/scheduling';
-import { getInterviewRoundExportRecords, type InterviewApplicantWithAccess, type InterviewRoundDraft } from '../services/interviewsService';
+import type { InterviewRoundDraft } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interviews/applicantSort';
 import { getApplicantJourney } from '../domain/interviews/applicantJourney';
-import { buildInterviewCsvRows } from '../domain/interviews/interviewCsvExport';
 import ApplicantJourney from './ApplicantJourney';
 
 type Tab = 'overview' | 'applicants' | 'schedule' | 'interviewers' | 'progress' | 'selection' | 'settings';
@@ -94,9 +94,8 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     if (exporting) return;
     setExporting(true);
     try {
-      const records = await getInterviewRoundExportRecords(round.id);
-      const rows = buildInterviewCsvRows({ round, applicants: logic.applicants, ...records });
-      downloadCsv(`${round.name}_전체_지원자_내보내기.csv`, rows);
+      const { filename, rows } = await logic.getApplicantExport();
+      downloadCsv(filename, rows);
       toast.success(`${rows.length}명의 지원자 정보를 내보냈습니다.`);
     } catch (error) {
       console.error(error);

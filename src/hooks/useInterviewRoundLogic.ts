@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type {
   InterviewAccess,
   InterviewApplicant,
+  InterviewApplicantWithAccess,
   InterviewAssignment,
   InterviewChangeRequest,
   InterviewOverallRating,
@@ -25,6 +26,7 @@ import {
   applyInterviewScheduleChange,
   completeInterviewAtomically,
   createInterviewApplicant,
+  getInterviewRoundExportRecords,
   getInterviewLink,
   markInterviewMessageSent,
   mergeInterviewApplicants,
@@ -49,12 +51,12 @@ import {
   updateRoundInterviewerAvailability,
   type ApplicantDraft,
   type ApplicantImportRow,
-  type InterviewApplicantWithAccess,
   type InterviewRoundDraft,
 } from '../services/interviewsService';
 import { previewApplicantMerge } from '../domain/interviews/applicantMerge';
 import { generateAutoAssignment, type AutoAssignmentMode, type AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { getInterviewProgressStatus, isAssignmentConfirmationCurrent } from '../domain/interviews/interviewV3Policy';
+import { buildInterviewCsvRows } from '../domain/interviews/interviewCsvExport';
 
 export type InterviewApplicantFilter =
   | 'all'
@@ -521,6 +523,15 @@ export function useInterviewRoundLogic(roundId: string) {
     }
   };
 
+  const getApplicantExport = async () => {
+    if (!round) throw new Error('면접 회차를 불러온 뒤 내보낼 수 있습니다.');
+    const records = await getInterviewRoundExportRecords(round.id);
+    return {
+      filename: `${round.name}_전체_지원자_내보내기.csv`,
+      rows: buildInterviewCsvRows({ round, applicants: joinedApplicants, ...records }),
+    };
+  };
+
   return {
     round,
     applicants: joinedApplicants,
@@ -562,5 +573,6 @@ export function useInterviewRoundLogic(roundId: string) {
     reopenCompletedInterview: reopenCompletedApplicantInterview,
     updateCompletedRating,
     updateSelectionStatus,
+    getApplicantExport,
   };
 }

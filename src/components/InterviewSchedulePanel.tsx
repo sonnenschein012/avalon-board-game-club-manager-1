@@ -3,7 +3,7 @@ import { AlertTriangle, Bot, CheckCircle2, Lock, RotateCcw, Trash2, Unlock } fro
 import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { availabilityToAssignmentCandidates } from '../domain/interviews/scheduling';
 import { canAppearInSchedule, getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewAssignment, InterviewChangeRequest, InterviewRound, InterviewRoundInterviewer } from '../types';
 import AutoAssignmentPanel from './AutoAssignmentPanel';
 

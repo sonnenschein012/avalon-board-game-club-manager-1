@@ -41,8 +41,7 @@ export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) =
     if (onSidebarToggle) {
       onSidebarToggle(activeTab === 'notice');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+  }, [activeTab, onSidebarToggle]);
 
   useEffect(() => {
     let max = 800;

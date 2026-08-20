@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, CalendarClock, CheckCircle2, FileText, RotateCcw, Users } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import type { InterviewChangeRequest, InterviewOverallRating, InterviewRound, InterviewRoundInterviewer } from '../types';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import InterviewWorkspaceModal from './InterviewWorkspaceModal';
 
 interface Props {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import Papa from 'papaparse';
 import { 
   addDoc, 
@@ -46,9 +46,9 @@ export function useGamesLogic() {
     return counts;
   }, [sessions]);
 
-  const getPlayCount = (game: Game) => {
+  const getPlayCount = useCallback((game: Game) => {
     return (gamePlayCounts[game.id] || 0) + (gamePlayCounts[game.title] || 0);
-  };
+  }, [gamePlayCounts]);
 
   const filteredGames = useMemo(() => {
     let result = games.filter(g => {
@@ -87,8 +87,7 @@ export function useGamesLogic() {
     }
 
     return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [games, searchTerm, genreFilter, difficultyFilter, playerCount, playerCountType, sortOrder, gamePlayCounts]);
+  }, [games, searchTerm, genreFilter, difficultyFilter, playerCount, playerCountType, sortOrder, getPlayCount]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

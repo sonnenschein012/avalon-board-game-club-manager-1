@@ -350,3 +350,8 @@ export interface InterviewAccess {
   changeRequestStatus?: 'none' | 'open' | 'resolved' | 'dismissed';
   createdAt: Timestamp;
 }
+
+export interface InterviewApplicantWithAccess extends InterviewApplicant {
+  access: InterviewAccess | null;
+  link: string;
+}

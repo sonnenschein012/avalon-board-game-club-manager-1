@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Award, BookOpen, CheckCircle2, Clock3, Loader2, MessageSquareText, X } from 'lucide-react';
 import type { InterviewOverallRating, InterviewRound, InterviewRoundInterviewer } from '../types';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import { useInterviewNoteLogic } from '../hooks/useInterviewNoteLogic';
 import { summarizeAvailabilitySlots } from '../domain/interviews/availabilitySummary';
 import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';

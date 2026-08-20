@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Check, FileText, Search, UserCheck } from 'lucide-react';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewOverallRating, InterviewRound, InterviewSelectionStatus } from '../types';
 import SelectionDetailModal from './SelectionDetailModal';
 import { canAppearInSelection } from '../domain/interviews/interviewV3Policy';

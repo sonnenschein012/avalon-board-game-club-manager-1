@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Copy, ExternalLink, MessageSquare, Phone, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { InterviewRound } from '../types';
-import type { InterviewApplicantWithAccess } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import { renderInterviewMessage } from '../domain/interviews/messages';
 import { parseSlotId } from '../domain/interviews/scheduling';
 import { summarizeAvailabilitySlots } from '../domain/interviews/availabilitySummary';
