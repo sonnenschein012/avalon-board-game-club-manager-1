@@ -73,7 +73,7 @@ export default function LoginGate({
           </div>
         )}
         
-        <p className="text-xs text-slate-400 font-medium">관리자 권한이 필요합니다.</p>
+        <p className="text-xs text-slate-400 font-medium">운영진 계정 로그인이 필요합니다.</p>
       </motion.div>
     </div>
   );

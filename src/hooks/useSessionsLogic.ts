@@ -8,7 +8,7 @@ import {
   Timestamp,
   deleteDoc,
   doc,
-  writeBatch
+  getDoc
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Session, Member, Game, StoredSessionGroup } from '../types';
@@ -29,8 +29,9 @@ export function useSessionsLogic(
   const [isAdding, setIsAdding] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [sessionName, setSessionName] = useState(`${new Date().toLocaleDateString()} 정기 모임`);
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0] ?? '');
   const [groups, setGroups] = useState<StoredSessionGroup[]>([]);
+  const [initialGroups, setInitialGroups] = useState<StoredSessionGroup[] | null>(null);
   const [unassignedIds, setUnassignedIds] = useState<string[]>([]);
   const [viewingMember, setViewingMember] = useState<Member | null>(null);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
@@ -50,6 +51,7 @@ export function useSessionsLogic(
       complete: async (results) => {
         try {
           const rows = results.data as Record<string, string>[];
+          const hasSnapshotColumns = results.meta.fields?.includes('세션명') ?? false;
           
           const missingGames = new Set<string>();
           rows.forEach(row => {
@@ -71,34 +73,55 @@ export function useSessionsLogic(
             return;
           }
 
-          const sessionsMap = new Map<string, { date: string, groups: StoredSessionGroup[] }>();
+          const sessionsMap = new Map<string, {
+            date: string;
+            name: string;
+            groups: StoredSessionGroup[];
+            boardMemberIds: Set<string>;
+          }>();
 
           rows.forEach(row => {
             const date = (row['날짜'] || '').trim();
+            const name = (row['세션명'] || '').trim() || `${date} 정기 모임`;
             if (!date) return;
+            const sessionKey = `${date}\u0000${name}`;
             
-            if (!sessionsMap.has(date)) {
-              sessionsMap.set(date, { date, groups: [] });
+            if (!sessionsMap.has(sessionKey)) {
+              sessionsMap.set(sessionKey, { date, name, groups: [], boardMemberIds: new Set() });
             }
             
             const groupName = (row['조 이름'] || '').trim();
-            const memberNamesStr = row['조원 명단'] || '';
-            const memberNames = memberNamesStr.split(',').map(m => m.trim()).filter(Boolean);
+            const memberNamesStr = row['조원 명단'] || row['조원 명단(닉네임)'] || '';
+            const memberTokens = memberNamesStr.split(',').map(m => m.trim()).filter(Boolean);
             const playedGamesStr = row['플레이한 게임들'] || '';
             const playedGames = playedGamesStr.split(',').map(g => g.trim()).filter(Boolean);
+            const currentSession = sessionsMap.get(sessionKey)!;
             
-            const groupMemberIds = memberNames.map(name => {
-              const cleanMatchName = cleanString(name).replace(/^\d{2}/, '');
-              const matchedMember = members.find(m => cleanString(m.name).replace(/^\d{2}/, '') === cleanMatchName);
-              return matchedMember ? matchedMember.id : null;
-            }).filter(Boolean) as string[];
+            const groupMemberIds: string[] = [];
+            memberTokens.forEach(token => {
+              const isBoardMember = /\(임원\)|👑|\*$/.test(token);
+              const cleanToken = token.replace(/\(임원\)|👑|\*/g, '').trim();
+              const normalizedToken = cleanString(cleanToken);
+              const normalizedName = normalizedToken.replace(/^\d{2}/, '');
+              const matchedMember = members.find(member =>
+                member.nickname === cleanToken
+                || member.name === cleanToken
+                || cleanString(member.nickname) === normalizedToken
+                || cleanString(member.name) === normalizedToken
+                || cleanString(member.name).replace(/^\d{2}/, '') === normalizedName
+              );
+              if (matchedMember) {
+                groupMemberIds.push(matchedMember.id);
+                if (isBoardMember) currentSession.boardMemberIds.add(matchedMember.id);
+              }
+            });
 
             const groupGameIds = playedGames.map(gameName => {
               const matchedGame = games.find(g => cleanString(g.title) === cleanString(gameName));
               return matchedGame ? matchedGame.id : null;
             }).filter(Boolean) as string[];
 
-            sessionsMap.get(date)!.groups.push({
+            currentSession.groups.push({
               id: Math.random().toString(36).substring(7),
               name: groupName,
               memberIds: groupMemberIds,
@@ -108,17 +131,19 @@ export function useSessionsLogic(
             });
           });
 
-          const operations: any[] = [];
-          sessionsMap.forEach((sessionData, date) => {
+          const operations: Parameters<typeof commitBatchesInChunks>[1] = [];
+          sessionsMap.forEach(sessionData => {
             const docRef = doc(collection(db, 'sessions'));
+            const data: Omit<Session, 'id'> = {
+              name: sessionData.name,
+              date: Timestamp.fromDate(new Date(sessionData.date)),
+              groups: sessionData.groups,
+              ...(hasSnapshotColumns ? { boardMemberIds: Array.from(sessionData.boardMemberIds) } : {}),
+            };
             operations.push({
               type: 'set',
               ref: docRef,
-              data: {
-                name: `${date} 정기 모임`,
-                date: Timestamp.fromDate(new Date(date)),
-                groups: sessionData.groups
-              }
+              data
             });
           });
 
@@ -170,7 +195,7 @@ export function useSessionsLogic(
     setUnassignedIds(members.map(m => m.id));
     setGroups([]);
     setSessionName(`${new Date().toLocaleDateString()} 정기 모임`);
-    setSessionDate(new Date().toISOString().split('T')[0]);
+    setSessionDate(new Date().toISOString().split('T')[0] ?? '');
     setEditingSessionId(null);
     setIsAdding(true);
   };
@@ -266,20 +291,76 @@ export function useSessionsLogic(
         notes: g.notes || ''
       }));
 
-      const sessionData = {
-        name: sessionName,
-        date: Timestamp.fromDate(new Date(sessionDate || '')),
-        groups: sanitizedGroups
-      };
-
       if (editingSessionId) {
-        await updateDoc(doc(db, 'sessions', editingSessionId), sessionData);
+        const docRef = doc(db, 'sessions', editingSessionId);
+        const docSnap = await getDoc(docRef);
+
+        let finalGroups: StoredSessionGroup[] = sanitizedGroups;
+
+        if (docSnap.exists()) {
+          const currentData = docSnap.data() as Session;
+          const currentGroups = currentData.groups || [];
+
+          if (initialGroups) {
+            finalGroups = [...currentGroups];
+
+            const initialIds = initialGroups.map(g => g.id);
+            const currentOurIds = sanitizedGroups.map(g => g.id);
+            const deletedIds = initialIds.filter(id => !currentOurIds.includes(id));
+
+            // Delete groups that we removed
+            finalGroups = finalGroups.filter(g => !deletedIds.includes(g.id));
+
+            // Update or add groups
+            sanitizedGroups.forEach(myGroup => {
+              const initGroup = initialGroups.find(g => g.id === myGroup.id);
+              const dbIndex = finalGroups.findIndex(g => g.id === myGroup.id);
+
+              if (!initGroup) {
+                // Newly added group
+                if (dbIndex === -1) {
+                  finalGroups.push(myGroup);
+                } else {
+                  finalGroups[dbIndex] = myGroup;
+                }
+              } else {
+                // Check if we modified the group
+                const isChanged = JSON.stringify(initGroup) !== JSON.stringify(myGroup);
+                if (isChanged) {
+                  if (dbIndex !== -1) {
+                    finalGroups[dbIndex] = myGroup;
+                  } else {
+                    finalGroups.push(myGroup);
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        const existingBoardMemberIds = docSnap.exists()
+          ? (docSnap.data() as Session).boardMemberIds
+          : undefined;
+        const sessionData = {
+          name: sessionName,
+          date: Timestamp.fromDate(new Date(sessionDate || '')),
+          groups: finalGroups,
+          ...(existingBoardMemberIds !== undefined ? { boardMemberIds: existingBoardMemberIds } : {}),
+        };
+
+        await updateDoc(docRef, sessionData);
         toast.success('세션 기록이 성공적으로 수정되었습니다.');
       } else {
+        const sessionData = {
+          name: sessionName,
+          date: Timestamp.fromDate(new Date(sessionDate || '')),
+          groups: sanitizedGroups,
+          boardMemberIds: members.filter(member => member.isBoardMember).map(member => member.id),
+        };
         await addDoc(collection(db, 'sessions'), sessionData);
         toast.success('신규 세션이 성공적으로 저장되었습니다.');
       }
-      
+
       handleClose();
     } catch (error) {
       handleFirestoreError(error, editingSessionId ? OperationType.UPDATE : OperationType.CREATE, `sessions/${editingSessionId || ''}`);
@@ -290,16 +371,22 @@ export function useSessionsLogic(
   const handleEdit = (session: Session) => {
     setEditingSessionId(session.id);
     setSessionName(session.name || '');
-    setSessionDate(session.date?.toDate ? session.date.toDate().toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
-    setGroups(session.groups.map(g => ({ 
+    setSessionDate(session.date?.toDate
+      ? (session.date.toDate().toISOString().split('T')[0] ?? '')
+      : (new Date().toISOString().split('T')[0] ?? ''));
+
+    const mappedGroups = session.groups.map(g => ({
       id: g.id || Math.random().toString(36).substring(7),
       name: g.name,
-      memberIds: g.memberIds || [], 
+      memberIds: g.memberIds || [],
       targetSize: g.targetSize,
       gameIds: g.gameIds || [],
       notes: g.notes || ''
-    } as StoredSessionGroup)));
-    
+    } as StoredSessionGroup));
+
+    setGroups(mappedGroups);
+    setInitialGroups(JSON.parse(JSON.stringify(mappedGroups)));
+
     // Find who is NOT in any group
     const assignedIds = session.groups.flatMap(g => g.memberIds) as string[];
     setUnassignedIds(members.filter(m => !assignedIds.includes(m.id)).map(m => m.id));
@@ -324,6 +411,7 @@ export function useSessionsLogic(
     setIsAdding(false);
     setEditingSessionId(null);
     setGroups([]);
+    setInitialGroups(null);
     setUnassignedIds([]);
   };
 

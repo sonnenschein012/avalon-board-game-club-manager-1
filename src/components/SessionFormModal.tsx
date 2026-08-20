@@ -3,7 +3,7 @@ import { Save, Plus, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Member, Game, SessionGroup } from '../types';
 import { cn } from '../lib/utils';
-import { DndContext, useDraggable, useDroppable, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 export interface ModalControl {
@@ -37,7 +37,7 @@ export interface GroupActions {
 }
 
 export interface DndHandlers {
-  onDragEnd?: (event: DragEndEvent) => void;
+  onDragEnd: (event: DragEndEvent) => void;
 }
 
 function DraggableMember({ memberId, source, children, className }: { memberId: string, source: string, children: React.ReactNode, className?: string }) {
@@ -84,7 +84,7 @@ export default function SessionFormModal({
   dndHandlers: { onDragEnd }
 }: SessionFormModalProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
 
@@ -124,22 +124,21 @@ export default function SessionFormModal({
             </div>
 
             <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-              <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+              <div className="flex-1 overflow-y-auto flex flex-col md:flex-row min-h-0 bg-slate-50/50">
                 {/* Unassigned Pool */}
-                <div className="w-full md:w-72 bg-white border-b md:border-b-0 md:border-r border-slate-100 flex flex-col shrink-0 min-h-[30%] md:min-h-0">
-                  <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                <div className="w-full md:w-72 bg-white md:border-r border-slate-100 flex flex-col shrink-0 order-2 md:order-1">
+                  <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 sticky top-0 z-10">
                     <h3 className="text-xs font-bold text-slate-400 uppercase">미배정 인원 ({unassignedIds.length})</h3>
                   </div>
-                  <DroppablePool 
+                  <DroppablePool
                     id="unassigned"
-                    className="overflow-y-auto p-4 space-y-2 grow transition-colors"
+                    className="p-4 space-y-2 grow transition-colors"
                   >
                     {Array.from(new Set<string>(unassignedIds)).map(id => {
                       const m = members.find(x => x.id === id);
                       return (
                         <DraggableMember 
                           key={id}
-                          id={`unassigned-${id}`}
                           memberId={id}
                           source="unassigned"
                           className="p-3 bg-slate-50 rounded-lg flex flex-wrap gap-2 justify-between items-center group cursor-grab active:cursor-grabbing hover:border-transparent transition-colors"
@@ -166,7 +165,7 @@ export default function SessionFormModal({
                 </div>
 
               {/* Groups Canvas */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-8 bg-slate-50/50">
+              <div className="flex-1 p-4 md:p-8 space-y-4 md:space-y-8 order-1 md:order-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {groups.map((group, idx) => (
                     <div key={group.id} className="bg-white  rounded-2xl shadow-sm flex flex-col">
@@ -228,7 +227,6 @@ export default function SessionFormModal({
                                return (
                                  <DraggableMember 
                                    key={mId}
-                                   id={`${group.id}-${mId}`}
                                    memberId={mId}
                                    source={group.id}
                                    className="flex items-center gap-2 pl-2 pr-1 py-1 bg-white rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-transparent"

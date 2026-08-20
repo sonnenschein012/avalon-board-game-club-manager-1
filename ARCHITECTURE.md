@@ -1,6 +1,6 @@
 # ARCHITECTURE.md
 
-Last verified against codebase: 2026-06-20
+Last verified against codebase: 2026-08-13
 *(Update this marker whenever the layer structure changes.)*
 
 This document provides the primary architectural guidelines that AI agents and human developers MUST read before modifying this codebase.
@@ -93,3 +93,18 @@ This codebase assumes the following ESLint rules to protect layer boundaries:
 2. **Violation Condition:** Attempting to import `src/services/**` or `firebase/**` paths from inside `src/domain/**` files.
 3. **Error Message:** `"Domain layer must be strictly pure. Do not import services or Firebase directly into the domain."`
 4. **Action Required:** When AI agents encounter this error, they MUST NOT use forced bypasses (`eslint-disable`). Instead, immediately abandon the file design and refactor to delegate the responsibility to `src/hooks/`.
+
+## 7. Interview Management Vertical Slice
+
+The interview feature follows the same existing layers without adding a repository or backend server:
+
+- `src/components/Interview*.tsx`, `PublicInterviewPage.tsx`, `AvailabilityGrid.tsx`: admin and token-page UI
+- `src/hooks/useInterview*.ts`, `usePublicInterviewLogic.ts`: realtime state and use-case orchestration
+- `src/domain/interviews/`: pure slot generation, availability aggregation/validation, schedule impact, CSV staging, and message rendering
+- `src/services/interviewsService.ts`, `publicInterviewService.ts`: Firestore and browser I/O
+
+Slot IDs are timezone-free local values in the canonical `YYYY-MM-DD|HH:mm` form. Do not pass them directly to `new Date(...)`; parse them first. Assignments retain that `slotId`, store an absolute Asia/Seoul Firestore timestamp, and identify an individual interviewer.
+
+Interview V2 keeps Firestore as the source of truth. `interviewApplicantKeys` reserves a normalized application number per round, while CSV is only a merge input. `interviewerProfiles` stores named people and `interviewRoundInterviewers` stores their per-round availability. Each applicant retains its current assignment and revision; immutable changes are appended to `interviewAssignmentEvents`. `interviewAssignmentLocks` remains the transaction collision guard keyed by round, individual interviewer, and slot.
+
+Pure V2 rules live in `src/domain/interviews/`: incremental applicant merge, maximum-cardinality/minimum-cost auto assignment, and partial reassignment recommendations. The auto result is a reviewable client-side draft. Applying it re-reads applicant and interviewer availability and collision locks in a Firestore transaction, so a stale draft cannot silently overwrite newer scheduling data.

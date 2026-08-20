@@ -13,6 +13,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Game, Session } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
+import { commitBatchesInChunks } from '../lib/chunkBatch';
 
 export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
 
@@ -122,7 +123,7 @@ export function useGamesLogic() {
             return;
           }
 
-          const batch = writeBatch(db);
+          const operations: Parameters<typeof commitBatchesInChunks>[1] = [];
           let addedCount = 0;
           let skippedCount = 0;
           const currentTitles = new Set(games.map(g => g.title));
@@ -173,13 +174,17 @@ export function useGamesLogic() {
             }
 
             const docRef = doc(collection(db, 'games'));
-            batch.set(docRef, { title, minPlayers, maxPlayers, bestMinPlayers, bestMaxPlayers, complexity, genres, memo });
+            operations.push({
+              type: 'set',
+              ref: docRef,
+              data: { title, minPlayers, maxPlayers, bestMinPlayers, bestMaxPlayers, complexity, genres, memo }
+            });
             currentTitles.add(title);
             addedCount++;
           }
 
-          if (addedCount > 0) {
-            await batch.commit();
+          if (operations.length > 0) {
+            await commitBatchesInChunks(db, operations);
             toast.success(`총 ${addedCount}개의 게임이 라이브러리에 추가되었습니다.`);
           } else {
             toast.info(skippedCount > 0 ? '이미 모든 게임이 라이브러리에 있습니다.' : '추가할 데이터가 없습니다.');

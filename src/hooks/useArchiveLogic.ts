@@ -10,22 +10,20 @@ import { getAttendanceTrend } from '../domain/stats/getAttendanceTrend';
 import { getNewcomerTrend } from '../domain/stats/getNewcomerTrend';
 import { getStagnationIndex } from '../domain/stats/getStagnationIndex';
 import { getGameMmi } from '../domain/stats/getGameMmi';
+import { getAvailableArchiveSemesters } from '../domain/semester/semesterSelection';
 
 export function useArchiveLogic() {
   const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
   const { data: games } = useFirestore<Game>('games');
   const { data: members } = useFirestore<Member>('members');
 
-  const [selectedSemester, setSelectedSemester] = useState<string>('전체');
+  const [selectedSemester, setSelectedSemester] = useState<string>(() => getSemester(new Date()));
 
   const availableSemesters = useMemo(() => {
-    const sems = new Set<string>();
-    sessions.forEach(s => sems.add(getSemester(s.date)));
-    return ['전체', ...Array.from(sems).sort().reverse()];
+    return getAvailableArchiveSemesters(sessions.map(session => session.date));
   }, [sessions]);
 
   const filteredSessions = useMemo(() => {
-    if (selectedSemester === '전체') return sessions;
     return sessions.filter(s => getSemester(s.date) === selectedSemester);
   }, [sessions, selectedSemester]);
 
@@ -36,7 +34,6 @@ export function useArchiveLogic() {
   }, [filteredSessions]);
 
   const activeMembersCount = activeMemberIds.size;
-  const totalActiveStatusMembersCount = useMemo(() => members.filter(m => m.status !== '휴면').length, [members]);
   const chronologicalSessions = useMemo(() => [...filteredSessions].reverse(), [filteredSessions]);
 
   const [includeBoardMembers, setIncludeBoardMembers] = useState(false);
@@ -58,10 +55,10 @@ export function useArchiveLogic() {
   const [formulaModal, setFormulaModal] = useState<'w5' | 'w6' | 'w7' | null>(null);
 
   const [w4Metric, setW4Metric] = useState<'count' | 'rate'>('count');
-  const w4Data = useMemo(() => getAttendanceTrend(chronologicalSessions, totalActiveStatusMembersCount), [chronologicalSessions, totalActiveStatusMembersCount]);
+  const w4Data = useMemo(() => getAttendanceTrend(chronologicalSessions, members), [chronologicalSessions, members]);
 
   const [w5Normalize, setW5Normalize] = useState<boolean>(false);
-  const w5Data = useMemo(() => getNewcomerTrend(chronologicalSessions, activeMemberIds, members, w5Normalize), [chronologicalSessions, activeMemberIds, members, w5Normalize]);
+  const w5Data = useMemo(() => getNewcomerTrend(chronologicalSessions, members, w5Normalize), [chronologicalSessions, members, w5Normalize]);
 
   const w6Data = useMemo(() => getStagnationIndex(chronologicalSessions), [chronologicalSessions]);
   const w7MMI = useMemo(() => getGameMmi(filteredSessions, activeMembersCount, games), [filteredSessions, activeMembersCount, games]);

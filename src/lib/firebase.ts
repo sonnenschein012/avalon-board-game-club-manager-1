@@ -3,10 +3,12 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfig from '@firebase-config';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db = firebaseConfig.firestoreDatabaseId === '(default)'
+  ? getFirestore(app)
+  : getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -98,14 +100,18 @@ export async function testConnection() {
 }
 
 export async function checkAdminStatus(email: string): Promise<{ isAdmin: boolean; isMaster: boolean }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const isBootstrapMaster = normalizedEmail === 'eunchangyang1@gmail.com';
   try {
-    const docRef = doc(db, 'admins', email);
+    const docRef = doc(db, 'admins', normalizedEmail);
     const docSnap = await getDocFromServer(docRef);
-    if (!docSnap.exists()) return { isAdmin: false, isMaster: false };
+    if (!docSnap.exists()) {
+      return { isAdmin: isBootstrapMaster, isMaster: isBootstrapMaster };
+    }
     const data = docSnap.data();
     return {
       isAdmin: true,
-      isMaster: data?.role === 'master',
+      isMaster: isBootstrapMaster || data?.role === 'master',
     };
   } catch {
     return { isAdmin: false, isMaster: false };

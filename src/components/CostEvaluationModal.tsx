@@ -41,20 +41,20 @@ export default function CostEvaluationModal({
       }
     });
     return pairs;
-  }, [attendees, members]);
+  }, [attendees, members, getMemberFromInfo]);
 
   const overallGenderRatio = React.useMemo(() => {
     const globalMems = attendees.map(a => getMemberFromInfo(a.name, a.studentIdPrefix)).filter(Boolean) as Member[];
     const totalCount = globalMems.length || 1;
     return globalMems.filter(m => m.gender === '여').length / totalCount;
-  }, [attendees, members]);
+  }, [attendees, getMemberFromInfo]);
 
   const globalAvgAttendance = React.useMemo(() => {
     const globalMems = attendees.map(a => getMemberFromInfo(a.name, a.studentIdPrefix)).filter(Boolean) as Member[];
     if (globalMems.length === 0) return 0;
     const allAtt = globalMems.map(m => memberAttendanceCount[m.id] || 0);
     return allAtt.length > 0 ? allAtt.reduce((a, b) => a + b, 0) / allAtt.length : 0;
-  }, [attendees, members, memberAttendanceCount]);
+  }, [attendees, getMemberFromInfo, memberAttendanceCount]);
 
   const globalVarAttendance = React.useMemo(() => {
     const globalMems = attendees.map(a => getMemberFromInfo(a.name, a.studentIdPrefix)).filter(Boolean) as Member[];
@@ -62,7 +62,7 @@ export default function CostEvaluationModal({
     const allAtt = globalMems.map(m => memberAttendanceCount[m.id] || 0);
     const avg = allAtt.reduce((a, b) => a + b, 0) / allAtt.length;
     return allAtt.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / allAtt.length;
-  }, [attendees, members, memberAttendanceCount]);
+  }, [attendees, getMemberFromInfo, memberAttendanceCount]);
 
   const globalVPool = React.useMemo(() => {
     const globalMems = attendees.map(a => getMemberFromInfo(a.name, a.studentIdPrefix)).filter(Boolean) as Member[];
@@ -70,7 +70,7 @@ export default function CostEvaluationModal({
     const globalYears = globalMems.map(m => parseInt(m.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x=>x) || ECONOMIC_WEIGHTS.DEFAULT_STUDENT_YEAR));
     const globalAvgYear = globalYears.reduce((a, b) => a + b, 0) / globalYears.length;
     return globalYears.reduce((a, b) => a + Math.pow(b - globalAvgYear, 2), 0) / globalYears.length;
-  }, [attendees, members]);
+  }, [attendees, getMemberFromInfo]);
 
   const globalSTarget = React.useMemo(() => {
     const globalMems = attendees.map(a => getMemberFromInfo(a.name, a.studentIdPrefix)).filter(Boolean) as Member[];
@@ -81,7 +81,7 @@ export default function CostEvaluationModal({
     Object.values(globalSemCounts).forEach(c => sPool += Math.pow(c - ECONOMIC_WEIGHTS.SEM_TARGET_COUNT, 2));
     const numGroups = groups.length || 1;
     return sPool / numGroups;
-  }, [attendees, members, groups.length]);
+  }, [attendees, getMemberFromInfo, groups.length]);
 
   const getGroupCostBreakdown = (gMemberIds: string[]) => {
     const breakdown = { total: 0, ageVar: 0, semPenalty: 0, attVar: 0, genderPenalty: 0, reunionPenalty: 0, requestReward: 0 };
@@ -119,8 +119,8 @@ export default function CostEvaluationModal({
     let requestReward = 0;
     for(let i = 0; i < gMems.length; i++) {
       for(let j = i + 1; j < gMems.length; j++) {
-        const id1 = gMems[i].id;
-        const id2 = gMems[j].id;
+        const id1 = gMems[i]!.id;
+        const id2 = gMems[j]!.id;
         const pair = [id1, id2].sort().join('|');
         if ((memberPairRecentCounts[pair] || 0) >= ECONOMIC_WEIGHTS.REUNION_RECENT_THRESHOLD) reunionPenalty += ECONOMIC_WEIGHTS.REUNION_RECENT;
         if (memberPairLastSession[pair]) reunionPenalty += ECONOMIC_WEIGHTS.REUNION_LAST;

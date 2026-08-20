@@ -1,4 +1,40 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "interviewApplicants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roundId", "order": "ASCENDING" },
+        { "fieldPath": "assignment.startsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewApplicants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roundId", "order": "ASCENDING" },
+        { "fieldPath": "assignment.interviewerId", "order": "ASCENDING" },
+        { "fieldPath": "assignment.startsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewApplicants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roundId", "order": "ASCENDING" },
+        { "fieldPath": "assignment.status", "order": "ASCENDING" },
+        { "fieldPath": "assignment.startsAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "interviewChangeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "roundId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "requestedAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": []
 }

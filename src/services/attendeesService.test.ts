@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { manualAddAttendeeRecord } from './attendeesService';
 import { Member } from '../types';
+import type { Timestamp } from 'firebase/firestore';
 
 // Mock dependencies
 vi.mock('../lib/firebase', () => ({
@@ -32,7 +33,7 @@ describe('attendeesService', () => {
   });
 
   const members: Member[] = [
-    { id: 'm1', name: '김철수', studentId: '20231111', gender: '남', semester: '2023-1', nickname: '', phone: '', preferredGenre: [], createdAt: { toMillis: () => 0 } as any }
+    { id: 'm1', name: '김철수', studentId: '20231111', gender: '남', semester: '2023-1', nickname: '', phone: '', preferredGenre: [], createdAt: { toMillis: () => 0 } as unknown as Timestamp }
   ];
 
   it('attendee → member ID 변환 정상 동작 & 실패시 원본 유지 (개념적 테스트)', async () => {

@@ -1,27 +1,123 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // 6. Default deny for all other paths
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
+    function hasEmail() {
+      return isSignedIn() && request.auth.token.email is string;
+    }
+
+    // This account can restore the first master document if the admins
+    // collection is ever empty or accidentally changed.
+    function isBootstrapMaster() {
+      return hasEmail() && request.auth.token.email == 'eunchangyang1@gmail.com';
+    }
+
     // 1. isAdmin() is true only when logged in and the admin document exists
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+      return hasEmail() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
     }
 
     // 2. isMasterAdmin() checks the role field in admins collection
     function isMasterAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.token.email)) &&
-        get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'master';
+      return isBootstrapMaster() ||
+        (isAdmin() &&
+          get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'master');
+    }
+
+    function publicRoundExists(roundId) {
+      return exists(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
+    }
+
+    function isSurveyWindowOpen(roundId) {
+      let round = get(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
+      return publicRoundExists(roundId) &&
+        round.data.active == true &&
+        round.data.surveyOpensAt is timestamp &&
+        round.data.surveyClosesAt is timestamp &&
+        request.time >= round.data.surveyOpensAt &&
+        request.time < round.data.surveyClosesAt;
+    }
+
+    function hasValidAvailability(roundId) {
+      let round = get(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
+      let availability = request.resource.data.availability;
+      return availability is list &&
+        round.data.allowedSlots is list &&
+        resource.data.firstAccessedAt is timestamp &&
+        availability.size() == availability.toSet().size() &&
+        availability.toSet().hasOnly(round.data.allowedSlots);
+    }
+
+    // Spark 요금제 호환 정책: 최초 접속 시각은 Firestore 서버 시각으로
+    // 한 번만 기록한다. 날짜별 4일 범위 계산은 공개 페이지에서 이 값을
+    // 기준으로 수행한다. Firestore Rules만으로는 KST 달력 계산·동적 슬롯
+    // 목록 생성을 검증할 수 없으므로, 직접 API 요청의 범위까지는 강제하지
+    // 않고 회차 전체의 허용 슬롯만 검증한다.
+    function isValidPublicFirstAccessUpdate() {
+      return resource.data.active == true &&
+        resource.data.firstAccessedAt == null &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstAccessedAt']) &&
+        request.resource.data.firstAccessedAt is timestamp &&
+        request.resource.data.firstAccessedAt == request.time &&
+        isSurveyWindowOpen(resource.data.roundId);
+    }
+
+    function hasValidSubmissionTimestamps() {
+      return request.resource.data.updatedAt is timestamp &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (resource.data.submittedAt == null &&
+            request.resource.data.submittedAt is timestamp &&
+            request.resource.data.submittedAt == request.time) ||
+          (resource.data.submittedAt is timestamp &&
+            request.resource.data.submittedAt == resource.data.submittedAt)
+        );
+    }
+
+    function isValidPublicResponseUpdate() {
+      return resource.data.active == true &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['availability', 'submittedAt', 'updatedAt', 'responseUpdatedAt']) &&
+        isSurveyWindowOpen(resource.data.roundId) &&
+        hasValidAvailability(resource.data.roundId) &&
+        request.resource.data.responseUpdatedAt is timestamp &&
+        request.resource.data.responseUpdatedAt == request.time &&
+        hasValidSubmissionTimestamps();
+    }
+
+    function isValidPublicChangeRequestAccessUpdate(token) {
+      return resource.data.active == true &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['changeRequestStatus']) &&
+        request.resource.data.changeRequestStatus == 'open' &&
+        getAfter(/databases/$(database)/documents/interviewChangeRequests/$(token)).data.status == 'open';
+    }
+
+    function isValidPublicChangeRequest(token) {
+      let access = get(/databases/$(database)/documents/interviewAccess/$(token));
+      return exists(/databases/$(database)/documents/interviewAccess/$(token)) &&
+        access.data.active == true &&
+        request.resource.data.keys().hasOnly([
+          'roundId', 'applicantId', 'applicantName', 'status', 'reason',
+          'requestedAt', 'resolvedAt', 'resolvedBy'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'roundId', 'applicantId', 'applicantName', 'status', 'reason',
+          'requestedAt', 'resolvedAt', 'resolvedBy'
+        ]) &&
+        request.resource.data.roundId == access.data.roundId &&
+        request.resource.data.applicantId == access.data.applicantId &&
+        request.resource.data.applicantName == access.data.displayName &&
+        request.resource.data.status == 'open' &&
+        request.resource.data.reason is string &&
+        request.resource.data.reason.size() <= 500 &&
+        request.resource.data.requestedAt == request.time &&
+        request.resource.data.resolvedAt == null &&
+        request.resource.data.resolvedBy == null;
     }
 
     // 4. members, games, sessions, attendees: readable by all signed-in users, writable only by admins
@@ -71,9 +167,87 @@ service cloud.firestore {
       allow delete: if isAdmin() || isMasterAdmin();
     }
 
-    // 5. admins: read/write only for master admins
+    // 5. Admins can verify their own role document. Only a master can list or
+    // change administrators. The bootstrap master remains usable without a doc.
     match /admins/{adminEmail} {
-      allow read, write: if isMasterAdmin();
+      allow get: if isMasterAdmin() ||
+        (hasEmail() && request.auth.token.email == adminEmail);
+      allow list: if isMasterAdmin();
+      allow create, update, delete: if isMasterAdmin();
+    }
+
+    // Every signed-in club operator can manage interview work. Public applicant
+    // links below remain deliberately limited to their own bearer token.
+    match /interviewRounds/{roundId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /interviewApplicants/{applicantId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /interviewAssignmentLocks/{lockId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /interviewApplicantKeys/{keyId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /interviewerProfiles/{profileId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /interviewRoundInterviewers/{participantId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /interviewAssignmentEvents/{eventId} {
+      allow read, create: if isSignedIn();
+    }
+
+    // Interview notes can contain sensitive application answers and internal
+    // observations, so they are never exposed through an applicant token.
+    match /interviewNotes/{noteId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Immutable-style snapshots keep completed and reset/withdrawn interview
+    // attempts extractable for V4 without exposing them to applicant links.
+    match /interviewRecordEvents/{eventId} {
+      allow read, create: if isSignedIn();
+    }
+
+    match /interviewChangeRequests/{token} {
+      allow read, delete: if isSignedIn();
+      allow create, update: if isSignedIn() || isValidPublicChangeRequest(token);
+    }
+
+    // A public round can be fetched only by its exact document path while it is
+    // active. Collection enumeration and all writes remain admin-only.
+    match /interviewPublicRounds/{roundId} {
+      allow get: if isSignedIn() || resource.data.active == true;
+      allow list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    // The token is a bearer credential. Public clients may fetch that exact,
+    // active token document and only update their response fields. They cannot
+    // enumerate tokens, create/delete documents, or change identity/admin data.
+    match /interviewAccess/{token} {
+      // Missing exact paths may be read so the UI can show "invalid link";
+      // inactive real tokens remain unreadable and token listing stays denied.
+      allow get: if isSignedIn() ||
+        !exists(/databases/$(database)/documents/interviewAccess/$(token)) ||
+        resource.data.active == true;
+      allow list: if isSignedIn();
+      allow create, delete: if isSignedIn();
+      allow update: if isSignedIn() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
+    }
+
+    // 6. Default deny for all other paths
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

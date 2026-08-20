@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, Edit2, Trash2, History } from 'lucide-react';
-import { Session, Member, Game } from '../types';
+import { Session, Member, Game, StoredSessionGroup } from '../types';
 import { formatTimestamp } from '../lib/utils';
 
 interface SessionListProps {
@@ -10,10 +10,11 @@ interface SessionListProps {
   handleEdit: (session: Session) => void;
   setItemToDelete: (item: { id: string, name: string }) => void;
   setViewingMember: (member: Member) => void;
+  handleEditGroup?: (session: Session, group: StoredSessionGroup) => void;
 }
 
 export default function SessionList({
-  filteredSessions, members, games, handleEdit, setItemToDelete, setViewingMember
+  filteredSessions, members, games, handleEdit, setItemToDelete, setViewingMember, handleEditGroup
 }: SessionListProps) {
   return (
     <div className="space-y-6">
@@ -56,6 +57,14 @@ export default function SessionList({
                        <span className="text-xs font-black text-slate-800 tracking-tighter">{group.name || `팀 ${gIdx + 1}`}</span>
                     </div>
                     <div className="flex flex-wrap justify-end gap-1 max-w-[50%]">
+                      {handleEditGroup && (
+                        <button
+                          onClick={() => handleEditGroup(session, group)}
+                          className="mr-2 p-1 text-slate-300 hover:text-navy hover:bg-slate-100 rounded transition-colors"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      )}
                       {(group.gameIds || []).map((gId, idx) => {
                         const title = games.find(g => g.id === gId || g.title === gId)?.title || gId;
                         return (

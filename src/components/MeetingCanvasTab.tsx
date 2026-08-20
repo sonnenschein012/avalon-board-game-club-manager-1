@@ -1,7 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, Download, Send, Settings2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { SessionGroup, Member } from '../types';
+import { SessionGroup, Member, Attendee } from '../types';
 import { cn } from '../lib/utils';
 import DiamondSvg from './icons/DiamondSvg';
 import RookSvg from './icons/RookSvg';
@@ -182,7 +182,7 @@ export default function MeetingCanvasTab({
                      return { ...prev, [group.id]: { x: nextX, y: nextY } };
                    });
                  }}
-                 whileDrag={{ scale: 1.05, zIndex: 50, cursor: 'grabbing' } as React.HTMLAttributes<HTMLDivElement>}
+                  whileDrag={{ scale: 1.05, zIndex: 50, cursor: 'grabbing' }}
                  onDoubleClick={(e) => { e.stopPropagation(); setEditingCardId(group.id); }}
                  className="absolute cursor-grab p-6 rounded-[40px] border border-white/20 w-[340px] flex flex-col items-center text-center gap-4 shadow-[0_8px_30px_rgba(0,0,0,0.3)] group"
                  style={{ backgroundColor: cStyle.bgColor }}

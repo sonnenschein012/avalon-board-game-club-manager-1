@@ -17,7 +17,7 @@ interface ArchiveWidgetCorePlayersProps {
   w3GameSearchQuery: string;
   setW3GameSearchQuery: (q: string) => void;
   games: Game[];
-  w3CorePlayers: {id: string, hits: number, member?: Member}[];
+  w3CorePlayers: {id: string, hits: number, member?: Member | undefined}[];
   AVAILABLE_GENRES: string[];
   DIFFICULTY_RANGES: {label: string}[];
 }

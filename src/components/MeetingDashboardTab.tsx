@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, Settings2, RefreshCw } from 'lucide-react';
-import { SessionGroup, Member, Game } from '../types';
-import { Reason } from '../domain/recommendation/recommendGames';
+import { SessionGroup, Member, Game, Attendee } from '../types';
+import { Reason, RecMode } from '../domain/recommendation/recommendGames';
 
 interface MeetingDashboardTabProps {
   dailyPlanning: {name: string, date: string, groups: SessionGroup[]};
@@ -17,9 +17,9 @@ interface MeetingDashboardTabProps {
   groupSearchedGameIds: Record<string, string>;
   setGroupSearchedGameIds: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   memberPlayedGames: (id: string) => Set<string>;
-  groupRecModes: Record<string, string>;
-  setGroupRecModes: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  recommendGames: (members: Member[], mode: 'SIZE_MATCH' | 'NEW_GAME' | 'POPULAR' | 'HIDDEN' | 'RANDOM', seed: number) => {game: Game, playedCount: number, score: number, reasons?: Reason[]}[];
+  groupRecModes: Record<string, RecMode>;
+  setGroupRecModes: React.Dispatch<React.SetStateAction<Record<string, RecMode>>>;
+  recommendGames: (members: Member[], mode: RecMode, seed: number) => {game: Game, playedCount: number, score: number, reasons?: Reason[]}[];
 }
 
 export default function MeetingDashboardTab({
@@ -64,7 +64,7 @@ export default function MeetingDashboardTab({
           }
         }).filter(r => r.request.trim() !== '');
 
-        const mode = groupRecModes[group.id] || 'SIZE_MATCH';
+        const mode: RecMode = groupRecModes[group.id] || 'SIZE_MATCH';
         const seed = recSeeds[group.id] || 0;
         const recommendations = recommendGames(groupMembers, mode, seed);
 

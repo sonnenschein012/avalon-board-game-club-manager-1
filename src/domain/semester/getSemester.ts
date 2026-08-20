@@ -8,7 +8,9 @@
 export const getSemester = (timestamp: { toDate?: () => Date } | number | string | Date | null | undefined): string => {
   if (!timestamp) return '알 수 없음';
   
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const date = typeof timestamp === 'object' && !(timestamp instanceof Date) && timestamp.toDate
+    ? timestamp.toDate()
+    : new Date(timestamp as string | number | Date);
   if (isNaN(date.getTime())) return '알 수 없음';
   
   const year = date.getFullYear();

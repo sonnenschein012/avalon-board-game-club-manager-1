@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { recommendGames, RecMode } from './recommendGames';
+import { recommendGames } from './recommendGames';
 import { Member, Game, Session } from '../../types';
+import type { Timestamp } from 'firebase/firestore';
 
 describe('recommendGames', () => {
   const members: Member[] = [
-    { id: 'm1', name: 'A', nickname: 'A', studentId: '2023', phone: '', gender: '남', semester: '2025-1', preferredGenre: [], createdAt: { toMillis: () => 1000 } as any },
-    { id: 'm2', name: 'B', nickname: 'B', studentId: '2024', phone: '', gender: '여', semester: '2025-1', preferredGenre: [], createdAt: { toMillis: () => 1000 } as any },
-    { id: 'm3', name: 'C', nickname: 'C', studentId: '2025', phone: '', gender: '남', semester: '2025-1', preferredGenre: [], createdAt: { toMillis: () => 1000 } as any }
+    { id: 'm1', name: 'A', nickname: 'A', studentId: '2023', phone: '', gender: '남', semester: '2025-1', preferredGenre: [], createdAt: { toMillis: () => 1000 } as unknown as Timestamp },
+    { id: 'm2', name: 'B', nickname: 'B', studentId: '2024', phone: '', gender: '여', semester: '2025-1', preferredGenre: [], createdAt: { toMillis: () => 1000 } as unknown as Timestamp },
+    { id: 'm3', name: 'C', nickname: 'C', studentId: '2025', phone: '', gender: '남', semester: '2025-1', preferredGenre: [], createdAt: { toMillis: () => 1000 } as unknown as Timestamp }
   ];
 
   const games: Game[] = [
@@ -20,7 +21,7 @@ describe('recommendGames', () => {
     {
       id: 's1',
       name: 'session1',
-      date: { toMillis: () => 1000 } as any,
+      date: { toMillis: () => 1000 } as unknown as Timestamp,
       groups: [
         {
           id: 'grp1',

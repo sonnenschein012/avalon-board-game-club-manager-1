@@ -1,13 +1,14 @@
 import { Session, Member } from '../../types';
 import { getSemester } from '../semester/getSemester';
+import { getActiveMembersAtSemester, getNewbieMembersAtSemester } from './getSemesterRosterCounts';
 
 export function getNewcomerTrend(
   chronologicalSessions: Session[],
-  activeMemberIds: Set<string>,
   members: Member[],
   w5Normalize: boolean
 ) {
-  const activeMembersInfos = Array.from(activeMemberIds).map(id => members.find(m => m.id === id)).filter(Boolean);
+  const activeCounts = new Map<string, number>();
+  const newbieCounts = new Map<string, number>();
   
   return chronologicalSessions.map((s, idx) => {
     const sDateObj = s.date?.toDate ? (s.date.toDate() as Date) : new Date();
@@ -31,8 +32,10 @@ export function getNewcomerTrend(
     const dailyNewbieRate = newbieCount / totalSessionAttendees;
     
     if (w5Normalize) {
-      const totalActiveNewbiesScope = activeMembersInfos.filter(m => m?.semester === sSemester).length;
-      const totalActiveMembersScope = activeMembersInfos.length;
+      const totalActiveMembersScope = activeCounts.get(sSemester) ?? getActiveMembersAtSemester(members, sSemester);
+      activeCounts.set(sSemester, totalActiveMembersScope);
+      const totalActiveNewbiesScope = newbieCounts.get(sSemester) ?? getNewbieMembersAtSemester(members, sSemester);
+      newbieCounts.set(sSemester, totalActiveNewbiesScope);
       
       const globalNewbieRate = totalActiveMembersScope > 0 ? (totalActiveNewbiesScope / totalActiveMembersScope) : 0;
       
