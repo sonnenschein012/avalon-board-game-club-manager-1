@@ -255,28 +255,27 @@ describe('Firestore Security Rules', () => {
     await assertFails(deleteDoc(recordEventRef));
   });
 
-  it('로그인했지만 관리자가 아닌 사용자는 면접 비공개 데이터에 접근할 수 없다', async () => {
+  it('로그인한 운영진은 별도 웹앱 관리자 등록 없이 면접 데이터를 관리할 수 있다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     const { roundId, applicantId } = await seedInterviewFixture();
     const userDb = testEnv.authenticatedContext('ordinary-user', { email: 'ordinary@example.com' }).firestore();
 
-    await assertFails(getDoc(doc(userDb, 'interviewRounds', roundId)));
-    await assertFails(getDoc(doc(userDb, 'interviewApplicants', applicantId)));
-    await assertFails(getDocs(collection(userDb, 'interviewRounds')));
-    await assertFails(getDocs(collection(userDb, 'interviewApplicants')));
-    await assertFails(getDocs(collection(userDb, 'interviewAssignmentLocks')));
-    await assertFails(getDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`)));
-    await assertFails(setDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`), { generalNotes: '볼 수 없어야 함' }));
-    await assertFails(getDocs(collection(userDb, 'interviewRecordEvents')));
-    await assertFails(setDoc(doc(userDb, 'interviewRecordEvents', 'forged-event'), { roundId, applicantId }));
-    await assertFails(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
+    await assertSucceeds(getDoc(doc(userDb, 'interviewRounds', roundId)));
+    await assertSucceeds(getDoc(doc(userDb, 'interviewApplicants', applicantId)));
+    await assertSucceeds(getDocs(collection(userDb, 'interviewRounds')));
+    await assertSucceeds(getDocs(collection(userDb, 'interviewApplicants')));
+    await assertSucceeds(getDocs(collection(userDb, 'interviewAssignmentLocks')));
+    await assertSucceeds(setDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`), { generalNotes: '운영진 기록' }));
+    await assertSucceeds(getDocs(collection(userDb, 'interviewRecordEvents')));
+    await assertSucceeds(setDoc(doc(userDb, 'interviewRecordEvents', 'operator-event'), { roundId, applicantId }));
+    await assertSucceeds(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
       overallRating: 'strongly_recommend',
       interviewStatus: 'completed',
     }));
-    await assertFails(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
+    await assertSucceeds(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
       selectionStatus: 'selected',
     }));
-    await assertFails(setDoc(doc(userDb, 'interviewRounds', 'new-round'), { name: '공격자가 만든 회차' }));
+    await assertSucceeds(setDoc(doc(userDb, 'interviewRounds', 'new-round'), { name: '운영진이 만든 회차' }));
 
     // 기존 컬렉션의 signed-in read 정책은 이번 변경에서 그대로 유지한다.
     await assertSucceeds(getDocs(collection(userDb, 'members')));

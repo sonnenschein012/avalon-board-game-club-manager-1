@@ -142,17 +142,20 @@ export default function SettingsPage({
       });
 
       // 3. Prepare CSV
-      const headers = ['이름', '닉네임', '학번', '연락처', '성별', '가입학기', '선호장르', '누적참석횟수', '메모'];
+      const headers = ['이름', '닉네임', '학번', '연락처', '성별', '가입학기', '상태', '휴면학기', '임원여부', '선호장르', '누적참석횟수', '메모'];
       const rows = members.map(m => [
-        m.name,
-        m.nickname,
-        m.studentId,
-        m.phone,
-        m.gender,
-        m.semester,
-        m.preferredGenre,
+        m.name || '',
+        m.nickname || '',
+        m.studentId || '',
+        m.phone || '',
+        m.gender || '',
+        m.semester || '',
+        m.status || '활동',
+        m.dormantSemester || '',
+        m.isBoardMember ? 'Y' : 'N',
+        Array.isArray(m.preferredGenre) ? m.preferredGenre.join(', ') : '',
         attendanceCounts[m.id] || 0,
-        m.memo
+        m.memo || ''
       ]);
 
       const csvContent = [
@@ -207,11 +210,11 @@ export default function SettingsPage({
     setExportingSessions(true);
     try {
       const sessionsSnap = await getDocs(collection(db, 'sessions'));
-      const sessions = sessionsSnap.docs.map(d => d.data() as Session);
+      const sessions = sessionsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Session));
       const membersSnap = await getDocs(collection(db, 'members'));
-      const membersMap = new Map<string, string>();
+      const membersMap = new Map<string, Member>();
       membersSnap.docs.forEach(d => {
-        membersMap.set(d.id, d.data().name);
+        membersMap.set(d.id, { id: d.id, ...d.data() } as Member);
       });
       const gamesSnap = await getDocs(collection(db, 'games'));
       const gamesMap = new Map<string, string>();
@@ -220,17 +223,22 @@ export default function SettingsPage({
         gamesMap.set(d.data().title, d.data().title); // For backward compatibility if ID is stored as title
       });
 
-      // [날짜, 조 이름, 조원 명단(쉼표 구분), 플레이한 게임들(쉼표 구분)]
-      const headers = ['날짜', '조 이름', '조원 명단', '플레이한 게임들'];
+      const headers = ['날짜', '세션명', '조 이름', '조원 명단', '플레이한 게임들'];
       const rows: string[][] = [];
 
       sessions.forEach(s => {
         const dateStr = s.date?.toDate ? (s.date.toDate().toISOString().split('T')[0] ?? '') : formatTimestamp(s.date);
+        const sessionName = s.name || `${dateStr} 정기 모임`;
         s.groups.forEach((g, idx) => {
           const groupName = g.name || `TEAM ${idx + 1}`;
-          const membersList = g.memberIds.map(mId => membersMap.get(mId) || 'Unknown').join(', ');
+          const membersList = g.memberIds.map(mId => {
+            const member = membersMap.get(mId);
+            const isBoardMember = s.boardMemberIds?.includes(mId) ?? member?.isBoardMember ?? false;
+            const displayName = member?.nickname || member?.name || 'Unknown';
+            return isBoardMember ? `${displayName}(임원)` : displayName;
+          }).join(', ');
           const gamesList = g.gameIds?.map(gId => gamesMap.get(gId) || gId).join(', ') || '';
-          rows.push([dateStr, groupName, membersList, gamesList]);
+          rows.push([dateStr, sessionName, groupName, membersList, gamesList]);
         });
       });
 

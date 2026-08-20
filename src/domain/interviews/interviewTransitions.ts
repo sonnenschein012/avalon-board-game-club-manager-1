@@ -1,4 +1,4 @@
-import type { InterviewAccess, InterviewApplicant, InterviewAssignment } from '../../types';
+import type { InterviewApplicant, InterviewAssignment } from '../../types';
 
 export function getApplicantAssignmentRevision(applicant: Pick<InterviewApplicant, 'assignment' | 'assignmentRevision'>) {
   return applicant.assignmentRevision ?? applicant.assignment?.confirmationRevision ?? 0;
@@ -59,20 +59,5 @@ export function prepareWithdrawalTransition(applicant: InterviewApplicant, withd
       active: !withdrawn && (applicant.lifecycle ?? 'active') === 'active',
       ...(withdrawn && activeAssignment ? { assignmentSummary: null } : {}),
     },
-  };
-}
-
-export function prepareReissuedAccess(
-  previousAccess: InterviewAccess,
-  previousToken: string,
-  active: boolean,
-) {
-  return {
-    ...previousAccess,
-    active,
-    tokenRevision: (previousAccess.tokenRevision ?? 1) + 1,
-    supersededBy: null,
-    supersededAt: null,
-    reissuedFrom: previousToken,
   };
 }

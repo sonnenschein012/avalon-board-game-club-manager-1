@@ -6,7 +6,6 @@ import AvailabilityGrid from './AvailabilityGrid';
 import { usePublicInterviewLogic } from '../hooks/usePublicInterviewLogic';
 import { summarizeAvailabilitySlots, type AvailabilitySummaryRow } from '../domain/interviews/availabilitySummary';
 import { formatDateTime } from '../lib/utils';
-import { calculateApplicantTimeWindow } from '../domain/interviews/publicTimeWindow';
 
 const STATE_MESSAGES = {
   invalid: ['유효하지 않은 링크입니다', '링크가 잘못되었거나 더 이상 존재하지 않습니다. 운영진에게 새 링크를 요청해주세요.'],
@@ -57,9 +56,6 @@ export default function PublicInterviewPage() {
   const { token } = useParams<{ token: string }>();
   const { access, round, visibleSlots, availability, state, error, saving, saved, requestingChange, toggleSlot, submit, requestChange, retryInitialization } = usePublicInterviewLogic(token);
   const [changeReason, setChangeReason] = useState('');
-  const availabilityWindow = access?.firstAccessedAt && round
-    ? calculateApplicantTimeWindow(access.firstAccessedAt.toDate(), round.allowedSlots)
-    : null;
 
   const confirmAndSubmit = () => {
     const selectedCount = availability.size;
@@ -129,9 +125,6 @@ export default function PublicInterviewPage() {
                 {round.instructions || '선택하신 시간 중 운영진이 실제 면접 시간을 정하여 별도로 안내합니다.'}
               </p>
               <p className="mt-1 text-xs text-slate-400">셀을 누르거나 손가락으로 연속해서 드래그할 수 있습니다.</p>
-              {availabilityWindow?.formattedRange && (
-                <p className="mt-2 text-xs font-bold text-indigo-600">개인 조사 범위: {availabilityWindow.formattedRange} (최초 접속 다음 날부터 4일)</p>
-              )}
             </div>
             <div className="space-y-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm leading-6 text-slate-600">
               <SlotSummary

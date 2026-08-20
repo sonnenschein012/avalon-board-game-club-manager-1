@@ -303,7 +303,7 @@ export interface InterviewRecordEvent {
   id: string;
   roundId: string;
   applicantId: string;
-  type: 'completed' | 'schedule_reset_snapshot' | 'withdrawal_snapshot' | 'rating_changed';
+  type: 'completed' | 'reopened' | 'schedule_reset_snapshot' | 'withdrawal_snapshot' | 'rating_changed';
   assignmentRevision: number;
   assignment: InterviewAssignment | null;
   interviewStatus: InterviewProgressStatus;
@@ -320,6 +320,7 @@ export interface InterviewRecordEvent {
   } | null;
   previousOverallRating?: InterviewOverallRating | null;
   nextOverallRating?: InterviewOverallRating | null;
+  previousSelectionStatus?: InterviewSelectionStatus;
   reason?: string | null;
   createdAt: Timestamp;
   createdBy: string | null;

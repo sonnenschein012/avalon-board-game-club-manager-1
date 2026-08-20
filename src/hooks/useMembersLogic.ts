@@ -15,6 +15,7 @@ import { Member, Session, Game } from '../types';
 import { useFirestore } from './useFirestore';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
+import { commitBatchesInChunks } from '../lib/chunkBatch';
 
 export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
 
@@ -56,6 +57,10 @@ export function useMembersLogic() {
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [currentTab, setCurrentTab] = useState<'활동' | '휴면'>('활동');
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setSelectedDocs(new Set());
+  }, [currentTab]);
 
   const handleBulkDormant = async (dormantSemester: string) => {
     if (selectedDocs.size === 0) return;
@@ -120,6 +125,7 @@ export function useMembersLogic() {
           let addedCount = 0;
           let skippedCount = 0;
           const existingKeys = new Set(members.map(m => `${m.name}_${m.studentId}`));
+          const operations: Parameters<typeof commitBatchesInChunks>[1] = [];
 
           for (const row of rows) {
             const name = row['이름']?.trim();
@@ -142,6 +148,12 @@ export function useMembersLogic() {
                preferredGenre = genreStr.split(',').map((g: string) => g.trim()).filter((g: string) => AVAILABLE_GENRES.includes(g));
             }
 
+            const rawStatus = row['상태']?.trim();
+            const dormantSemester = row['휴면학기']?.trim() || '';
+            const status = rawStatus === '휴면' || dormantSemester ? '휴면' : '활동';
+            const rawBoard = row['임원여부']?.trim().toLowerCase();
+            const isBoardMember = rawBoard === 'y' || rawBoard === '임원' || rawBoard === 'true';
+
             const dataToSave = {
               name,
               nickname: row['닉네임']?.trim() || `${studentId} ${name}`,
@@ -151,18 +163,22 @@ export function useMembersLogic() {
               semester,
               preferredGenre,
               memo: row['메모']?.trim() || '',
-              status: '활동',
-              isBoardMember: false,
-              dormantSemester: ''
+              status,
+              isBoardMember,
+              dormantSemester,
+              createdAt: serverTimestamp(),
             };
 
-            await addDoc(collection(db, 'members'), {
-              ...dataToSave,
-              createdAt: serverTimestamp(),
+            const docRef = doc(collection(db, 'members'));
+            operations.push({
+              type: 'set',
+              ref: docRef,
+              data: dataToSave,
             });
             addedCount++;
           }
-          if (addedCount > 0) {
+          if (operations.length > 0) {
+            await commitBatchesInChunks(db, operations);
             toast.success(`${addedCount}명의 멤버가 추가되었습니다.${skippedCount > 0 ? ` (중복 및 누락 제외 ${skippedCount}명)` : ''}`);
           } else {
             toast.info(`추가할 멤버가 없습니다. (중복 및 누락 ${skippedCount}명)`);

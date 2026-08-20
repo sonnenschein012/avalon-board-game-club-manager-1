@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { InterviewAccess, InterviewApplicant } from '../../types';
+import type { InterviewApplicant } from '../../types';
 import {
-  prepareReissuedAccess,
   prepareScheduleResetTransition,
   prepareWithdrawalTransition,
 } from './interviewTransitions';
@@ -65,20 +64,4 @@ describe('Interview V3 transitions', () => {
     expect(withdrawn.activeAssignment?.status).toBe('no_show');
   });
 
-  it('link reissue carries first access, responses, and current assignment summary into the new token', () => {
-    const firstAccessedAt = {} as InterviewAccess['firstAccessedAt'];
-    const previous = {
-      firstAccessedAt,
-      availability: ['2026-09-02|10:00'],
-      submittedAt: {} as InterviewAccess['submittedAt'],
-      assignmentSummary: { slotId: '2026-09-02|10:00', interviewerName: '면접관', status: 'confirmed', revision: 7 },
-      tokenRevision: 2,
-    } as InterviewAccess;
-    const next = prepareReissuedAccess(previous, 'old-token', true);
-    expect(next.firstAccessedAt).toBe(firstAccessedAt);
-    expect(next.availability).toEqual(previous.availability);
-    expect(next.assignmentSummary).toEqual(previous.assignmentSummary);
-    expect(next.tokenRevision).toBe(3);
-    expect(next.reissuedFrom).toBe('old-token');
-  });
 });

@@ -45,6 +45,14 @@ describe('Interview V3 policy', () => {
     expect(canAppearInSelection(withdrawn)).toBe(false);
   });
 
+  it('keeps action-needed applicants in schedule but hides completed or decided applicants', () => {
+    const scheduled = applicant({ interviewStatus: 'scheduled', selectionStatus: 'pending' });
+    expect(canAppearInSchedule(scheduled)).toBe(true);
+    expect(canAppearInSchedule(applicant({ interviewStatus: 'action_needed', selectionStatus: 'pending' }))).toBe(true);
+    expect(canAppearInSchedule(applicant({ interviewStatus: 'completed', selectionStatus: 'pending' }))).toBe(false);
+    expect(canAppearInSchedule(applicant({ interviewStatus: 'scheduled', selectionStatus: 'selected' }))).toBe(false);
+  });
+
   it('keeps action-needed interviews out of the normal selection population', () => {
     const actionNeeded = applicant({
       assignment: { status: 'scheduled' } as InterviewApplicant['assignment'],

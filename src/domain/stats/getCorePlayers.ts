@@ -10,6 +10,7 @@ export function getCorePlayers(
   w3IncludeBoardMembers: boolean,
   w3TargetGames: string[]
 ) {
+  const memberMap = new Map(members.map(member => [member.id, member]));
   const playerGameHits: Record<string, number> = {};
 
   filteredSessions.forEach(s => {
@@ -33,6 +34,8 @@ export function getCorePlayers(
 
       if (validGames.length > 0) {
         g.memberIds.forEach(mId => {
+          const isBoardMember = s.boardMemberIds?.includes(mId) ?? memberMap.get(mId)?.isBoardMember ?? false;
+          if (!w3IncludeBoardMembers && isBoardMember) return;
           playerGameHits[mId] = (playerGameHits[mId] || 0) + validGames.length;
         });
       }
@@ -41,9 +44,9 @@ export function getCorePlayers(
 
   return Object.entries(playerGameHits)
     .map(([id, hits]) => {
-      const member = members.find(m => m.id === id);
+      const member = memberMap.get(id);
       return { id, hits, member };
     })
-    .filter(({ member }) => member && (w3IncludeBoardMembers ? true : !member.isBoardMember))
+    .filter(({ member }) => Boolean(member))
     .sort((a, b) => b.hits - a.hits);
 }

@@ -67,7 +67,7 @@ export default function ArchivePage() {
               onChange={e => setSelectedSemester(e.target.value)}
               className="bg-white border text-sm border-slate-100 rounded-xl px-4 py-2.5 font-bold focus:outline-none shadow-sm text-slate-600 focus:ring-2 focus:ring-navy/20 cursor-pointer"
             >
-              {availableSemesters.map(s => <option key={s} value={s}>{s === '전체' ? '전체 학기' : `${s} 학기`}</option>)}
+              {availableSemesters.map(s => <option key={s} value={s}>{`${s} 학기`}</option>)}
             </select>
           </div>
         }

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Bot, CheckCircle2, Lock, RotateCcw, Trash2, Unlock } from 'lucide-react';
 import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { availabilityToAssignmentCandidates } from '../domain/interviews/scheduling';
-import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
+import { canAppearInSchedule, getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
 import type { InterviewApplicantWithAccess } from '../services/interviewsService';
 import type { InterviewAssignment, InterviewChangeRequest, InterviewRound, InterviewRoundInterviewer } from '../types';
 import AutoAssignmentPanel from './AutoAssignmentPanel';
@@ -23,7 +23,7 @@ interface Props {
 }
 
 function activeApplicant(applicant: InterviewApplicantWithAccess) {
-  return (applicant.lifecycle ?? 'active') === 'active' && (applicant.applicationStatus ?? 'active') === 'active';
+  return canAppearInSchedule(applicant);
 }
 
 function confirmationCurrent(applicant: InterviewApplicantWithAccess) {

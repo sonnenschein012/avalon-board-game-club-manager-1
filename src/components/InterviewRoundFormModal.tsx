@@ -46,6 +46,32 @@ function toInputDateTime(date: Date) {
   return local.toISOString().slice(0, 16);
 }
 
+function toInputDate(date: Date) {
+  if (!Number.isFinite(date.getTime())) return '';
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
+function toInputTime(date: Date) {
+  if (!Number.isFinite(date.getTime())) return '';
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function updateDatePart(current: Date, dateValue: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+  if (!match) return current;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), current.getHours(), current.getMinutes());
+}
+
+function updateTimePart(current: Date, timeValue: string) {
+  const match = /^(\d{2}):(\d{2})$/.exec(timeValue);
+  if (!match) return current;
+  return new Date(current.getFullYear(), current.getMonth(), current.getDate(), Number(match[1]), Number(match[2]));
+}
+
+function formatMobileSurveyDate(date: Date) {
+  return new Intl.DateTimeFormat('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' }).format(date);
+}
+
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 function timeToMinutes(time: string): number | null {
@@ -179,6 +205,13 @@ interface InterviewRoundFormModalProps {
   onSave: (draft: InterviewRoundDraft) => Promise<boolean | void>;
 }
 
+function MobileSurveyDateTimeField({ label, value, expanded, onToggle, onChange }: { label: string; value: Date; expanded: boolean; onToggle: () => void; onChange: (date: Date) => void }) {
+  return <div className="rounded-xl border border-slate-200 bg-white md:hidden">
+    <button type="button" onClick={onToggle} aria-expanded={expanded} className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"><span className="text-xs font-bold text-slate-500">{label}</span><span className="text-sm font-black text-navy">{formatMobileSurveyDate(value)}</span></button>
+    {expanded && <div className="space-y-2 border-t border-slate-100 px-3 py-3"><label className="block text-[11px] font-bold text-slate-500">날짜<input type="date" value={toInputDate(value)} onChange={event => { if (event.target.value) onChange(updateDatePart(value, event.target.value)); }} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-navy" /></label><label className="block text-[11px] font-bold text-slate-500">시간<input type="time" value={toInputTime(value)} onChange={event => { if (event.target.value) onChange(updateTimePart(value, event.target.value)); }} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-navy" /></label></div>}
+  </div>;
+}
+
 export default function InterviewRoundFormModal({ open, round, saving = false, onClose, onSave }: InterviewRoundFormModalProps) {
   const [draft, setDraft] = useState<InterviewRoundDraft>(() => roundToDraft(round));
   const [daySchedules, setDaySchedules] = useState<InterviewDaySchedule[]>(() => schedulesFromDraft(roundToDraft(round)));
@@ -186,6 +219,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
   const [activeDate, setActiveDate] = useState<string | null>(() => schedulesFromDraft(roundToDraft(round))[0]?.date ?? null);
   const [calendarMonth, setCalendarMonth] = useState(() => monthFromDateKey(schedulesFromDraft(roundToDraft(round))[0]?.date ?? toDateKey(new Date())));
   const [internalSaving, setInternalSaving] = useState(false);
+  const [editingSurveyDateTime, setEditingSurveyDateTime] = useState<'opens' | 'closes' | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -197,6 +231,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
       setActiveDate(nextSchedules[0]?.date ?? null);
       setCalendarMonth(monthFromDateKey(nextSchedules[0]?.date ?? toDateKey(new Date())));
       setInternalSaving(false);
+      setEditingSurveyDateTime(null);
     }
   }, [open, round]);
 
@@ -309,7 +344,11 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
           <section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">기본 설정</h3>
             <label className="block text-xs font-bold text-slate-500">회차명<input value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="2026-2 아발론 5기 신입부원 면접" /></label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2 md:hidden">
+              <MobileSurveyDateTimeField label="조사 시작" value={draft.surveyOpensAt} expanded={editingSurveyDateTime === 'opens'} onToggle={() => setEditingSurveyDateTime(current => current === 'opens' ? null : 'opens')} onChange={surveyOpensAt => setDraft({ ...draft, surveyOpensAt })} />
+              <MobileSurveyDateTimeField label="조사 마감" value={draft.surveyClosesAt} expanded={editingSurveyDateTime === 'closes'} onToggle={() => setEditingSurveyDateTime(current => current === 'closes' ? null : 'closes')} onChange={surveyClosesAt => setDraft({ ...draft, surveyClosesAt })} />
+            </div>
+            <div className="hidden grid-cols-2 gap-3 md:grid">
               <label className="text-xs font-bold text-slate-500">조사 시작<input type="datetime-local" value={toInputDateTime(draft.surveyOpensAt)} onChange={event => { if (event.target.value) setDraft({ ...draft, surveyOpensAt: new Date(event.target.value) }); }} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" /></label>
               <label className="text-xs font-bold text-slate-500">조사 마감<input type="datetime-local" value={toInputDateTime(draft.surveyClosesAt)} onChange={event => { if (event.target.value) setDraft({ ...draft, surveyClosesAt: new Date(event.target.value) }); }} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" /></label>
             </div>

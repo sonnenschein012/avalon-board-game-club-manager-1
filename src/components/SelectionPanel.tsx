@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Download, FileText, Search, UserCheck } from 'lucide-react';
-import Papa from 'papaparse';
+import { Check, FileText, Search, UserCheck } from 'lucide-react';
 import type { InterviewApplicantWithAccess } from '../services/interviewsService';
 import type { InterviewOverallRating, InterviewRound, InterviewSelectionStatus } from '../types';
 import SelectionDetailModal from './SelectionDetailModal';
@@ -12,6 +11,7 @@ export interface SelectionPanelProps {
   /** The parent is responsible for enforcing administrator permissions. */
   onUpdateSelectionStatus: (applicantId: string, status: InterviewSelectionStatus) => Promise<boolean>;
   onUpdateOverallRating: (applicantId: string, rating: InterviewOverallRating) => Promise<boolean>;
+  onReopenCompletedInterview: (applicantId: string) => Promise<boolean>;
 }
 
 const RATINGS: Record<InterviewOverallRating, { label: string; className: string; weight: number }> = {
@@ -47,52 +47,7 @@ function isSelectionCandidate(applicant: InterviewApplicantWithAccess) {
   return canAppearInSelection(applicant) && isCompleted(applicant);
 }
 
-function completedAt(applicant: InterviewApplicantWithAccess): string {
-  const value = (applicant as unknown as { interviewCompletedAt?: unknown; completedAt?: unknown }).interviewCompletedAt
-    ?? (applicant as unknown as { completedAt?: unknown }).completedAt;
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  if (value instanceof Date) return value.toLocaleString('ko-KR');
-  if (typeof value === 'object' && value !== null) {
-    const timestamp = value as { toDate?: () => Date };
-    if (typeof timestamp.toDate === 'function') return timestamp.toDate().toLocaleString('ko-KR');
-  }
-  return '';
-}
-
-function exportCsv(roundName: string, applicants: InterviewApplicantWithAccess[]) {
-  const rows = applicants.map(applicant => ({
-    지원번호: applicant.applicantNumber,
-    이름: applicant.name,
-    학번: getStudentId(applicant),
-    담당면접관: (applicant.assignment ?? applicant.previousAssignment)?.interviewerName ?? '',
-    면접관종합평가: applicant.overallRating ? RATINGS[applicant.overallRating].label : '미입력',
-    선발상태: SELECTIONS[applicant.selectionStatus ?? 'pending'].label,
-    ...(completedAt(applicant) ? { 면접완료시각: completedAt(applicant) } : {}),
-  }));
-  const csv = Papa.unparse(rows, { escapeFormulae: true });
-  const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
-  try {
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    const safeRoundName = roundName
-      .replace(/[<>:"/\\|?*]/g, '_')
-      .split('')
-      .map(character => character.charCodeAt(0) < 32 ? '_' : character)
-      .join('')
-      .trim() || '면접';
-    anchor.download = `${safeRoundName}_선발결과.csv`;
-    anchor.style.display = 'none';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-  } finally {
-    // Let the browser finish the click/download task before releasing the object URL.
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
-}
-
-export default function SelectionPanel({ round, applicants, onUpdateSelectionStatus, onUpdateOverallRating }: SelectionPanelProps) {
+export default function SelectionPanel({ round, applicants, onUpdateSelectionStatus, onUpdateOverallRating, onReopenCompletedInterview }: SelectionPanelProps) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | InterviewSelectionStatus>('all');
   const [ratingFilter, setRatingFilter] = useState<'all' | InterviewOverallRating>('all');
@@ -128,13 +83,12 @@ export default function SelectionPanel({ round, applicants, onUpdateSelectionSta
       <div className="relative min-w-0 flex-1"><Search size={15} className="absolute left-3 top-2.5 text-slate-400" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="지원번호, 이름, 학번 검색" className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-400" /></div>
       <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as 'all' | InterviewSelectionStatus)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm"><option value="all">전체 상태</option><option value="pending">미결정</option><option value="selected">선발</option><option value="rejected">미선발</option></select>
       <select value={ratingFilter} onChange={event => setRatingFilter(event.target.value as 'all' | InterviewOverallRating)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm"><option value="all">전체 평가</option>{Object.entries(RATINGS).map(([value, info]) => <option key={value} value={value}>{info.label}</option>)}</select>
-      <button type="button" onClick={() => exportCsv(round.name, candidates)} disabled={!candidates.length} className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-3 py-2 text-sm font-bold text-white disabled:opacity-40"><Download size={15} />CSV 내보내기</button>
     </div>
     <div className="space-y-2">
       {filtered.map(applicant => <SelectionRow key={applicant.id} applicant={applicant} onOpen={() => setSelectedApplicantId(applicant.id)} onUpdateSelectionStatus={onUpdateSelectionStatus} />)}
       {!filtered.length && <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm text-slate-500">{candidates.length ? '조건에 맞는 지원자가 없습니다.' : '면접 완료된 지원자가 없습니다.'}</div>}
     </div>
-    <SelectionDetailModal applicant={selectedApplicant} round={round} onClose={() => setSelectedApplicantId(null)} onUpdateOverallRating={onUpdateOverallRating} onUpdateSelectionStatus={onUpdateSelectionStatus} />
+    <SelectionDetailModal applicant={selectedApplicant} round={round} onClose={() => setSelectedApplicantId(null)} onUpdateOverallRating={onUpdateOverallRating} onUpdateSelectionStatus={onUpdateSelectionStatus} onReopenCompletedInterview={onReopenCompletedInterview} />
   </div>;
 }
 

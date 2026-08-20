@@ -6,13 +6,15 @@ import {defineConfig, loadEnv, type PluginOption} from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig(({mode}) => {
-  const supportedModes = ['development', 'production', 'test', 'staging'];
+  const supportedModes = ['development', 'production', 'test', 'staging', 'gemini-staging'];
   if (!supportedModes.includes(mode)) {
     throw new Error(`Unsupported Vite mode "${mode}". Refusing to fall back to production Firebase.`);
   }
-  const firebaseConfigPath = mode === 'staging'
-    ? path.resolve(__dirname, 'firebase-applet-config.staging.json')
-    : path.resolve(__dirname, 'firebase-applet-config.json');
+  const firebaseConfigPath = mode === 'gemini-staging'
+    ? path.resolve(__dirname, 'firebase-applet-config.gemini-staging.json')
+    : mode === 'staging'
+      ? path.resolve(__dirname, 'firebase-applet-config.staging.json')
+      : path.resolve(__dirname, 'firebase-applet-config.json');
   const env = loadEnv(mode, '.', '');
   return {
     base: '/',

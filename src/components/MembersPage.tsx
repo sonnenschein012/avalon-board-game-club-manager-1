@@ -41,7 +41,10 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
         title="동아리원 관리" 
         subtitle="Database / Members Registry" 
         icon={Users}
-        stats={{ label: "총 인원", value: members.length }}
+        stats={{
+          label: currentTab === '활동' ? '활동 인원' : '휴면 인원',
+          value: filteredMembers.length,
+        }}
         actions={
           <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto justify-end">
             {isAdminModeActive && (

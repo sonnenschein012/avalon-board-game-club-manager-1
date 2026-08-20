@@ -28,7 +28,7 @@ import {
   getInterviewLink,
   markInterviewMessageSent,
   mergeInterviewApplicants,
-  reissueInterviewAccessToken,
+  reopenCompletedInterview,
   removeRoundInterviewer,
   resolveInterviewChangeRequest,
   resetInterviewApplicantSchedule,
@@ -80,17 +80,29 @@ export function useInterviewRoundLogic(roundId: string) {
   const [autoDraft, setAutoDraft] = useState<AutoAssignmentResult | null>(null);
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
   const [search, setSearch] = useState('');
+  const normalizedRoundId = roundId.trim();
 
   useEffect(() => {
-    const stopRound = subscribeInterviewRound(roundId, value => { setRound(value); setLoading(false); }, error => {
+    if (!normalizedRoundId) {
+      setRound(null);
+      setApplicants([]);
+      setAccess([]);
+      setInterviewers([]);
+      setChangeRequests([]);
+      setAutoDraft(null);
+      setLoading(false);
+      return undefined;
+    }
+    setLoading(true);
+    const stopRound = subscribeInterviewRound(normalizedRoundId, value => { setRound(value); setLoading(false); }, error => {
       console.error(error); toast.error('면접 회차를 불러오지 못했습니다.'); setLoading(false);
     });
-    const stopApplicants = subscribeInterviewApplicants(roundId, setApplicants, console.error);
-    const stopAccess = subscribeInterviewAccess(roundId, setAccess, console.error);
-    const stopInterviewers = subscribeRoundInterviewers(roundId, setInterviewers, console.error);
-    const stopRequests = subscribeInterviewChangeRequests(roundId, setChangeRequests, console.error);
+    const stopApplicants = subscribeInterviewApplicants(normalizedRoundId, setApplicants, console.error);
+    const stopAccess = subscribeInterviewAccess(normalizedRoundId, setAccess, console.error);
+    const stopInterviewers = subscribeRoundInterviewers(normalizedRoundId, setInterviewers, console.error);
+    const stopRequests = subscribeInterviewChangeRequests(normalizedRoundId, setChangeRequests, console.error);
     return () => { stopRound(); stopApplicants(); stopAccess(); stopInterviewers(); stopRequests(); };
-  }, [roundId]);
+  }, [normalizedRoundId]);
 
   const joinedApplicants = useMemo<InterviewApplicantWithAccess[]>(() => {
     const accessByToken = new Map(access.map(item => [item.id, item]));
@@ -424,24 +436,6 @@ export function useInterviewRoundLogic(roundId: string) {
     }
   };
 
-  const reissueApplicantLink = async (applicantId: string) => {
-    try {
-      const token = await reissueInterviewAccessToken(applicantId);
-      const link = getInterviewLink(token);
-      try {
-        await navigator.clipboard.writeText(link);
-        toast.success('새 링크를 발급해 복사했습니다. 최초 접속과 기존 응답은 그대로 유지됩니다.');
-      } catch {
-        toast.success('새 링크를 발급했습니다. 상세 화면에서 새 링크를 복사해주세요.');
-      }
-      return true;
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : '링크를 재발급하지 못했습니다.');
-      return false;
-    }
-  };
-
   const markActionNeeded = async (applicantId: string, reason = '') => {
     try {
       await setInterviewActionNeeded(applicantId, reason);
@@ -489,6 +483,18 @@ export function useInterviewRoundLogic(roundId: string) {
     } catch (error) {
       console.error(error);
       toast.error(error instanceof Error ? error.message : '면접을 완료하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const reopenCompletedApplicantInterview = async (applicantId: string) => {
+    try {
+      await reopenCompletedInterview(applicantId);
+      toast.success('면접을 예정 상태로 되돌렸습니다. 기존 기록과 평가는 보존됩니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접 완료를 취소하지 못했습니다.');
       return false;
     }
   };
@@ -550,10 +556,10 @@ export function useInterviewRoundLogic(roundId: string) {
     resolveChangeRequest,
     resetApplicantSchedule,
     setApplicantWithdrawn,
-    reissueApplicantLink,
     markActionNeeded,
     restoreScheduled,
     completeApplicantInterview,
+    reopenCompletedInterview: reopenCompletedApplicantInterview,
     updateCompletedRating,
     updateSelectionStatus,
   };

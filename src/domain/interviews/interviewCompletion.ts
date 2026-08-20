@@ -37,4 +37,22 @@ export function prepareInterviewCompletion(
   };
 }
 
+/**
+ * Builds the reversible state change used when an administrator reopens an
+ * interview that was marked complete by mistake. Notes and the rating are
+ * intentionally not part of this result: they remain historical interview
+ * evidence and must not be erased as a side effect of reopening.
+ */
+export function prepareInterviewReopen(applicant: InterviewApplicant, confirmationIsCurrent: boolean) {
+  if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 완료를 취소할 수 없습니다.');
+  if (getInterviewProgressStatus(applicant) !== 'completed') throw new Error('완료된 면접만 취소할 수 있습니다.');
+  if (!applicant.assignment) throw new Error('현재 면접 배정이 없어 완료를 취소할 수 없습니다.');
+  return {
+    reopenedAssignment: {
+      ...applicant.assignment,
+      status: confirmationIsCurrent ? 'confirmed' as const : 'scheduled' as const,
+    },
+  };
+}
+
 export { OVERALL_RATINGS };

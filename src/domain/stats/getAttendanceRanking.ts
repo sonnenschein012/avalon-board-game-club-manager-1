@@ -5,10 +5,13 @@ export function getAttendanceRanking(
   members: Member[],
   includeBoardMembers: boolean
 ) {
+  const memberMap = new Map(members.map(member => [member.id, member]));
   const counts: Record<string, number> = {};
   filteredSessions.forEach(s => {
     s.groups.forEach(g => {
       g.memberIds.forEach(id => {
+        const isBoardMember = s.boardMemberIds?.includes(id) ?? memberMap.get(id)?.isBoardMember ?? false;
+        if (!includeBoardMembers && isBoardMember) return;
         counts[id] = (counts[id] || 0) + 1;
       });
     });
@@ -16,9 +19,9 @@ export function getAttendanceRanking(
 
   return Object.entries(counts)
     .map(([id, count]) => {
-      const member = members.find(m => m.id === id);
+      const member = memberMap.get(id);
       return { id, count, member };
     })
-    .filter(({ member }) => member && (includeBoardMembers || !member.isBoardMember))
+    .filter(({ member }) => Boolean(member))
     .sort((a, b) => b.count - a.count);
 }

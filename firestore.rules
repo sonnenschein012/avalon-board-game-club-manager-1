@@ -29,10 +29,6 @@ service cloud.firestore {
           get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'master');
     }
 
-    function canManageInterviews() {
-      return isAdmin() || isMasterAdmin();
-    }
-
     function publicRoundExists(roundId) {
       return exists(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
     }
@@ -180,58 +176,59 @@ service cloud.firestore {
       allow create, update, delete: if isMasterAdmin();
     }
 
-    // Interview configuration and applicant personal data are always private.
+    // Every signed-in club operator can manage interview work. Public applicant
+    // links below remain deliberately limited to their own bearer token.
     match /interviewRounds/{roundId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     match /interviewApplicants/{applicantId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     match /interviewAssignmentLocks/{lockId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     match /interviewApplicantKeys/{keyId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     match /interviewerProfiles/{profileId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     match /interviewRoundInterviewers/{participantId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     match /interviewAssignmentEvents/{eventId} {
-      allow read, create: if canManageInterviews();
+      allow read, create: if isSignedIn();
     }
 
     // Interview notes can contain sensitive application answers and internal
     // observations, so they are never exposed through an applicant token.
     match /interviewNotes/{noteId} {
-      allow read, write: if canManageInterviews();
+      allow read, write: if isSignedIn();
     }
 
     // Immutable-style snapshots keep completed and reset/withdrawn interview
     // attempts extractable for V4 without exposing them to applicant links.
     match /interviewRecordEvents/{eventId} {
-      allow read, create: if canManageInterviews();
+      allow read, create: if isSignedIn();
     }
 
     match /interviewChangeRequests/{token} {
-      allow read, delete: if canManageInterviews();
-      allow create, update: if canManageInterviews() || isValidPublicChangeRequest(token);
+      allow read, delete: if isSignedIn();
+      allow create, update: if isSignedIn() || isValidPublicChangeRequest(token);
     }
 
     // A public round can be fetched only by its exact document path while it is
     // active. Collection enumeration and all writes remain admin-only.
     match /interviewPublicRounds/{roundId} {
-      allow get: if canManageInterviews() || resource.data.active == true;
-      allow list: if canManageInterviews();
-      allow create, update, delete: if canManageInterviews();
+      allow get: if isSignedIn() || resource.data.active == true;
+      allow list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
     }
 
     // The token is a bearer credential. Public clients may fetch that exact,
@@ -240,12 +237,12 @@ service cloud.firestore {
     match /interviewAccess/{token} {
       // Missing exact paths may be read so the UI can show "invalid link";
       // inactive real tokens remain unreadable and token listing stays denied.
-      allow get: if canManageInterviews() ||
+      allow get: if isSignedIn() ||
         !exists(/databases/$(database)/documents/interviewAccess/$(token)) ||
         resource.data.active == true;
-      allow list: if canManageInterviews();
-      allow create, delete: if canManageInterviews();
-      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
+      allow list: if isSignedIn();
+      allow create, delete: if isSignedIn();
+      allow update: if isSignedIn() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
     }
 
     // 6. Default deny for all other paths

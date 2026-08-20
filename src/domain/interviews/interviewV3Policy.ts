@@ -27,8 +27,10 @@ export function getInterviewProgressStatus(applicant: Pick<InterviewApplicant, '
   return 'scheduled';
 }
 
-export function canAppearInSchedule(applicant: Pick<InterviewApplicant, 'lifecycle' | 'applicationStatus'>) {
-  return isActiveInterviewApplicant(applicant);
+export function canAppearInSchedule(applicant: Pick<InterviewApplicant, 'lifecycle' | 'applicationStatus' | 'interviewStatus' | 'assignment' | 'selectionStatus'>) {
+  return isActiveInterviewApplicant(applicant)
+    && getInterviewProgressStatus(applicant) !== 'completed'
+    && (!applicant.selectionStatus || applicant.selectionStatus === 'pending');
 }
 
 export function canAppearInInterviewProgress(applicant: Pick<InterviewApplicant, 'lifecycle' | 'applicationStatus' | 'assignment' | 'interviewStatus'>) {

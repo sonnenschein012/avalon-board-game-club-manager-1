@@ -25,6 +25,7 @@ import {
   calculateGroupAverageStudentId,
   getReunionWarnings
 } from '../domain/attendance/attendanceHelpers';
+import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
 
 export function convertAttendeeIdsToMemberIds(
   groups: SessionGroup[], 
@@ -57,8 +58,10 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const [importing, setImporting] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
-  const [sessionName, setSessionName] = useState(`${new Date().toLocaleDateString()} 정기 모임`);
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [initialSessionMetadata] = useState(() => getTodaySessionMetadata());
+  const [sessionName, setSessionNameState] = useState(initialSessionMetadata.sessionName);
+  const [sessionDate, setSessionDateState] = useState(initialSessionMetadata.sessionDate);
+  const [isSessionNameCustom, setIsSessionNameCustom] = useState(false);
   const [groups, setGroups] = useState<SessionGroup[]>([]);
   const [isAutoMode, setIsAutoMode] = useState(false);
   
@@ -70,6 +73,20 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const [isManualAdding, setIsManualAdding] = useState(false);
   const [attendeeToDelete, setAttendeeToDelete] = useState<Attendee | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  // A changed date should update an untouched default name, while preserving
+  // the operator's own wording once they have edited it.
+  const setSessionName = (name: string) => {
+    setIsSessionNameCustom(true);
+    setSessionNameState(name);
+  };
+
+  const setSessionDate = (date: string) => {
+    setSessionDateState(date);
+    if (!isSessionNameCustom) {
+      setSessionNameState(getDefaultSessionName(date));
+    }
+  };
 
   const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => {
     return getMemberFromAttendee(members, name, studentIdPrefix);

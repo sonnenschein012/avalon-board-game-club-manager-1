@@ -2,6 +2,7 @@ import React from 'react';
 import { Attendee, Member } from '../types';
 import { X, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import BoardMemberBadge from './BoardMemberBadge';
 
 export interface UnassignedPoolProps {
   unassignedAttendees: Attendee[];
@@ -60,8 +61,11 @@ export default function UnassignedPool({
               )}
             >
               <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs font-black text-slate-800">{a.name}</p>
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-xs font-black text-slate-800">{a.name}</p>
+                    {m?.isBoardMember && <BoardMemberBadge />}
+                  </div>
                   {a.studentIdPrefix && <p className="text-[10px] text-slate-400">{a.studentIdPrefix}학번</p>}
                 </div>
                 <div className="flex gap-1 items-center">

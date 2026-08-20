@@ -1,6 +1,7 @@
 import React from 'react';
 import { SessionGroup, Attendee, Member } from '../types';
 import { CheckCircle2, Activity, ArrowRight, Trash2, X, AlertTriangle, Plus } from 'lucide-react';
+import BoardMemberBadge from './BoardMemberBadge';
 
 export interface GroupsCanvasProps {
   isAdminModeActive?: boolean;
@@ -71,14 +72,16 @@ export default function GroupsCanvas({
     <div className="md:col-span-3">
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col h-full">
         <div className="p-4 border-b border-transparent flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-50/50 gap-4 md:gap-0">
-          <div className="flex gap-4 items-center">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center md:w-auto md:max-w-[55%]">
             <input 
               value={sessionName} onChange={e => setSessionName(e.target.value)}
-              className="text-lg font-black bg-transparent border-none focus:ring-0 p-0 text-slate-800"
+              aria-label="세션명"
+              className="w-full min-w-0 text-lg font-black bg-transparent border-none focus:ring-0 p-0 text-slate-800 sm:flex-1"
             />
             <input 
               type="date" value={sessionDate} onChange={e => setSessionDate(e.target.value)}
-              className="text-sm font-bold bg-transparent border-none focus:ring-0 p-0 text-slate-500"
+              aria-label="세션 날짜"
+              className="w-full shrink-0 text-sm font-bold bg-transparent border-none focus:ring-0 p-0 text-slate-500 sm:w-auto"
             />
           </div>
           <div className="flex flex-wrap gap-2 w-full md:w-auto justify-start md:justify-end">
@@ -185,8 +188,9 @@ export default function GroupsCanvas({
                           onDragStart={(e) => onDragStart(e, aId, group.id)}
                           className={`flex flex-col gap-1 px-2 py-1.5 bg-white rounded shadow-sm cursor-grab border-l-2 ${borderColor}`}
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 items-center gap-1.5">
                             <span className="text-[11px] font-bold whitespace-nowrap">{a?.name}</span>
+                            {m?.isBoardMember && <BoardMemberBadge />}
                             <button onClick={() => removeFromGroup(aId, group.id)} className="text-slate-300 hover:text-red-500"><X size={10} /></button>
                           </div>
                           <div className="flex gap-1 text-[9px] text-slate-400 font-bold mb-1">

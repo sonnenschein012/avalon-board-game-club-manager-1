@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { Component, useState, useEffect } from 'react';
 import { auth, signInWithGoogle, logout, testConnection, checkAdminStatus } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart, CalendarClock } from 'lucide-react';
+import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart, CalendarClock, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { StoredSessionGroup } from './types';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
@@ -30,6 +30,52 @@ const PrivateRoute = ({ user, isAdmin, children }: { user: User | null; isAdmin:
   }
   return <>{children}</>;
 };
+
+/** Interview operations are shared by every signed-in club operator. */
+const SignedInRoute = ({ user, children }: { user: User | null; children: React.ReactNode }) => {
+  if (!user) return <Navigate to="/" replace />;
+  return <>{children}</>;
+};
+
+interface RouteErrorBoundaryProps {
+  children: React.ReactNode;
+  resetKey: string;
+  onRecover: () => void;
+}
+
+interface RouteErrorBoundaryState {
+  hasError: boolean;
+}
+
+/** Keeps an unexpected route error from taking the entire administration UI white. */
+class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBoundaryState> {
+  state: RouteErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): RouteErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidUpdate(previousProps: RouteErrorBoundaryProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('Route rendering failed.', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div className="mx-auto flex min-h-64 max-w-lg flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
+        <h2 className="text-lg font-black text-navy">화면을 열지 못했습니다.</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">다른 메뉴는 계속 사용할 수 있습니다. 면접 회차 목록으로 돌아간 뒤 다시 열어주세요.</p>
+        <button type="button" onClick={this.props.onRecover} className="mt-5 rounded-xl bg-navy px-4 py-2 text-sm font-bold text-white">면접 회차 목록으로</button>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -150,18 +196,15 @@ export default function App() {
             <ChevronRight size={12} />
             <span className="text-slate-900 font-bold">{currentTab.label}</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-[11px] font-mono text-slate-400">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="hidden text-[11px] font-mono text-slate-400 md:block">
               System Status: <span className="text-emerald-500 font-bold">CONNECTED</span>
             </div>
             {isAdminModeActive && (
-              <div className="relative flex items-center justify-center w-8 h-8 rounded-full">
-                {/* Glow layers with gradients and multiple blur levels */}
-                <div className="absolute inset-[-4px] bg-gradient-to-tr from-[#ff003c] via-[#ff00cf] to-[#ffaa00] rounded-full blur-md opacity-80 animate-pulse mix-blend-screen"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-[#ff0055] via-[#ff0000] to-[#ff4400] rounded-full blur-[4px] opacity-100 animate-pulse"></div>
-                <div className="relative z-10 flex items-center justify-center drop-shadow-[0_0_5px_#ffffff] drop-shadow-[0_0_10px_#ff0055]">
-                  <AvalonLogo width="18" height="18" />
-                </div>
+              <div aria-label="관리자 편집 모드 활성" className="flex h-8 items-center gap-2 rounded-lg bg-amber-50 px-2 text-navy sm:h-9 sm:px-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-gold text-white sm:h-6 sm:w-6"><ShieldCheck size={14} /></span>
+                <span className="text-[10px] font-black sm:hidden">관리 모드</span>
+                <span className="hidden flex-col leading-tight sm:flex"><span className="text-[11px] font-black">편집 가능</span><span className="text-[9px] font-bold text-slate-400">관리자 모드 활성</span></span>
               </div>
             )}
             <Link
@@ -183,7 +226,9 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="h-full"
             >
-              {children}
+              <RouteErrorBoundary resetKey={location.pathname} onRecover={() => navigate('/interviews')}>
+                {children}
+              </RouteErrorBoundary>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -196,7 +241,7 @@ export default function App() {
       <Toaster position="bottom-right" />
       <Routes>
       <Route path="/" element={
-        !user || !isAdmin ? (
+        !user ? (
           <LoginGate
             user={user}
             isAdmin={isAdmin}
@@ -235,14 +280,14 @@ export default function App() {
         </PrivateRoute>
       } />
       <Route path="/interviews" element={
-        <PrivateRoute user={user} isAdmin={isAdmin}>
+        <SignedInRoute user={user}>
           {protectedLayout(<InterviewRoundsPage />)}
-        </PrivateRoute>
+        </SignedInRoute>
       } />
       <Route path="/interviews/:roundId" element={
-        <PrivateRoute user={user} isAdmin={isAdmin}>
-          {protectedLayout(<InterviewRoundPage />)}
-        </PrivateRoute>
+        <SignedInRoute user={user}>
+          {protectedLayout(<InterviewRoundPage isAdminModeActive={isAdminModeActive} />)}
+        </SignedInRoute>
       } />
       <Route path="/interview/:token" element={<PublicInterviewPage />} />
       <Route path="/settings" element={

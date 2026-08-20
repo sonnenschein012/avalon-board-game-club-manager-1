@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
@@ -18,11 +19,10 @@ import {
 import { auth, db } from '../lib/firebase';
 import { availabilityToAssignmentCandidates, getAssignmentScheduleImpact } from '../domain/interviews/scheduling';
 import { normalizeApplicantNumber } from '../domain/interviews/applicantMerge';
-import { OVERALL_RATINGS, prepareInterviewCompletion } from '../domain/interviews/interviewCompletion';
+import { OVERALL_RATINGS, prepareInterviewCompletion, prepareInterviewReopen } from '../domain/interviews/interviewCompletion';
 import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
 import {
   getApplicantAssignmentRevision,
-  prepareReissuedAccess,
   prepareScheduleResetTransition,
   prepareWithdrawalTransition,
 } from '../domain/interviews/interviewTransitions';
@@ -31,10 +31,12 @@ import type {
   InterviewApplicant,
   InterviewApplicationField,
   InterviewAssignment,
+  InterviewAssignmentEvent,
   InterviewAssignmentStatus,
   InterviewDaySchedule,
   InterviewQuestion,
   InterviewNote,
+  InterviewRecordEvent,
   InterviewOverallRating,
   InterviewProgressStatus,
   InterviewSelectionStatus,
@@ -124,8 +126,31 @@ export interface InterviewApplicantWithAccess extends InterviewApplicant {
   link: string;
 }
 
+export interface InterviewRoundExportRecords {
+  notes: InterviewNote[];
+  assignmentEvents: InterviewAssignmentEvent[];
+  recordEvents: InterviewRecordEvent[];
+  changeRequests: InterviewChangeRequest[];
+}
+
 function mapSnapshot<T extends { id: string }>(snapshot: { docs: Array<{ id: string; data(): DocumentData }> }): T[] {
   return snapshot.docs.map(item => ({ id: item.id, ...item.data() } as T));
+}
+
+/** Fetches the immutable and note records that are not kept in the live round listener. */
+export async function getInterviewRoundExportRecords(roundId: string): Promise<InterviewRoundExportRecords> {
+  const [notes, assignmentEvents, recordEvents, changeRequests] = await Promise.all([
+    getDocs(query(collection(db, 'interviewNotes'), where('roundId', '==', roundId))),
+    getDocs(query(collection(db, 'interviewAssignmentEvents'), where('roundId', '==', roundId))),
+    getDocs(query(collection(db, 'interviewRecordEvents'), where('roundId', '==', roundId))),
+    getDocs(query(collection(db, 'interviewChangeRequests'), where('roundId', '==', roundId))),
+  ]);
+  return {
+    notes: mapSnapshot<InterviewNote>(notes),
+    assignmentEvents: mapSnapshot<InterviewAssignmentEvent>(assignmentEvents),
+    recordEvents: mapSnapshot<InterviewRecordEvent>(recordEvents),
+    changeRequests: mapSnapshot<InterviewChangeRequest>(changeRequests),
+  };
 }
 
 function sharedRoundData(draft: InterviewRoundDraft) {
@@ -171,43 +196,6 @@ export function generateInterviewToken(): string {
 
 export function getInterviewLink(token: string): string {
   return new URL(`/interview/${encodeURIComponent(token)}`, INTERVIEW_LINK_ORIGIN).toString();
-}
-
-export async function reissueInterviewAccessToken(applicantId: string): Promise<string> {
-  const nextToken = generateInterviewToken();
-  const applicantRef = doc(db, 'interviewApplicants', applicantId);
-  await runTransaction(db, async transaction => {
-    const applicantSnapshot = await transaction.get(applicantRef);
-    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
-    const applicant = applicantSnapshot.data() as InterviewApplicant;
-    const previousToken = applicant.accessToken;
-    const previousAccessRef = doc(db, 'interviewAccess', previousToken);
-    const nextAccessRef = doc(db, 'interviewAccess', nextToken);
-    const [previousAccessSnapshot, nextAccessSnapshot] = await Promise.all([
-      transaction.get(previousAccessRef),
-      transaction.get(nextAccessRef),
-    ]);
-    if (!previousAccessSnapshot.exists()) throw new Error('기존 공개 링크 정보를 찾을 수 없습니다.');
-    if (nextAccessSnapshot.exists()) throw new Error('새 링크 생성이 충돌했습니다. 다시 시도해주세요.');
-    const previousAccess = previousAccessSnapshot.data() as InterviewAccess;
-    if (previousAccess.changeRequestStatus === 'open') {
-      throw new Error('처리 중인 일정 변경 요청을 먼저 해결한 뒤 링크를 재발급해주세요.');
-    }
-    transaction.set(nextAccessRef, {
-      ...prepareReissuedAccess(previousAccess, previousToken, isActiveApplicant(applicant)),
-      createdAt: serverTimestamp(),
-    });
-    transaction.update(previousAccessRef, {
-      active: false,
-      supersededBy: nextToken,
-      supersededAt: serverTimestamp(),
-    });
-    transaction.update(applicantRef, {
-      accessToken: nextToken,
-      updatedAt: serverTimestamp(),
-    });
-  });
-  return nextToken;
 }
 
 function getAssignmentLockId(roundId: string, assignment: Pick<InterviewAssignment, 'interviewerId' | 'slotId'>) {
@@ -306,6 +294,10 @@ export function subscribeInterviewRound(
   onData: (round: InterviewRound | null) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
+  if (!roundId.trim()) {
+    onData(null);
+    return () => {};
+  }
   return onSnapshot(doc(db, 'interviewRounds', roundId), snapshot => {
     onData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewRound) : null);
   }, onError);
@@ -1300,6 +1292,62 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
       type: 'completed',
       ...interviewRecordSnapshot(completedApplicant, completedNote),
       reason: '면접 완료 시점 기록',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+  });
+}
+
+/**
+ * Reopens a completed interview in one transaction. The notes and rating stay
+ * intact, while completion/selection metadata returns to the pre-decision
+ * workflow state. A record-event snapshot preserves the completed state.
+ */
+export async function reopenCompletedInterview(applicantId: string): Promise<void> {
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  await runTransaction(db, async transaction => {
+    const applicantSnapshot = await transaction.get(applicantRef);
+    if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = applicantSnapshot.data() as InterviewApplicant;
+    const noteRef = doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`);
+    const noteSnapshot = await transaction.get(noteRef);
+    const note = noteSnapshot.data() as InterviewNote | undefined;
+    const { reopenedAssignment } = prepareInterviewReopen(applicant, isCurrentConfirmationSent(applicant));
+    const previousRevision = currentAssignmentRevision(applicant);
+
+    transaction.update(applicantRef, {
+      assignment: reopenedAssignment,
+      interviewStatus: 'scheduled' satisfies InterviewProgressStatus,
+      actionNeededReason: null,
+      interviewCompletedAt: null,
+      interviewCompletedBy: null,
+      selectionStatus: 'pending' satisfies InterviewSelectionStatus,
+      selectionDecidedAt: null,
+      selectionDecidedBy: null,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
+      'assignmentSummary.status': reopenedAssignment.status,
+    });
+    transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
+      roundId: applicant.roundId,
+      applicantId,
+      type: 'status_changed',
+      previousAssignment: applicant.assignment,
+      nextAssignment: reopenedAssignment,
+      previousRevision,
+      nextRevision: previousRevision,
+      reason: '면접 완료 취소',
+      createdAt: serverTimestamp(),
+      createdBy: actorEmail(),
+    });
+    transaction.set(doc(collection(db, 'interviewRecordEvents')), {
+      roundId: applicant.roundId,
+      applicantId,
+      type: 'reopened',
+      ...interviewRecordSnapshot(applicant, note),
+      previousSelectionStatus: applicant.selectionStatus ?? 'pending',
+      reason: '면접 완료 취소 전 기록 보존',
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });

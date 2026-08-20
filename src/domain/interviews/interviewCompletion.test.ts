@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InterviewApplicant, InterviewNote } from '../../types';
-import { prepareInterviewCompletion } from './interviewCompletion';
+import { prepareInterviewCompletion, prepareInterviewReopen } from './interviewCompletion';
 
 function assignedApplicant(overrides: Partial<InterviewApplicant> = {}) {
   return {
@@ -56,5 +56,23 @@ describe('prepareInterviewCompletion', () => {
       null,
       { roundId: 'round-1', overallRating: 'recommend' },
     )).toThrow('이미 완료');
+  });
+
+  it('reopens a completed interview without discarding the assignment', () => {
+    const result = prepareInterviewReopen(assignedApplicant({
+      interviewStatus: 'completed',
+      assignment: { interviewerId: 'interviewer-1', interviewerName: '면접관', status: 'completed' } as unknown as NonNullable<InterviewApplicant['assignment']>,
+    }), true);
+    expect(result.reopenedAssignment.status).toBe('confirmed');
+    expect(result.reopenedAssignment.interviewerId).toBe('interviewer-1');
+  });
+
+  it('returns a reopened interview to scheduled when its confirmation is stale', () => {
+    const result = prepareInterviewReopen(assignedApplicant({ interviewStatus: 'completed' }), false);
+    expect(result.reopenedAssignment.status).toBe('scheduled');
+  });
+
+  it('does not reopen an interview that is not complete', () => {
+    expect(() => prepareInterviewReopen(assignedApplicant(), false)).toThrow('완료된 면접만');
   });
 });
