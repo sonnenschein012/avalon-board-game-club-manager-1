@@ -35,12 +35,6 @@ const PrivateRoute = ({ user, isAdmin, children }: { user: User | null; isAdmin:
   return <>{children}</>;
 };
 
-/** Interview operations are shared by every signed-in club operator. */
-const SignedInRoute = ({ user, children }: { user: User | null; children: React.ReactNode }) => {
-  if (!user) return <Navigate to="/" replace />;
-  return <>{children}</>;
-};
-
 interface RouteErrorBoundaryProps {
   children: React.ReactNode;
   resetKey: string;
@@ -246,7 +240,7 @@ export default function App() {
       <React.Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
       <Route path="/" element={
-        !user ? (
+        !user || !isAdmin ? (
           <LoginGate
             user={user}
             isAdmin={isAdmin}
@@ -285,14 +279,14 @@ export default function App() {
         </PrivateRoute>
       } />
       <Route path="/interviews" element={
-        <SignedInRoute user={user}>
+        <PrivateRoute user={user} isAdmin={isAdmin}>
           {protectedLayout(<InterviewRoundsPage />)}
-        </SignedInRoute>
+        </PrivateRoute>
       } />
       <Route path="/interviews/:roundId" element={
-        <SignedInRoute user={user}>
+        <PrivateRoute user={user} isAdmin={isAdmin}>
           {protectedLayout(<InterviewRoundPage isAdminModeActive={isAdminModeActive} />)}
-        </SignedInRoute>
+        </PrivateRoute>
       } />
       <Route path="/interview/:token" element={<PublicInterviewPage />} />
       <Route path="/settings" element={

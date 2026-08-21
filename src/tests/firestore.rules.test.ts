@@ -129,6 +129,8 @@ describe('Firestore Security Rules', () => {
     const unauthedDb = testEnv.unauthenticatedContext().firestore();
     await assertFails(getDocs(collection(unauthedDb, 'members')));
     await assertFails(setDoc(doc(unauthedDb, 'members', 'm1'), { name: 'test' }));
+    await assertFails(getDocs(collection(unauthedDb, 'interviewRounds')));
+    await assertFails(setDoc(doc(unauthedDb, 'interviewNotes', 'note-1'), { generalNotes: 'test' }));
   });
 
   it('일반 관리자 → members 및 attendees 읽기 쓰기 허용, admins 쓰기 거부', async () => {
@@ -138,6 +140,9 @@ describe('Firestore Security Rules', () => {
       const db = context.firestore();
       await setDoc(doc(db, 'admins', 'regular@example.com'), { role: 'admin' });
       await setDoc(doc(db, 'members', 'm1'), { name: 'Member 1' });
+      await setDoc(doc(db, 'games', 'g1'), { title: 'Game 1' });
+      await setDoc(doc(db, 'sessions', 's1'), { name: 'Session 1' });
+      await setDoc(doc(db, 'DailyPlannings', 'dp-read'), { date: '2026-08-22', groups: [], createdAt: new Date() });
     });
 
     const authedDb = testEnv.authenticatedContext('user-1', { email: 'regular@example.com' }).firestore();
@@ -145,6 +150,11 @@ describe('Firestore Security Rules', () => {
     // members 읽기/쓰기 허용
     await assertSucceeds(getDoc(doc(authedDb, 'members', 'm1')));
     await assertSucceeds(setDoc(doc(authedDb, 'members', 'm2'), { name: 'Member 2' }));
+    await assertSucceeds(getDoc(doc(authedDb, 'games', 'g1')));
+    await assertSucceeds(setDoc(doc(authedDb, 'games', 'g2'), { title: 'Game 2' }));
+    await assertSucceeds(getDoc(doc(authedDb, 'sessions', 's1')));
+    await assertSucceeds(setDoc(doc(authedDb, 'sessions', 's2'), { name: 'Session 2' }));
+    await assertSucceeds(getDoc(doc(authedDb, 'DailyPlannings', 'dp-read')));
 
     // attendees 쓰기 쓰키마 검증
     await assertSucceeds(setDoc(doc(authedDb, 'attendees', 'a1'), { name: 'Att', importDate: serverTimestamp(), status: '대기' }));
@@ -224,6 +234,7 @@ describe('Firestore Security Rules', () => {
     }));
     await assertSucceeds(getDocs(collection(adminDb, 'interviewPublicRounds')));
     await assertSucceeds(getDocs(collection(adminDb, 'interviewAccess')));
+    await assertSucceeds(getDocs(collection(adminDb, 'interviewChangeRequests')));
     await assertSucceeds(updateDoc(doc(adminDb, 'interviewAccess', token), { displayName: '관리자 수정' }));
     await assertSucceeds(setDoc(doc(adminDb, 'interviewAccess', 'admin-created-token'), { active: false }));
     await assertSucceeds(deleteDoc(doc(adminDb, 'interviewAccess', 'admin-created-token')));
@@ -231,6 +242,15 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(setDoc(lockRef, { roundId, applicantId, interviewerId: 'default' }));
     await assertSucceeds(getDoc(lockRef));
     await assertSucceeds(deleteDoc(lockRef));
+    const applicantKeyRef = doc(adminDb, 'interviewApplicantKeys', `${roundId}__001`);
+    await assertSucceeds(setDoc(applicantKeyRef, { roundId, applicantNumber: '001', applicantId }));
+    await assertSucceeds(getDoc(applicantKeyRef));
+    const profileRef = doc(adminDb, 'interviewerProfiles', 'profile-1');
+    await assertSucceeds(setDoc(profileRef, { displayName: '면접관' }));
+    await assertSucceeds(getDoc(profileRef));
+    const interviewerRef = doc(adminDb, 'interviewRoundInterviewers', `${roundId}__profile-1`);
+    await assertSucceeds(setDoc(interviewerRef, { roundId, interviewerId: 'profile-1', active: true }));
+    await assertSucceeds(getDoc(interviewerRef));
     const assignmentEventRef = doc(adminDb, 'interviewAssignmentEvents', 'assignment-event-1');
     await assertSucceeds(setDoc(assignmentEventRef, { roundId, applicantId, type: 'assigned' }));
     await assertSucceeds(getDoc(assignmentEventRef));
@@ -253,32 +273,29 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(getDoc(recordEventRef));
     await assertFails(updateDoc(recordEventRef, { type: 'rating_changed' }));
     await assertFails(deleteDoc(recordEventRef));
+    const changeRequestRef = doc(adminDb, 'interviewChangeRequests', token);
+    await assertSucceeds(setDoc(changeRequestRef, { roundId, applicantId, status: 'open' }));
+    await assertSucceeds(getDoc(changeRequestRef));
+    await assertSucceeds(deleteDoc(changeRequestRef));
   });
 
-  it('로그인한 운영진은 별도 웹앱 관리자 등록 없이 면접 데이터를 관리할 수 있다', async () => {
+  it('admins에 등록되지 않은 로그인 사용자는 내부 운영 데이터에 접근할 수 없다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     const { roundId, applicantId } = await seedInterviewFixture();
     const userDb = testEnv.authenticatedContext('ordinary-user', { email: 'ordinary@example.com' }).firestore();
 
-    await assertSucceeds(getDoc(doc(userDb, 'interviewRounds', roundId)));
-    await assertSucceeds(getDoc(doc(userDb, 'interviewApplicants', applicantId)));
-    await assertSucceeds(getDocs(collection(userDb, 'interviewRounds')));
-    await assertSucceeds(getDocs(collection(userDb, 'interviewApplicants')));
-    await assertSucceeds(getDocs(collection(userDb, 'interviewAssignmentLocks')));
-    await assertSucceeds(setDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`), { generalNotes: '운영진 기록' }));
-    await assertSucceeds(getDocs(collection(userDb, 'interviewRecordEvents')));
-    await assertSucceeds(setDoc(doc(userDb, 'interviewRecordEvents', 'operator-event'), { roundId, applicantId }));
-    await assertSucceeds(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
-      overallRating: 'strongly_recommend',
-      interviewStatus: 'completed',
-    }));
-    await assertSucceeds(updateDoc(doc(userDb, 'interviewApplicants', applicantId), {
-      selectionStatus: 'selected',
-    }));
-    await assertSucceeds(setDoc(doc(userDb, 'interviewRounds', 'new-round'), { name: '운영진이 만든 회차' }));
-
-    // 기존 컬렉션의 signed-in read 정책은 이번 변경에서 그대로 유지한다.
-    await assertSucceeds(getDocs(collection(userDb, 'members')));
+    await assertFails(getDocs(collection(userDb, 'members')));
+    await assertFails(getDocs(collection(userDb, 'games')));
+    await assertFails(getDocs(collection(userDb, 'sessions')));
+    await assertFails(getDocs(collection(userDb, 'attendees')));
+    await assertFails(getDocs(collection(userDb, 'DailyPlannings')));
+    await assertFails(getDoc(doc(userDb, 'interviewApplicants', applicantId)));
+    await assertFails(getDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`)));
+    await assertFails(setDoc(doc(userDb, 'interviewNotes', `${roundId}__${applicantId}`), { generalNotes: 'unauthorized' }));
+    await assertFails(getDoc(doc(userDb, 'interviewRounds', roundId)));
+    await assertFails(setDoc(doc(userDb, 'interviewRounds', 'new-round'), { name: 'unauthorized' }));
+    await assertFails(getDocs(collection(userDb, 'interviewAccess')));
+    await assertFails(getDocs(collection(userDb, 'interviewPublicRounds')));
     await assertFails(setDoc(doc(userDb, 'members', 'not-allowed'), { name: '쓰기 시도' }));
   });
 

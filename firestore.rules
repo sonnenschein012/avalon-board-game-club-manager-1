@@ -29,6 +29,12 @@ service cloud.firestore {
           get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'master');
     }
 
+    // Registered operators share normal interview operations. Master remains
+    // reserved for high-risk administration elsewhere in these rules.
+    function canManageInterviews() {
+      return isAdmin() || isMasterAdmin();
+    }
+
     function publicRoundExists(roundId) {
       return exists(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
     }
@@ -120,24 +126,24 @@ service cloud.firestore {
         request.resource.data.resolvedBy == null;
     }
 
-    // 4. members, games, sessions, attendees: readable by all signed-in users, writable only by admins
+    // Internal club operations are available only to registered operators.
     match /members/{memberId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isMasterAdmin();
       allow write: if isAdmin() || isMasterAdmin();
     }
 
     match /games/{gameId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isMasterAdmin();
       allow write: if isAdmin() || isMasterAdmin();
     }
 
     match /sessions/{sessionId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isMasterAdmin();
       allow write: if isAdmin() || isMasterAdmin();
     }
 
     match /attendees/{attendeeId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isMasterAdmin();
       allow create: if (isAdmin() || isMasterAdmin()) &&
                     request.resource.data.keys().hasAll(['name', 'importDate', 'status']) &&
                     request.resource.data.name is string &&
@@ -151,7 +157,7 @@ service cloud.firestore {
 
     // 3. DailyPlannings: schema validation
     match /DailyPlannings/{planningId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin() || isMasterAdmin();
       allow create: if (isAdmin() || isMasterAdmin()) && 
                     request.resource.data.keys().hasAll(['date', 'groups', 'createdAt']) &&
                     request.resource.data.date is string &&
@@ -176,59 +182,58 @@ service cloud.firestore {
       allow create, update, delete: if isMasterAdmin();
     }
 
-    // Every signed-in club operator can manage interview work. Public applicant
-    // links below remain deliberately limited to their own bearer token.
+    // Interview configuration and applicant personal data are always private.
     match /interviewRounds/{roundId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     match /interviewApplicants/{applicantId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     match /interviewAssignmentLocks/{lockId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     match /interviewApplicantKeys/{keyId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     match /interviewerProfiles/{profileId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     match /interviewRoundInterviewers/{participantId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     match /interviewAssignmentEvents/{eventId} {
-      allow read, create: if isSignedIn();
+      allow read, create: if canManageInterviews();
     }
 
     // Interview notes can contain sensitive application answers and internal
     // observations, so they are never exposed through an applicant token.
     match /interviewNotes/{noteId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if canManageInterviews();
     }
 
     // Immutable-style snapshots keep completed and reset/withdrawn interview
     // attempts extractable for V4 without exposing them to applicant links.
     match /interviewRecordEvents/{eventId} {
-      allow read, create: if isSignedIn();
+      allow read, create: if canManageInterviews();
     }
 
     match /interviewChangeRequests/{token} {
-      allow read, delete: if isSignedIn();
-      allow create, update: if isSignedIn() || isValidPublicChangeRequest(token);
+      allow read, delete: if canManageInterviews();
+      allow create, update: if canManageInterviews() || isValidPublicChangeRequest(token);
     }
 
     // A public round can be fetched only by its exact document path while it is
     // active. Collection enumeration and all writes remain admin-only.
     match /interviewPublicRounds/{roundId} {
-      allow get: if isSignedIn() || resource.data.active == true;
-      allow list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow get: if canManageInterviews() || resource.data.active == true;
+      allow list: if canManageInterviews();
+      allow create, update, delete: if canManageInterviews();
     }
 
     // The token is a bearer credential. Public clients may fetch that exact,
@@ -237,12 +242,12 @@ service cloud.firestore {
     match /interviewAccess/{token} {
       // Missing exact paths may be read so the UI can show "invalid link";
       // inactive real tokens remain unreadable and token listing stays denied.
-      allow get: if isSignedIn() ||
+      allow get: if canManageInterviews() ||
         !exists(/databases/$(database)/documents/interviewAccess/$(token)) ||
         resource.data.active == true;
-      allow list: if isSignedIn();
-      allow create, delete: if isSignedIn();
-      allow update: if isSignedIn() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
+      allow list: if canManageInterviews();
+      allow create, delete: if canManageInterviews();
+      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
     }
 
     // 6. Default deny for all other paths
