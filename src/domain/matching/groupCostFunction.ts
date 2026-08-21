@@ -8,10 +8,12 @@ export interface GroupCostResult {
 export interface CostCalculationContext {
   overallGenderRatio: number;
   vPool: number;
-  globalSTarget: number;
-  globalAttVar: number;
-  globalAttAvg: number;
-  memberAttendanceCount: Record<string, number>;
+  /** 0..1 long-term attendance experience for each attendee. */
+  memberExperience: Record<string, number>;
+  /** 0..1 current-semester attendance activity for each attendee. */
+  memberActivity: Record<string, number>;
+  overallExperienceAverage: number;
+  overallActivityAverage: number;
   memberPairRecentCounts: Record<string, number>;
   memberPairLastSession: Record<string, boolean>;
   requestedPairs: { a: string; b: string }[];
@@ -25,21 +27,29 @@ function calculateAgeVarianceCost(gMems: Member[], vPool: number): number {
   return ((vGroup - vPool) / vPool) * 2.0;
 }
 
-function calculateSemesterPenalty(gMems: Member[], globalSTarget: number): number {
-  if (globalSTarget <= 0) return 0;
-  const semCounts = {} as Record<string, number>;
-  gMems.forEach(m => semCounts[m.semester || ''] = (semCounts[m.semester || ''] || 0) + 1);
-  let sGroup = 0;
-  Object.values(semCounts).forEach(c => sGroup += Math.pow(c - 1, 2));
-  return (sGroup - globalSTarget) / globalSTarget;
+export function getExperience(attendanceCount: number): number {
+  const safeCount = Number.isFinite(attendanceCount) ? Math.max(0, attendanceCount) : 0;
+  return 1 - Math.exp(-safeCount / 4);
 }
 
-function calculateAttendanceVarianceCost(gMems: Member[], ctx: CostCalculationContext): number {
-  if (ctx.globalAttVar < 0.1) return 0;
-  const attCounts = gMems.map(m => ctx.memberAttendanceCount[m.id] || 0);
-  const avgAtt = attCounts.reduce((a, b) => a + b, 0) / (attCounts.length || 1);
-  const expectedGroupVarAtt = ctx.globalAttVar / (gMems.length || 1);
-  return (((Math.pow(avgAtt - ctx.globalAttAvg, 2)) - expectedGroupVarAtt) / (expectedGroupVarAtt + 0.01)) * 2.0;
+export function getActivity(attendedOpportunities: number, totalOpportunities: number): number {
+  const safeAttended = Number.isFinite(attendedOpportunities) ? Math.max(0, attendedOpportunities) : 0;
+  const safeTotal = Number.isFinite(totalOpportunities) ? Math.max(0, totalOpportunities) : 0;
+  return (Math.min(safeAttended, safeTotal) + 1) / (safeTotal + 2);
+}
+
+function calculateMeanBalanceCost(
+  gMems: Member[],
+  values: Record<string, number>,
+  overallAverage: number,
+  fallbackValue: number
+): number {
+  const groupAverage = gMems.reduce((sum, member) => {
+    const value = values[member.id];
+    return sum + (typeof value === 'number' && Number.isFinite(value) ? value : fallbackValue);
+  }, 0) / gMems.length;
+  const safeOverallAverage = Number.isFinite(overallAverage) ? overallAverage : fallbackValue;
+  return Math.pow(groupAverage - safeOverallAverage, 2);
 }
 
 function calculateGenderCost(gMems: Member[], overallGenderRatio: number): number {
@@ -77,12 +87,14 @@ export function getGroupCostDets(
   if (gMems.length === 0) return { costWithoutReward: 0, requestReward: 0 };
 
   const ageVarCost = calculateAgeVarianceCost(gMems, ctx.vPool);
-  const semPenalty = calculateSemesterPenalty(gMems, ctx.globalSTarget);
-  const attVarCost = calculateAttendanceVarianceCost(gMems, ctx);
+  const experienceCost = calculateMeanBalanceCost(gMems, ctx.memberExperience, ctx.overallExperienceAverage, 0);
+  const activityCost = calculateMeanBalanceCost(gMems, ctx.memberActivity, ctx.overallActivityAverage, 0.5);
   const genderCost = calculateGenderCost(gMems, ctx.overallGenderRatio);
   const { reunionPenalty, requestReward } = calculatePairEffects(gMems, ctx);
 
-  const costWithoutReward = ageVarCost + (semPenalty * 2.0) + attVarCost + genderCost + reunionPenalty;
+  // Experience and current-semester activity deliberately use the same fixed
+  // 0..1 mean-balance scale and equal weight. Do not normalize by variance.
+  const costWithoutReward = ageVarCost + experienceCost + activityCost + genderCost + reunionPenalty;
   
   return { costWithoutReward, requestReward };
 }

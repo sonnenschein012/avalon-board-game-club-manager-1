@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { Game } from '../types';
 
 interface ArchiveWidgetChartsProps {
+  selectedSemester: string;
   w4Metric: 'count' | 'rate';
   setW4Metric: (m: 'count' | 'rate') => void;
   w4Data: Record<string, unknown>[];
@@ -18,6 +19,7 @@ interface ArchiveWidgetChartsProps {
 }
 
 export default function ArchiveWidgetCharts({
+  selectedSemester,
   w4Metric,
   setW4Metric,
   w4Data,
@@ -36,7 +38,7 @@ export default function ArchiveWidgetCharts({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2 min-w-max">
             <TrendingUp className="text-emerald-500" size={20} />
-            시계열 참석 트렌드
+            {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 시계열 참석 트렌드
           </h3>
           <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
             <button 
@@ -80,7 +82,7 @@ export default function ArchiveWidgetCharts({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2 min-w-max">
             <Users className="text-indigo-500" size={20} />
-            신입 유입 및 정착 지수
+            {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 신입 유입 및 정착 지수
             <Info 
               className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" 
               onClick={() => setFormulaModal('w5')} 
@@ -135,7 +137,7 @@ export default function ArchiveWidgetCharts({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2">
             <Activity className="text-rose-500" size={20} />
-            모임 고착화 지수
+            {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 모임 고착화 지수
             <Info 
               className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" 
               onClick={() => setFormulaModal('w6')} 
@@ -169,7 +171,7 @@ export default function ArchiveWidgetCharts({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2">
             <Crown className="text-purple-500" size={20} />
-            경험 독점 지수
+            {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 경험 독점 지수
             <Info 
               className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" 
               onClick={() => setFormulaModal('w7')} 

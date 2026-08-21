@@ -28,6 +28,8 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
     handleSubmit,
     handleDelete,
     handleBulkDormant,
+    handleBulkDormantSemesterChange,
+    handleBulkRestoreActive,
     resetForm,
     filteredMembers,
     semesters,
@@ -116,6 +118,8 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
         selectedDocs={selectedDocs}
         setSelectedDocs={setSelectedDocs}
         handleBulkDormant={handleBulkDormant}
+        handleBulkDormantSemesterChange={handleBulkDormantSemesterChange}
+        handleBulkRestoreActive={handleBulkRestoreActive}
         currentTab={currentTab}
       />
 

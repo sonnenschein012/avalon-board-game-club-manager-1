@@ -95,7 +95,7 @@ export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: A
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest">변수 정의</h4>
                     <ul className="space-y-3 font-mono text-sm md:text-base text-slate-700 bg-slate-50 p-6 rounded-xl border border-slate-100">
                       <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-purple-500 font-bold min-w-[50px]">n_g:</span> <span>해당 게임(g)을 1회 이상 경험한 고유 인원수</span></li>
-                      <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-purple-500 font-bold min-w-[50px]">N:</span> <span>해당 학기 전체 활동 인원수</span></li>
+                      <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-purple-500 font-bold min-w-[50px]">N:</span> <span>선택 기간에 1회 이상 참석한 고유 인원수</span></li>
                       <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-purple-500 font-bold min-w-[50px]">T_g:</span> <span>해당 게임의 총 참여 좌석 수 (연인원)</span></li>
                     </ul>
                   </div>

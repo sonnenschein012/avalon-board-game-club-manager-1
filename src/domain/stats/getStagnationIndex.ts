@@ -1,14 +1,14 @@
 import { Session } from '../../types';
 import { getSemester } from '../semester/getSemester';
 
-export function getStagnationIndex(chronologicalSessions: Session[]) {
-  const cumulativeAttendance: Record<string, number> = {};
+export function getStagnationIndex(chronologicalSessions: Session[], includeYear = false) {
+  const cumulativeAttendanceBySemester: Record<string, Record<string, number>> = {};
   const semesterSessionCounts: Record<string, number> = {};
   
   return chronologicalSessions.map((s, idx) => {
     const sDateObj = s.date?.toDate ? (s.date.toDate() as Date) : new Date();
     const semester = getSemester(sDateObj);
-    const dateStr = sDateObj.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
+    const dateStr = sDateObj.toLocaleDateString('ko-KR', includeYear ? { year: 'numeric', month: '2-digit', day: '2-digit' } : { month: '2-digit', day: '2-digit' });
     
     const attendees = new Set<string>();
     s.groups.forEach(g => g.memberIds.forEach(id => attendees.add(id)));
@@ -17,6 +17,8 @@ export function getStagnationIndex(chronologicalSessions: Session[]) {
     
     semesterSessionCounts[semester] = (semesterSessionCounts[semester] || 0) + 1;
     const S_t = semesterSessionCounts[semester];
+    const cumulativeAttendance = cumulativeAttendanceBySemester[semester] ?? {};
+    cumulativeAttendanceBySemester[semester] = cumulativeAttendance;
     
     let sumLog = 0;
     attendees.forEach(id => {

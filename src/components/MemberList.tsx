@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Search, Edit2, Trash2, Info, UserMinus } from 'lucide-react';
+import { Search, Edit2, Trash2, Info, UserCheck, UserMinus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Member } from '../types';
 import MemberForm from './MemberForm';
@@ -21,6 +21,8 @@ interface MemberListProps {
   selectedDocs: Set<string>;
   setSelectedDocs: React.Dispatch<React.SetStateAction<Set<string>>>;
   handleBulkDormant: (semester: string) => Promise<void>;
+  handleBulkDormantSemesterChange: (semester: string) => Promise<void>;
+  handleBulkRestoreActive: () => Promise<void>;
   currentTab: '활동' | '휴면';
 }
 
@@ -39,6 +41,8 @@ export default function MemberList({
   selectedDocs,
   setSelectedDocs,
   handleBulkDormant,
+  handleBulkDormantSemesterChange,
+  handleBulkRestoreActive,
   currentTab
 }: MemberListProps) {
   const [bulkDormantSemester, setBulkDormantSemester] = useState(defaultDormantSemester);
@@ -62,7 +66,7 @@ export default function MemberList({
     <div className="glass-panel overflow-hidden border border-slate-100 p-0 md:p-0">
       <div className="overflow-x-auto min-w-full">
         <div className="min-w-full md:min-w-[600px]">
-          {isAdminModeActive && currentTab === '활동' && selectedDocs.size > 0 && (
+          {isAdminModeActive && selectedDocs.size > 0 && (
             <div className="bg-navy p-4 flex items-center justify-between text-white animate-in slide-in-from-top-2">
               <div className="text-sm font-medium">
                 {selectedDocs.size}명 선택됨
@@ -72,21 +76,39 @@ export default function MemberList({
                   type="text"
                   value={bulkDormantSemester}
                   onChange={(e) => setBulkDormantSemester(e.target.value)}
-                  placeholder="휴면 지정 학기"
+                  placeholder={currentTab === '활동' ? '휴면 지정 학기' : '변경할 휴면 학기'}
                   className="text-xs px-3 py-1.5 rounded-lg bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-gold w-36"
                 />
-                <button
-                  onClick={() => handleBulkDormant(bulkDormantSemester)}
-                  className="flex items-center gap-1.5 bg-gold hover:bg-gold-light text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                >
-                  <UserMinus size={14} />
-                  선택 인원 휴면 전환
-                </button>
+                {currentTab === '활동' ? (
+                  <button
+                    onClick={() => handleBulkDormant(bulkDormantSemester)}
+                    className="flex items-center gap-1.5 bg-gold hover:bg-gold-light text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    <UserMinus size={14} />
+                    선택 인원 휴면 전환
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleBulkDormantSemesterChange(bulkDormantSemester)}
+                      className="flex items-center gap-1.5 bg-gold hover:bg-gold-light text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      휴면 학기 변경
+                    </button>
+                    <button
+                      onClick={() => handleBulkRestoreActive()}
+                      className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                    >
+                      <UserCheck size={14} />
+                      활동으로 복원
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
           <div className="hidden md:flex bg-slate-50 items-center">
-            {isAdminModeActive && currentTab === '활동' && (
+            {isAdminModeActive && (
               <div className="table-header w-12 flex justify-center border-r border-slate-100">
                 <input
                   type="checkbox"
@@ -106,7 +128,7 @@ export default function MemberList({
               <React.Fragment key={member.id}>
                 {/* Desktop View (md:flex) */}
                 <div className="hidden md:flex items-center hover:bg-slate-50/80 transition-all group">
-                  {isAdminModeActive && currentTab === '활동' && (
+                  {isAdminModeActive && (
                     <div className="table-cell w-12 flex justify-center border-r border-slate-100 mr-3">
                       <input
                         type="checkbox"
@@ -186,7 +208,7 @@ export default function MemberList({
                 {/* Mobile View (md:hidden) */}
                 <div className="md:hidden flex flex-col hover:bg-slate-50/80 transition-all group p-4">
                   <div className="flex items-center mb-3">
-                    {isAdminModeActive && currentTab === '활동' && (
+                    {isAdminModeActive && (
                       <div className="flex justify-center mr-3">
                         <input
                           type="checkbox"

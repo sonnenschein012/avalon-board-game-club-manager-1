@@ -4,7 +4,8 @@ import { getActiveMembersAtSemester } from './getSemesterRosterCounts';
 
 export function getAttendanceTrend(
   chronologicalSessions: Session[],
-  members: Member[]
+  members: Member[],
+  includeYear = false
 ) {
   const rosterCounts = new Map<string, number>();
 
@@ -18,7 +19,7 @@ export function getAttendanceTrend(
     rosterCounts.set(semester, activeCount);
     const rate = activeCount > 0 ? (count / activeCount) * 100 : 0;
     
-    const dateStr = s.date?.toDate ? (s.date.toDate() as Date).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }) : '';
+    const dateStr = s.date?.toDate ? (s.date.toDate() as Date).toLocaleDateString('ko-KR', includeYear ? { year: 'numeric', month: '2-digit', day: '2-digit' } : { month: '2-digit', day: '2-digit' }) : '';
     return {
       name: s.name,
       dateStr,

@@ -8,21 +8,25 @@ import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-r
 
 import { Toaster, toast } from 'sonner';
 
-// Pages
-import MembersPage from './components/MembersPage';
-import GamesPage from './components/GamesPage';
-import AttendancePage from './components/AttendancePage';
-import SessionsPage from './components/SessionsPage';
-
-import MeetingProgressPage from './components/MeetingProgressPage';
-import SettingsPage from './components/SettingsPage';
-import ArchivePage from './components/ArchivePage';
 import AvalonLogo from './components/AvalonLogo';
 import Sidebar from './components/Sidebar';
 import LoginGate from './components/LoginGate';
-import InterviewRoundsPage from './components/InterviewRoundsPage';
-import InterviewRoundPage from './components/InterviewRoundPage';
-import PublicInterviewPage from './components/PublicInterviewPage';
+
+// Route-level chunks keep infrequently visited screens out of the initial download.
+const MembersPage = React.lazy(() => import('./components/MembersPage'));
+const GamesPage = React.lazy(() => import('./components/GamesPage'));
+const AttendancePage = React.lazy(() => import('./components/AttendancePage'));
+const SessionsPage = React.lazy(() => import('./components/SessionsPage'));
+const MeetingProgressPage = React.lazy(() => import('./components/MeetingProgressPage'));
+const SettingsPage = React.lazy(() => import('./components/SettingsPage'));
+const ArchivePage = React.lazy(() => import('./components/ArchivePage'));
+const InterviewRoundsPage = React.lazy(() => import('./components/InterviewRoundsPage'));
+const InterviewRoundPage = React.lazy(() => import('./components/InterviewRoundPage'));
+const PublicInterviewPage = React.lazy(() => import('./components/PublicInterviewPage'));
+
+function RouteLoadingFallback() {
+  return <div className="flex min-h-screen items-center justify-center bg-white text-xs font-mono uppercase tracking-widest text-slate-400">화면을 불러오는 중...</div>;
+}
 
 const PrivateRoute = ({ user, isAdmin, children }: { user: User | null; isAdmin: boolean; children: React.ReactNode }) => {
   if (!user || !isAdmin) {
@@ -239,6 +243,7 @@ export default function App() {
   return (
     <>
       <Toaster position="bottom-right" />
+      <React.Suspense fallback={<RouteLoadingFallback />}>
       <Routes>
       <Route path="/" element={
         !user ? (
@@ -297,6 +302,7 @@ export default function App() {
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </React.Suspense>
     </>
   );
 }

@@ -26,6 +26,8 @@ import {
   getReunionWarnings
 } from '../domain/attendance/attendanceHelpers';
 import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
+import { getActivity, getExperience } from '../domain/matching/groupCostFunction';
+import { getParticipationHistory } from '../domain/matching/participationHistory';
 
 export function convertAttendeeIdsToMemberIds(
   groups: SessionGroup[], 
@@ -228,18 +230,24 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
       vPool = globalYears.reduce((a, b) => a + Math.pow(b - globalAvgYear, 2), 0) / globalYears.length;
     }
 
-    const globalSTarget = (() => {
-      const globalSemCounts = {} as Record<string, number>;
-      totalMems.forEach(m => globalSemCounts[m.semester || ''] = (globalSemCounts[m.semester || ''] || 0) + 1);
-      let sPool = 0;
-      Object.values(globalSemCounts).forEach(c => sPool += Math.pow(c - 1, 2));
-      const numGroups = groups.length || 1;
-      return sPool / numGroups;
-    })();
+    const participationHistory = getParticipationHistory(totalMems, sessions, sessionDate);
+    const memberExperience: Record<string, number> = {};
+    const memberActivity: Record<string, number> = {};
 
-    const globalAttCounts = totalMems.map(m => memberAttendanceCount[m.id] || 0);
-    const globalAttAvg = globalAttCounts.length > 0 ? globalAttCounts.reduce((a, b) => a + b, 0) / globalAttCounts.length : 0;
-    const globalAttVar = globalAttCounts.length > 0 ? globalAttCounts.reduce((a, b) => a + Math.pow(b - globalAttAvg, 2), 0) / globalAttCounts.length : 0;
+    totalMems.forEach(member => {
+      memberExperience[member.id] = getExperience(participationHistory.attendanceCounts[member.id] || 0);
+      memberActivity[member.id] = getActivity(
+        participationHistory.currentSemesterAttendanceCounts[member.id] || 0,
+        participationHistory.currentSemesterOpportunityCounts[member.id] || 0
+      );
+    });
+
+    const overallExperienceAverage = totalMems.length > 0
+      ? totalMems.reduce((sum, member) => sum + memberExperience[member.id]!, 0) / totalMems.length
+      : 0;
+    const overallActivityAverage = totalMems.length > 0
+      ? totalMems.reduce((sum, member) => sum + memberActivity[member.id]!, 0) / totalMems.length
+      : 0.5;
 
     const requestedPairs: {a: string, b: string}[] = [];
     attendees.forEach(attA => {
@@ -257,10 +265,10 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     return {
       overallGenderRatio,
       vPool,
-      globalSTarget,
-      globalAttVar,
-      globalAttAvg,
-      memberAttendanceCount,
+      memberExperience,
+      memberActivity,
+      overallExperienceAverage,
+      overallActivityAverage,
       memberPairRecentCounts,
       memberPairLastSession,
       requestedPairs,

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface ArchiveExpandedChartModalProps {
+  selectedSemester: string;
   expandedChart: 'w4' | 'w5' | 'w6' | null;
   setExpandedChart: (c: 'w4' | 'w5' | 'w6' | null) => void;
   w4Metric: 'count' | 'rate';
@@ -17,6 +18,7 @@ interface ArchiveExpandedChartModalProps {
 }
 
 export default function ArchiveExpandedChartModal({
+  selectedSemester,
   expandedChart,
   setExpandedChart,
   w4Metric,
@@ -46,9 +48,9 @@ export default function ArchiveExpandedChartModal({
           >
             <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
               <h3 className="font-bold text-lg text-navy flex items-center gap-2">
-                {expandedChart === 'w4' && <><TrendingUp className="text-emerald-500" size={20} /> 시계열 참석 트렌드</>}
-                {expandedChart === 'w5' && <><Users className="text-indigo-500" size={20} /> 신입 유입 및 정착 지수</>}
-                {expandedChart === 'w6' && <><Activity className="text-rose-500" size={20} /> 모임 고착화 지수</>}
+                {expandedChart === 'w4' && <><TrendingUp className="text-emerald-500" size={20} /> {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 시계열 참석 트렌드</>}
+                {expandedChart === 'w5' && <><Users className="text-indigo-500" size={20} /> {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 신입 유입 및 정착 지수</>}
+                {expandedChart === 'w6' && <><Activity className="text-rose-500" size={20} /> {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 모임 고착화 지수</>}
               </h3>
               <div className="flex items-center gap-4">
                 {expandedChart === 'w4' && (

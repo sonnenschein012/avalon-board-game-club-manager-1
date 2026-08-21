@@ -3,6 +3,7 @@ import type { Member, Session } from '../../types';
 import { getAttendanceRanking } from './getAttendanceRanking';
 import { getAttendanceTrend } from './getAttendanceTrend';
 import { getNewcomerTrend } from './getNewcomerTrend';
+import { getStagnationIndex } from './getStagnationIndex';
 
 const timestamp = (value: string) => ({ toDate: () => new Date(value) });
 
@@ -41,5 +42,14 @@ describe('semester statistics', () => {
       session({ groups: [{ id: 'group', memberIds: ['continuing', 'newbie', 'guest'], gameIds: [], notes: '' }] }),
     ], [...members, { ...members[0], id: 'guest', name: '기존 회원' } as Member], true);
     expect(data[0]).toMatchObject({ 보정지수: 1 });
+  });
+
+  it('resets the stagnation attendance history at each semester boundary', () => {
+    const data = getStagnationIndex([
+      session({ id: 'fall', date: timestamp('2025-10-01T10:00:00+09:00') as unknown as Session['date'], groups: [{ id: 'group', memberIds: ['continuing'], gameIds: [], notes: '' }] }),
+      session({ id: 'spring', date: timestamp('2026-04-01T10:00:00+09:00') as unknown as Session['date'], groups: [{ id: 'group', memberIds: ['continuing'], gameIds: [], notes: '' }] }),
+    ]);
+
+    expect(data.map(item => item.정체성지수)).toEqual([1, 1]);
   });
 });

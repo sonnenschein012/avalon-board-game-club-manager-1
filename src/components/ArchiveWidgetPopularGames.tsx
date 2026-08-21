@@ -60,7 +60,7 @@ export default function ArchiveWidgetPopularGames({
                 {item.count}회 플레이
               </div>
               <div className="text-[10px] font-bold text-crimson">
-                경험자 비율: {item.fixation}%
+                선택 기간 참가자 대비: {item.fixation}%
               </div>
             </div>
           </div>

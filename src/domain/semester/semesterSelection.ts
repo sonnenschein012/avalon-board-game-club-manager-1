@@ -6,5 +6,5 @@ export function getAvailableArchiveSemesters(sessionDates: Array<unknown>, now =
     const semester = getSemester(date as Date);
     if (semester !== '알 수 없음') semesters.add(semester);
   });
-  return [...semesters].sort().reverse();
+  return ['전체', ...[...semesters].sort().reverse()];
 }

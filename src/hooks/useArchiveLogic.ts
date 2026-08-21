@@ -24,7 +24,7 @@ export function useArchiveLogic() {
   }, [sessions]);
 
   const filteredSessions = useMemo(() => {
-    return sessions.filter(s => getSemester(s.date) === selectedSemester);
+    return sessions.filter(s => selectedSemester === '전체' || getSemester(s.date) === selectedSemester);
   }, [sessions, selectedSemester]);
 
   const activeMemberIds = useMemo(() => {
@@ -55,12 +55,13 @@ export function useArchiveLogic() {
   const [formulaModal, setFormulaModal] = useState<'w5' | 'w6' | 'w7' | null>(null);
 
   const [w4Metric, setW4Metric] = useState<'count' | 'rate'>('count');
-  const w4Data = useMemo(() => getAttendanceTrend(chronologicalSessions, members), [chronologicalSessions, members]);
+  const isAllSemesters = selectedSemester === '전체';
+  const w4Data = useMemo(() => getAttendanceTrend(chronologicalSessions, members, isAllSemesters), [chronologicalSessions, members, isAllSemesters]);
 
   const [w5Normalize, setW5Normalize] = useState<boolean>(false);
-  const w5Data = useMemo(() => getNewcomerTrend(chronologicalSessions, members, w5Normalize), [chronologicalSessions, members, w5Normalize]);
+  const w5Data = useMemo(() => getNewcomerTrend(chronologicalSessions, members, w5Normalize, isAllSemesters), [chronologicalSessions, members, w5Normalize, isAllSemesters]);
 
-  const w6Data = useMemo(() => getStagnationIndex(chronologicalSessions), [chronologicalSessions]);
+  const w6Data = useMemo(() => getStagnationIndex(chronologicalSessions, isAllSemesters), [chronologicalSessions, isAllSemesters]);
   const w7MMI = useMemo(() => getGameMmi(filteredSessions, activeMembersCount, games), [filteredSessions, activeMembersCount, games]);
 
   return {

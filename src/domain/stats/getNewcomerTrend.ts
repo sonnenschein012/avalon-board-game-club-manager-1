@@ -5,7 +5,8 @@ import { getActiveMembersAtSemester, getNewbieMembersAtSemester } from './getSem
 export function getNewcomerTrend(
   chronologicalSessions: Session[],
   members: Member[],
-  w5Normalize: boolean
+  w5Normalize: boolean,
+  includeYear = false
 ) {
   const activeCounts = new Map<string, number>();
   const newbieCounts = new Map<string, number>();
@@ -13,7 +14,7 @@ export function getNewcomerTrend(
   return chronologicalSessions.map((s, idx) => {
     const sDateObj = s.date?.toDate ? (s.date.toDate() as Date) : new Date();
     const sSemester = getSemester(sDateObj);
-    const dateStr = sDateObj.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' });
+    const dateStr = sDateObj.toLocaleDateString('ko-KR', includeYear ? { year: 'numeric', month: '2-digit', day: '2-digit' } : { month: '2-digit', day: '2-digit' });
     
     const attendees = new Set<string>();
     s.groups.forEach(g => g.memberIds.forEach(id => attendees.add(id)));

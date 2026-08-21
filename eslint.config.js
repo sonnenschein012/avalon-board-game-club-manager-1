@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'functions/node_modules', '.firebase', 'stats.html'] },
+  { ignores: ['dist', 'coverage', 'node_modules', '.firebase', 'stats.html'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

@@ -84,6 +84,39 @@ export function useMembersLogic() {
     }
   };
 
+  const handleBulkDormantSemesterChange = async (dormantSemester: string) => {
+    if (selectedDocs.size === 0) return;
+    if (!dormantSemester) {
+      toast.error('휴면 학기를 입력해주세요.');
+      return;
+    }
+    try {
+      await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
+        dormantSemester,
+      })));
+      toast.success(`${selectedDocs.size}명의 휴면 학기가 변경되었습니다.`);
+      setSelectedDocs(new Set());
+    } catch (error) {
+      console.error(error);
+      toast.error('휴면 학기 변경 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleBulkRestoreActive = async () => {
+    if (selectedDocs.size === 0) return;
+    try {
+      await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
+        status: '활동',
+        dormantSemester: '',
+      })));
+      toast.success(`${selectedDocs.size}명의 동아리원이 활동 명부로 복원되었습니다.`);
+      setSelectedDocs(new Set());
+    } catch (error) {
+      console.error(error);
+      toast.error('활동 명부 복원 중 오류가 발생했습니다.');
+    }
+  };
+
   const [formData, setFormData] = useState<MemberFormData>({ 
     name: '', nickname: '', studentId: '', phone: '', 
     gender: '남', semester: defaultSemester, preferredGenre: [], memo: '',
@@ -297,6 +330,8 @@ export function useMembersLogic() {
     handleSubmit,
     handleDelete,
     handleBulkDormant,
+    handleBulkDormantSemesterChange,
+    handleBulkRestoreActive,
     resetForm,
     filteredMembers,
     semesters,
