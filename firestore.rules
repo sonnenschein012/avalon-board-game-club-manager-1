@@ -250,6 +250,27 @@ service cloud.firestore {
       allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
     }
 
+    // Google Workspace and External Integrations Security
+    // Private credentials and CSRF tokens are strictly server-only.
+    match /_private_integrations/{docId} {
+      allow read, write: if false;
+    }
+
+    match /_private_oauth_states/{stateId} {
+      allow read, write: if false;
+    }
+
+    // Public integration status and system settings are readable by admins.
+    match /system_settings/{docId} {
+      allow read: if isAdmin();
+      allow write: if isMasterAdmin();
+    }
+
+    // Generated meeting surveys and Form/Sheet linkage records.
+    match /surveys/{surveyId} {
+      allow read, write: if isAdmin();
+    }
+
     // 6. Default deny for all other paths
     match /{document=**} {
       allow read, write: if false;

@@ -4,9 +4,11 @@ import {
   doc, 
   orderBy,
   setDoc,
-  serverTimestamp
+  serverTimestamp,
+  increment,
+  Firestore,
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, auth } from '../lib/firebase';
 import { Attendee, Member, SessionGroup, StoredSessionGroup, Session, MemberId } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
@@ -17,7 +19,8 @@ import {
   quickAddMemberRecord, 
   manualAddAttendeeRecord, 
   importAttendeesFile, 
-  clearAllAttendees 
+  clearAllAttendees,
+  syncMeetingAttendeesFromSheet 
 } from '../services/attendeesService';
 import { simulateAutoAssign } from '../domain/matching/autoAssignAlgorithm';
 import {
@@ -26,7 +29,7 @@ import {
   getReunionWarnings
 } from '../domain/attendance/attendanceHelpers';
 import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
-import { getActivity, getExperience } from '../domain/matching/groupCostFunction';
+import { getActivity, getExperience, CostCalculationContext } from '../domain/matching/groupCostFunction';
 import { getParticipationHistory } from '../domain/matching/participationHistory';
 
 export function convertAttendeeIdsToMemberIds(
@@ -48,6 +51,56 @@ export function convertAttendeeIdsToMemberIds(
   }));
 }
 
+export async function executeMoveToRecordBatch(
+  database: Firestore,
+  attendeesList: Attendee[],
+  groupsList: SessionGroup[],
+  membersList: Member[],
+  sessionNameStr: string,
+  sessionDateStr: string,
+  callerEmail: string = 'admin',
+  batchFactory = writeBatch,
+  docFn = doc,
+  setDocFn = setDoc
+): Promise<{ success: boolean; mappedGroups: StoredSessionGroup[]; error?: unknown }> {
+  const assignedAttendees = groupsList.flatMap(g => g.memberIds.map(id => attendeesList.find(a => a.id === id)).filter(Boolean) as Attendee[]);
+  const unregistered = assignedAttendees.filter(a => !getMemberFromAttendee(membersList, a.name, a.studentIdPrefix));
+  
+  if (unregistered.length > 0) {
+    return { success: false, mappedGroups: [], error: 'UNREGISTERED_MEMBERS' };
+  }
+
+  const batch = batchFactory(database);
+  attendeesList.forEach(a => {
+    batch.update(docFn(database, 'attendees', a.id), { status: '편성됨' });
+  });
+
+  // Atomically bump attendance revision
+  const revRef = docFn(database, 'system_settings', 'attendance_revision');
+  batch.set(
+    revRef,
+    {
+      revision: increment(1),
+      lastUpdatedAt: serverTimestamp(),
+      updatedBy: callerEmail,
+    },
+    { merge: true }
+  );
+
+  const mappedGroups = convertAttendeeIdsToMemberIds(groupsList, attendeesList, membersList);
+
+  await batch.commit();
+
+  await setDocFn(docFn(database, 'DailyPlannings', sessionDateStr || 'temp'), {
+    name: sessionNameStr,
+    date: sessionDateStr,
+    groups: mappedGroups,
+    createdAt: serverTimestamp()
+  });
+
+  return { success: true, mappedGroups };
+}
+
 interface UseAttendanceLogicProps {
   onMoveToRecord?: (draft: { name: string, date: string, groups: StoredSessionGroup[] }) => void;
 }
@@ -58,6 +111,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
 
   const [importing, setImporting] = useState(false);
+  const [syncingSheet, setSyncingSheet] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
   const [initialSessionMetadata] = useState(() => getTodaySessionMetadata());
@@ -76,8 +130,6 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const [attendeeToDelete, setAttendeeToDelete] = useState<Attendee | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // A changed date should update an untouched default name, while preserving
-  // the operator's own wording once they have edited it.
   const setSessionName = (name: string) => {
     setIsSessionNameCustom(true);
     setSessionNameState(name);
@@ -90,79 +142,77 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     }
   };
 
+  const getMember = (attendeeId: string) => {
+    const a = attendees.find(x => x.id === attendeeId);
+    if (!a) return undefined;
+    return getMemberFromAttendee(members, a.name, a.studentIdPrefix);
+  };
+
   const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => {
     return getMemberFromAttendee(members, name, studentIdPrefix);
   };
 
-  const getMember = (attendeeId: string) => {
-    const a = attendees.find(x => x.id === attendeeId);
-    return a ? getMemberFromInfo(a.name, a.studentIdPrefix) : undefined;
-  };
+  const participationHistory = useMemo(() => {
+    return getParticipationHistory(members, sessions, sessionDate || '9999-99-99');
+  }, [members, sessions, sessionDate]);
 
-  const memberAttendanceCount = useMemo(() => {
-    const counts: Record<string, number> = {};
-    members.forEach(m => counts[m.id] = 0);
-    sessions.forEach(s => {
-      s.groups.forEach(g => {
-        g.memberIds.forEach(mId => {
-          if (counts[mId] !== undefined) counts[mId]++;
-        });
-      });
-    });
-    return counts;
-  }, [sessions, members]);
+  const memberAttendanceCount = participationHistory.attendanceCounts;
 
   const memberPairLastSession = useMemo(() => {
-    const pairs: Record<string, boolean> = {};
+    const map: Record<string, boolean> = {};
     if (sessions.length > 0 && sessions[0]) {
-      const lastSession = sessions[0];
-      lastSession.groups.forEach(g => {
+      sessions[0].groups.forEach(g => {
         for (let i = 0; i < g.memberIds.length; i++) {
           for (let j = i + 1; j < g.memberIds.length; j++) {
             const pairKey = [g.memberIds[i], g.memberIds[j]].sort().join('|');
-            pairs[pairKey] = true;
+            map[pairKey] = true;
           }
         }
       });
     }
-    return pairs;
+    return map;
   }, [sessions]);
 
   const memberPairRecentCounts = useMemo(() => {
-    const pairs: Record<string, number> = {};
-    const recentSessions = sessions.slice(0, 3);
-    recentSessions.forEach(s => {
+    const map: Record<string, number> = {};
+    sessions.slice(0, 3).forEach(s => {
       s.groups.forEach(g => {
         for (let i = 0; i < g.memberIds.length; i++) {
           for (let j = i + 1; j < g.memberIds.length; j++) {
             const pairKey = [g.memberIds[i], g.memberIds[j]].sort().join('|');
-            pairs[pairKey] = (pairs[pairKey] || 0) + 1;
+            map[pairKey] = (map[pairKey] || 0) + 1;
           }
         }
       });
     });
-    return pairs;
+    return map;
   }, [sessions]);
 
-  const calcGroupAvgAttendance = (attendeeIds: string[]) => calculateGroupAverageAttendance(attendeeIds, getMember, memberAttendanceCount);
-  const calcGroupAvgStudentId = (attendeeIds: string[]) => calculateGroupAverageStudentId(attendeeIds, getMember, attendees);
-  const getWarnings = (attendeeIds: string[]) => getReunionWarnings(attendeeIds, getMember, memberPairRecentCounts);
+  const assignedAttendeeIds = useMemo(() => {
+    return new Set(groups.flatMap(g => g.memberIds));
+  }, [groups]);
 
-  const assignedAttendeeIds = new Set(groups.flatMap(g => g.memberIds));
+  const calcGroupAvgAttendance = (attendeeIds: string[]) => 
+    calculateGroupAverageAttendance(attendeeIds, getMember, memberAttendanceCount);
+
+  const calcGroupAvgStudentId = (attendeeIds: string[]) => 
+    calculateGroupAverageStudentId(attendeeIds, getMember, attendees);
+
   const unassignedAttendees = attendees
     .filter(a => !assignedAttendeeIds.has(a.id))
     .sort((a, b) => {
-      const memberA = getMemberFromInfo(a.name, a.studentIdPrefix);
-      const memberB = getMemberFromInfo(b.name, b.studentIdPrefix);
-      
-      const isBoardA = memberA?.isBoardMember ? 1 : 0;
-      const isBoardB = memberB?.isBoardMember ? 1 : 0;
-      
-      if (isBoardA !== isBoardB) {
-        return isBoardB - isBoardA;
-      }
+      const getPrefixNumber = (prefix?: string) => {
+        if (!prefix) return 999;
+        const num = parseInt(prefix, 10);
+        return isNaN(num) ? 999 : num;
+      };
+      const prefixDiff = getPrefixNumber(a.studentIdPrefix) - getPrefixNumber(b.studentIdPrefix);
+      if (prefixDiff !== 0) return prefixDiff;
       return a.name.localeCompare(b.name);
     });
+
+  const getWarnings = (attendeeIds: string[]) => 
+    getReunionWarnings(attendeeIds, getMember, memberPairRecentCounts);
 
   const handleDeleteAttendee = async () => {
     if (!attendeeToDelete) return;
@@ -180,10 +230,10 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const handleManualAdd = async (data: { name: string; studentIdPrefix: string; drink: string; afterparty: boolean; request: string }) => {
     setIsManualAdding(true);
     const success = await manualAddAttendeeRecord(data, members, attendees);
+    setIsManualAdding(false);
     if (success) {
       setIsManualAddModalOpen(false);
     }
-    setIsManualAdding(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,193 +243,227 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     setImporting(true);
     importAttendeesFile(file, attendees, members, () => {
       setImporting(false);
-      setGroups([]);
       if (e.target) e.target.value = '';
     });
   };
 
+  const handleSyncSheet = async () => {
+    setSyncingSheet(true);
+    try {
+      await syncMeetingAttendeesFromSheet(attendees, members, {
+        onManualModificationDetected: (proceed) => {
+          if (window.confirm('출석 명단에 수동으로 수정/추가된 기록이 있습니다. Google Sheet로 다시 덮어쓰시겠습니까?')) {
+            proceed();
+          }
+        },
+        onZeroAttendeesDetected: (proceed) => {
+          if (window.confirm('가져온 출석 인원이 0명입니다. 정말로 모든 출석 명단을 비우시겠습니까?')) {
+            proceed();
+          }
+        },
+        onAssignedAttendeesDetected: (proceed) => {
+          if (window.confirm('이미 조편성이 진행된 상태입니다. 다시 불러오면 현재 조편성 상태가 초기화됩니다. 계속 진행하시겠습니까?')) {
+            proceed();
+          }
+        },
+      });
+    } finally {
+      setSyncingSheet(false);
+    }
+  };
+
   const clearRecords = async () => {
-    const success = await clearAllAttendees(attendees);
-    if (success) {
-      setGroups([]);
+    if (attendees.length === 0) return;
+    if (window.confirm('현재 대기 중인 모든 출석 명단을 초기화하시겠습니까?')) {
+      const success = await clearAllAttendees(attendees);
+      if (success) {
+        setGroups([]);
+      }
     }
   };
 
   const handleCreateGroup = () => {
-    const newGroup: SessionGroup = {
-      id: Math.random().toString(36).substring(7),
-      memberIds: [],
-      gameIds: [],
-      notes: ''
-    };
-    setGroups([...groups, newGroup]);
+    const newId = `group-${Date.now()}`;
+    setGroups(prev => [
+      ...prev,
+      {
+        id: newId,
+        name: `${prev.length + 1}조`,
+        memberIds: [],
+        gameIds: [],
+        targetSize: 4
+      }
+    ]);
   };
 
-  const handleUpdateTargetSize = (groupId: string, size: number) => {
-    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, targetSize: size } : g));
+  const handleUpdateTargetSize = (groupId: string, targetSize: number) => {
+    setGroups(prev => prev.map(g => g.id === groupId ? { ...g, targetSize } : g));
   };
 
-  const getCostContext = () => {
+  const exportSimulationData = () => {
     const totalMems = attendees.map(a => getMember(a.id)).filter(Boolean) as Member[];
-    const totalCount = totalMems.length || 1;
-    const overallGenderRatio = totalCount > 0 ? totalMems.filter(m => m.gender === '여').length / totalCount : 0;
-    const globalYears = totalMems.map(m => parseInt(m.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x=>x) || '25'));
-    const globalAvgYear = globalYears.reduce((a, b) => a + b, 0) / (globalYears.length || 1);
-    let vPool = 0;
-    if (globalYears.length > 0) {
-      vPool = globalYears.reduce((a, b) => a + Math.pow(b - globalAvgYear, 2), 0) / globalYears.length;
-    }
+    const avgTotalAtt = totalMems.reduce((acc, m) => acc + (memberAttendanceCount[m.id] || 0), 0) / (totalMems.length || 1);
+    
+    let totalAssigned = 0;
+    let totalTarget = 0;
+    let totalVariance = 0;
+    let totalRecentReunions = 0;
+    let totalLastSessionReunions = 0;
+    let totalGenderPenalties = 0;
 
-    const participationHistory = getParticipationHistory(totalMems, sessions, sessionDate);
-    const memberExperience: Record<string, number> = {};
-    const memberActivity: Record<string, number> = {};
+    groups.forEach(g => {
+      const gMems = g.memberIds.map(id => getMember(id)).filter(Boolean) as Member[];
+      totalAssigned += g.memberIds.length;
+      totalTarget += (g.targetSize || 4);
+      
+      const gAvgAtt = gMems.reduce((acc, m) => acc + (memberAttendanceCount[m.id] || 0), 0) / (gMems.length || 1);
+      totalVariance += Math.pow(gAvgAtt - avgTotalAtt, 2);
 
-    totalMems.forEach(member => {
-      memberExperience[member.id] = getExperience(participationHistory.attendanceCounts[member.id] || 0);
-      memberActivity[member.id] = getActivity(
-        participationHistory.currentSemesterAttendanceCounts[member.id] || 0,
-        participationHistory.currentSemesterOpportunityCounts[member.id] || 0
-      );
+      for (let i = 0; i < gMems.length; i++) {
+        for (let j = i + 1; j < gMems.length; j++) {
+          const pairKey = [gMems[i]?.id, gMems[j]?.id].sort().join('|');
+          if (memberPairRecentCounts[pairKey]) totalRecentReunions += memberPairRecentCounts[pairKey];
+          if (memberPairLastSession[pairKey]) totalLastSessionReunions++;
+        }
+      }
+
+      const females = gMems.filter(m => m.gender === '여').length;
+      if (females === 1) totalGenderPenalties += 1;
     });
 
-    const overallExperienceAverage = totalMems.length > 0
-      ? totalMems.reduce((sum, member) => sum + memberExperience[member.id]!, 0) / totalMems.length
-      : 0;
-    const overallActivityAverage = totalMems.length > 0
-      ? totalMems.reduce((sum, member) => sum + memberActivity[member.id]!, 0) / totalMems.length
-      : 0.5;
+    const metrics = {
+      timestamp: new Date().toISOString(),
+      sessionDate,
+      totalAttendees: attendees.length,
+      totalGroups: groups.length,
+      capacityDeviation: Math.abs(totalAssigned - totalTarget),
+      attendanceVariance: totalVariance / (groups.length || 1),
+      recentReunions: totalRecentReunions,
+      lastSessionReunions: totalLastSessionReunions,
+      isolatedFemalePenalty: totalGenderPenalties,
+      details: groups.map(g => ({
+        name: g.name,
+        targetSize: g.targetSize,
+        size: g.memberIds.length,
+        members: g.memberIds.map(id => {
+          const m = getMember(id);
+          const att = attendees.find(a => a.id === id);
+          return {
+            name: att?.name,
+            studentIdPrefix: att?.studentIdPrefix,
+            gender: m?.gender,
+            attendanceCount: m ? (memberAttendanceCount[m.id] || 0) : 0,
+            experience: m ? getExperience(memberAttendanceCount[m.id] || 0) : 0,
+            activity: m ? getActivity(participationHistory.currentSemesterAttendanceCounts[m.id] || 0, participationHistory.currentSemesterOpportunityCounts[m.id] || 0) : 0
+          };
+        })
+      }))
+    };
 
-    const requestedPairs: {a: string, b: string}[] = [];
-    attendees.forEach(attA => {
-      if (attA.request) {
-        const memA = getMember(attA.id);
-        if (!memA) return;
-        members.forEach(memB => {
-          if (memA.id !== memB.id && attA.request!.includes(memB.name)) {
-            requestedPairs.push({ a: memA.id, b: memB.id });
-          }
-        });
+    const blob = new Blob([JSON.stringify(metrics, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `group-simulation-${sessionDate || 'today'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('시뮬레이션 데이터가 JSON 파일로 다운로드되었습니다.');
+  };
+
+  const handleAutoAssign = () => {
+    const availableAttendeesWithMember: (Attendee & { member: Member })[] = [];
+
+    attendees.forEach(a => {
+      const member = getMemberFromInfo(a.name, a.studentIdPrefix);
+      if (member) {
+        availableAttendeesWithMember.push({ ...a, member });
       }
     });
 
-    return {
+    if (availableAttendeesWithMember.length === 0) {
+      toast.error('편성 가능한 등록 회원이 없습니다.');
+      return;
+    }
+
+    const memberExperience: Record<string, number> = {};
+    const memberActivity: Record<string, number> = {};
+    let sumExp = 0;
+    let sumAct = 0;
+
+    availableAttendeesWithMember.forEach(a => {
+      const exp = getExperience(memberAttendanceCount[a.member.id] || 0);
+      const act = getActivity(
+        participationHistory.currentSemesterAttendanceCounts[a.member.id] || 0,
+        participationHistory.currentSemesterOpportunityCounts[a.member.id] || 0
+      );
+      memberExperience[a.member.id] = exp;
+      memberActivity[a.member.id] = act;
+      sumExp += exp;
+      sumAct += act;
+    });
+
+    const femaleCount = availableAttendeesWithMember.filter(a => a.member.gender === '여').length;
+    const overallGenderRatio = femaleCount / (availableAttendeesWithMember.length || 1);
+
+    const years = availableAttendeesWithMember.map(a => {
+      const parsed = parseInt(a.member.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x => x) || '25', 10);
+      return isNaN(parsed) ? 25 : parsed;
+    });
+    const avgYear = years.reduce((acc, y) => acc + y, 0) / (years.length || 1);
+    const vPool = years.reduce((acc, y) => acc + Math.pow(y - avgYear, 2), 0) / (years.length || 1);
+
+    const ctx: CostCalculationContext = {
       overallGenderRatio,
       vPool,
       memberExperience,
       memberActivity,
-      overallExperienceAverage,
-      overallActivityAverage,
+      overallExperienceAverage: sumExp / (availableAttendeesWithMember.length || 1),
+      overallActivityAverage: sumAct / (availableAttendeesWithMember.length || 1),
       memberPairRecentCounts,
       memberPairLastSession,
-      requestedPairs,
+      requestedPairs: [],
     };
-  };
 
-  const handleAutoAssign = () => {
-    const availableAttendees = attendees.filter(a => {
-      const isAssigned = groups.some(g => g.memberIds.includes(a.id));
-      const m = getMember(a.id);
-      return !isAssigned && !!m;
-    });
-
-    if (availableAttendees.length === 0) {
-      toast.error('배정 가능한 미배정 인원이 없습니다.');
-      return;
-    }
-
-    const availableMembers = availableAttendees.map(a => ({
-      ...a,
-      member: getMember(a.id)!
-    }));
-
-    const ctx = getCostContext();
-
-    const { updatedGroups } = simulateAutoAssign(
-      availableMembers,
-      groups as SessionGroup[],
+    const autoAssignRes = simulateAutoAssign(
+      availableAttendeesWithMember,
+      groups,
       getMember,
-      ctx,
-      false
+      ctx
     );
 
-    setGroups(groups.map(g => {
-       const wg = updatedGroups.find(w => w.id === g.id);
-       return wg ? { ...g, memberIds: wg.memberIds } : g;
+    setGroups(autoAssignRes.updatedGroups);
+    setIsAutoMode(true);
+    toast.success('최적화된 알고리즘으로 조편성이 완료되었습니다!');
+  };
+
+  const assignToGroup = (attendeeId: string, targetGroupId: string) => {
+    setGroups(prev => prev.map(g => {
+      if (g.id === targetGroupId) {
+        if (g.memberIds.includes(attendeeId)) return g;
+        return { ...g, memberIds: [...g.memberIds, attendeeId] };
+      }
+      return { ...g, memberIds: g.memberIds.filter(id => id !== attendeeId) };
     }));
-    setIsAutoMode(false);
-    toast.success('논리적 균형 배치 알고리즘으로 자동 편성되었습니다.');
   };
 
-  const exportSimulationData = () => {
-    if (groups.length === 0) {
-      toast.error('조가 없습니다. 조를 생성한 뒤 시뮬레이션을 실행해주세요.');
-      return;
-    }
-    
-    toast.info('시뮬레이션을 시작합니다. 브라우저가 잠시 멈출 수 있습니다...');
-    setTimeout(() => {
-      const ctx = getCostContext();
-      
-      const availableAttendees = attendees.filter(a => {
-        const isAssigned = groups.some(g => g.memberIds.includes(a.id));
-        const m = getMember(a.id);
-        return !isAssigned && !!m;
-      });
-
-      const availableMembers = availableAttendees.map(a => ({
-        ...a,
-        member: getMember(a.id)!
-      }));
-
-      const { costLog, actualCost } = simulateAutoAssign(
-        availableMembers,
-        groups as SessionGroup[],
-        getMember,
-        ctx,
-        true
-      );
-
-      const simulationHistory = costLog || [];
-      const maxRewardFound = simulationHistory.length > 0 ? Math.max(...simulationHistory.map(s => s.reward)) : 0;
-      const raw_valid_costs = simulationHistory.filter(s => s.reward === maxRewardFound).map(s => s.pureCost);
-
-      const report = {
-        session_id: sessionDate,
-        actual_cost: actualCost,
-        valid_count: raw_valid_costs.length,
-        raw_valid_costs
-      };
-
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `simulation_${sessionDate}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('데이터 결과가 다운로드되었습니다.');
-    }, 100);
-  };
-
-  const assignToGroup = (memberId: string, groupId: string) => {
-    setGroups(prev => prev.map(g => 
-      g.id === groupId ? { ...g, memberIds: Array.from(new Set([...g.memberIds, memberId])) } : g
-    ));
-  };
-
-  const removeFromGroup = (memberId: string, groupId: string) => {
-    setGroups(prev => prev.map(g => 
-      g.id === groupId ? { ...g, memberIds: g.memberIds.filter(id => id !== memberId) } : g
-    ));
+  const removeFromGroup = (attendeeId: string, fromGroupId: string) => {
+    setGroups(prev => prev.map(g => {
+      if (g.id === fromGroupId) {
+        return { ...g, memberIds: g.memberIds.filter(id => id !== attendeeId) };
+      }
+      return g;
+    }));
   };
 
   const handleDragStart = (e: React.DragEvent, memberId: string, source: string) => {
     e.dataTransfer.setData('memberId', memberId);
     e.dataTransfer.setData('source', source);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDropToGroup = (e: React.DragEvent, targetGroupId: string) => {
@@ -388,16 +472,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     const source = e.dataTransfer.getData('source');
     
     if (!memberId || source === targetGroupId) return;
-
-    if (source === 'unassigned') {
-      assignToGroup(memberId, targetGroupId);
-    } else {
-      setGroups(prev => prev.map(g => {
-        if (g.id === source) return { ...g, memberIds: g.memberIds.filter(id => id !== memberId) };
-        if (g.id === targetGroupId) return { ...g, memberIds: Array.from(new Set([...g.memberIds, memberId])) };
-        return g;
-      }));
-    }
+    assignToGroup(memberId, targetGroupId);
   };
 
   const handleDropToUnassigned = (e: React.DragEvent) => {
@@ -415,38 +490,31 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
       return;
     }
 
-    const assignedAttendees = groups.flatMap(g => g.memberIds.map(id => attendees.find(a => a.id === id)).filter(Boolean) as Attendee[]);
-    const unregistered = assignedAttendees.filter(a => !getMemberFromInfo(a.name, a.studentIdPrefix));
-    
-    if (unregistered.length > 0) {
-      toast.error(`${unregistered.map(u => u.name).join(', ')}님은 미등록 인원입니다. 먼저 조원 카드에서 추가해주세요!`);
-      return;
-    }
-
-    const batch = writeBatch(db);
-    attendees.forEach(a => {
-      batch.update(doc(db, 'attendees', a.id), { status: '편성됨' });
-    });
-    await batch.commit().catch((error) => {
-      handleFirestoreError(error, OperationType.UPDATE, 'attendees (batch)');
-    });
-
-    const mappedGroups = convertAttendeeIdsToMemberIds(groups, attendees, members);
-
     try {
-      await setDoc(doc(db, 'DailyPlannings', sessionDate || 'temp'), {
-        name: sessionName,
-        date: sessionDate,
-        groups: mappedGroups,
-        createdAt: serverTimestamp()
-      });
+      const res = await executeMoveToRecordBatch(
+        db,
+        attendees,
+        groups,
+        members,
+        sessionName,
+        sessionDate,
+        auth.currentUser?.email || 'admin'
+      );
+
+      if (!res.success) {
+        if (res.error === 'UNREGISTERED_MEMBERS') {
+          toast.error('미등록 인원이 포함되어 있습니다. 먼저 조원 카드에서 추가해주세요!');
+        }
+        return;
+      }
+
       toast.success('오늘의 모임 편성이 저장되었습니다.');
       
       if (sessionName && sessionDate && onMoveToRecord) {
         onMoveToRecord({
           name: sessionName,
           date: sessionDate,
-          groups: mappedGroups
+          groups: res.mappedGroups
         });
       }
     } catch (e) {
@@ -460,6 +528,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     members,
     sessions,
     importing,
+    syncingSheet,
     activeRequestId,
     setActiveRequestId,
     sessionName,
@@ -499,6 +568,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     handleQuickAddMember,
     handleManualAdd,
     handleFileUpload,
+    handleSyncSheet,
     clearRecords,
     handleCreateGroup,
     handleUpdateTargetSize,

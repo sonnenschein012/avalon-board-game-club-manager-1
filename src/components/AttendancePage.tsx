@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StoredSessionGroup } from '../types';
-import { FileUp, Trash2, ClipboardList, Loader2 } from 'lucide-react';
+import { FileUp, Trash2, ClipboardList, Loader2, FileSpreadsheet, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import PageHeader from './PageHeader';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import CostEvaluationModal from './CostEvaluationModal';
 import ManualAddModal from './ManualAddModal';
+import CreateSurveyModal from './CreateSurveyModal';
 import UnassignedPool from './UnassignedPool';
 import GroupsCanvas from './GroupsCanvas';
 import { useAttendanceLogic } from '../hooks/useAttendanceLogic';
@@ -57,6 +58,8 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
     handleQuickAddMember,
     handleManualAdd,
     handleFileUpload,
+    handleSyncSheet,
+    syncingSheet,
     clearRecords,
     handleCreateGroup,
     handleUpdateTargetSize,
@@ -70,6 +73,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
     handleDropToUnassigned,
     handleMoveToRecord,
   } = useAttendanceLogic(onMoveToRecord ? { onMoveToRecord } : {});
+  const [isSurveyModalOpen, setIsSurveyModalOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -79,6 +83,23 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
         icon={ClipboardList}
         actions={
           <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto justify-end">
+            <button
+              onClick={() => setIsSurveyModalOpen(true)}
+              className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-xl transition-all text-xs font-bold shadow-sm"
+            >
+              <Sparkles size={16} className="shrink-0 text-purple-600" />
+              <span className="hidden sm:inline">오늘 모임 설문 생성</span>
+              <span className="sm:hidden">설문생성</span>
+            </button>
+            <button
+              onClick={handleSyncSheet}
+              disabled={syncingSheet}
+              className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all text-xs font-bold shadow-sm disabled:opacity-50"
+            >
+              {syncingSheet ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FileSpreadsheet size={16} className="shrink-0 text-emerald-600" />}
+              <span className="hidden sm:inline">{syncingSheet ? '동기화 중...' : 'Google Sheet 동기화'}</span>
+              <span className="sm:hidden">{syncingSheet ? '동기화 중' : '시트 동기화'}</span>
+            </button>
             <button 
               onClick={() => setIsAutoMode(!isAutoMode)}
               className={cn(
@@ -181,6 +202,11 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
         memberAttendanceCount={memberAttendanceCount} 
         memberPairRecentCounts={memberPairRecentCounts} 
         memberPairLastSession={memberPairLastSession}
+      />
+      <CreateSurveyModal
+        isOpen={isSurveyModalOpen}
+        onClose={() => setIsSurveyModalOpen(false)}
+        defaultTitle={sessionName}
       />
     </div>
   );
