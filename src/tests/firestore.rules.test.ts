@@ -577,7 +577,6 @@ describe('Firestore Security Rules', () => {
     }));
     await assertFails(updateDoc(doc(publicDb, 'interviewAccess', token), { assignmentSummary: null }));
   });
-
   it('면접 완료 후에는 공개 링크로 응답이나 일정 변경 요청을 만들 수 없다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     const { token, roundId, applicantId } = await seedInterviewFixture();
@@ -610,63 +609,4 @@ describe('Firestore Security Rules', () => {
     await assertFails(batch.commit());
   });
 
-  describe('Google Workspace 보안 격리 규칙 (_private_integrations, _private_oauth_states, system_settings)', () => {
-    it('비인증 사용자는 모든 통합 컬렉션에 접근할 수 없다', async () => {
-      if (!testEnv) throw new Error('testEnv not initialized');
-      const unauthDb = testEnv.unauthenticatedContext().firestore();
-
-      await assertFails(getDoc(doc(unauthDb, '_private_integrations', 'google_workspace')));
-      await assertFails(setDoc(doc(unauthDb, '_private_integrations', 'google_workspace'), { token: 'secret' }));
-      await assertFails(getDoc(doc(unauthDb, '_private_oauth_states', 'state-123')));
-      await assertFails(setDoc(doc(unauthDb, '_private_oauth_states', 'state-123'), { state: 'state-123' }));
-      await assertFails(getDoc(doc(unauthDb, 'system_settings', 'google_workspace_public')));
-      await assertFails(setDoc(doc(unauthDb, 'system_settings', 'google_workspace_public'), { state: 'connected' }));
-    });
-
-    it('일반 로그인 사용자도 private 컬렉션과 system_settings에 접근할 수 없다', async () => {
-      if (!testEnv) throw new Error('testEnv not initialized');
-      const userDb = testEnv.authenticatedContext('user-1', { email: 'user@example.com' }).firestore();
-
-      await assertFails(getDoc(doc(userDb, '_private_integrations', 'google_workspace')));
-      await assertFails(setDoc(doc(userDb, '_private_integrations', 'google_workspace'), { token: 'secret' }));
-      await assertFails(getDoc(doc(userDb, '_private_oauth_states', 'state-123')));
-      await assertFails(setDoc(doc(userDb, '_private_oauth_states', 'state-123'), { state: 'state-123' }));
-      await assertFails(getDoc(doc(userDb, 'system_settings', 'google_workspace_public')));
-      await assertFails(setDoc(doc(userDb, 'system_settings', 'google_workspace_public'), { state: 'connected' }));
-    });
-
-    it('일반 Admin은 private 컬렉션에 절대 접근할 수 없으며 system_settings는 읽기만 가능하다', async () => {
-      if (!testEnv) throw new Error('testEnv not initialized');
-      await seedRegularAdmin();
-      const adminDb = testEnv.authenticatedContext('admin-1', { email: REGULAR_ADMIN_EMAIL }).firestore();
-
-      // Private credentials are completely blocked from client SDK
-      await assertFails(getDoc(doc(adminDb, '_private_integrations', 'google_workspace')));
-      await assertFails(setDoc(doc(adminDb, '_private_integrations', 'google_workspace'), { token: 'secret' }));
-      await assertFails(getDoc(doc(adminDb, '_private_oauth_states', 'state-123')));
-      await assertFails(setDoc(doc(adminDb, '_private_oauth_states', 'state-123'), { state: 'state-123' }));
-
-      // Public status: read allowed, write denied
-      await assertSucceeds(getDoc(doc(adminDb, 'system_settings', 'google_workspace_public')));
-      await assertFails(setDoc(doc(adminDb, 'system_settings', 'google_workspace_public'), { state: 'connected' }));
-    });
-
-    it('Master Admin조차도 Client SDK를 통해서는 private credentials를 직접 읽거나 쓸 수 없다 (서버 전용 격리)', async () => {
-      if (!testEnv) throw new Error('testEnv not initialized');
-      const masterDb = testEnv.authenticatedContext('master-1', { email: BOOTSTRAP_MASTER_EMAIL }).firestore();
-
-      // Strict server-only isolation: Even Master Admin client SDK is denied on private collections
-      await assertFails(getDoc(doc(masterDb, '_private_integrations', 'google_workspace')));
-      await assertFails(setDoc(doc(masterDb, '_private_integrations', 'google_workspace'), { token: 'secret' }));
-      await assertFails(getDoc(doc(masterDb, '_private_oauth_states', 'state-123')));
-      await assertFails(setDoc(doc(masterDb, '_private_oauth_states', 'state-123'), { state: 'state-123' }));
-
-      // System settings public metadata: Master Admin read and write allowed
-      await assertSucceeds(getDoc(doc(masterDb, 'system_settings', 'google_workspace_public')));
-      await assertSucceeds(setDoc(doc(masterDb, 'system_settings', 'google_workspace_public'), {
-        state: 'connected',
-        connectedEmail: 'avalon@gmail.com',
-      }));
-    });
-});
 });

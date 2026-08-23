@@ -7,7 +7,6 @@ import { formatTimestamp } from '../lib/utils';
 
 import SettingsAdminPanel from './SettingsAdminPanel';
 import SettingsExportPanel from './SettingsExportPanel';
-import GoogleWorkspaceSettings from './GoogleWorkspaceSettings';
 
 export default function SettingsPage({ 
   isAdminModeActive, 
@@ -293,8 +292,6 @@ export default function SettingsPage({
           </div>
         </div>
       )}
-
-      <GoogleWorkspaceSettings userRole={isMasterAdmin ? 'master' : 'admin'} />
 
       <SettingsAdminPanel
         isMasterAdmin={isMasterAdmin}

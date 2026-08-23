@@ -42,7 +42,6 @@ export interface Attendee {
   importDate: Timestamp;
   importId: string;
   status: '대기' | '편성됨' | '결석';
-  source?: 'manual_sheet' | 'generated_form' | 'csv' | 'manual';
 }
 
 export interface SessionGroup {

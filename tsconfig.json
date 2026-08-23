@@ -28,7 +28,5 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
-  },
-  "include": ["src"],
-  "exclude": ["functions", "node_modules", "dist"]
+  }
 }
