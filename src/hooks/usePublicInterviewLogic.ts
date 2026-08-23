@@ -9,7 +9,7 @@ import {
 import { getSurveyPhase } from '../domain/interviews/scheduling';
 import { calculateApplicantTimeWindow } from '../domain/interviews/publicTimeWindow';
 
-type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'before' | 'collecting' | 'closed' | 'error';
+type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'before' | 'collecting' | 'closed' | 'completed' | 'error';
 
 function toDate(value: unknown): Date | null {
   if (value instanceof Date) return value;
@@ -22,6 +22,7 @@ function toDate(value: unknown): Date | null {
 export function getPublicInterviewState(access: InterviewAccess | null, round: InterviewPublicRound | null, now: Date): PublicInterviewState {
   if (!access) return 'invalid';
   if (!access.active || !round?.active) return 'inactive';
+  if (access.assignmentSummary?.status === 'completed') return 'completed';
   const opensAt = toDate(round.surveyOpensAt);
   const closesAt = toDate(round.surveyClosesAt);
   if (!opensAt || !closesAt) return 'error';
@@ -164,7 +165,7 @@ export function usePublicInterviewLogic(token: string | undefined) {
   };
 
   const requestChange = async (reason: string) => {
-    if (!token || !access?.assignmentSummary || requestingChange) return false;
+    if (!token || !access?.assignmentSummary || access.assignmentSummary.status === 'completed' || requestingChange) return false;
     setRequestingChange(true);
     try { await requestPublicInterviewChange(token, access, reason); return true; }
     catch { setSaveError('변경 요청을 보내지 못했습니다. 잠시 후 다시 시도해주세요.'); return false; }

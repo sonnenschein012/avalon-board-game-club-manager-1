@@ -113,8 +113,8 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
             </button>
             <label className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-slate-50 text-navy hover:text-gold border border-slate-100 rounded-xl hover:bg-indigo-100 transition-all text-xs font-bold cursor-pointer">
               {importing ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FileUp size={16} className="shrink-0" />} 
-              <span className="hidden sm:inline">{importing ? '임포트 중...' : 'CSV 파일 업로드'}</span>
-              <span className="sm:hidden">CSV</span>
+              <span className="hidden sm:inline">{importing ? '임포트 중...' : '파일 업로드'}</span>
+              <span className="sm:hidden">업로드</span>
               <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" disabled={importing} />
             </label>
             <button 

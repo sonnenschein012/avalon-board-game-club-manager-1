@@ -87,6 +87,7 @@ service cloud.firestore {
 
     function isValidPublicResponseUpdate() {
       return resource.data.active == true &&
+        (!('assignmentSummary' in resource.data) || resource.data.assignmentSummary == null || resource.data.assignmentSummary.status != 'completed') &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['availability', 'submittedAt', 'updatedAt', 'responseUpdatedAt']) &&
         isSurveyWindowOpen(resource.data.roundId) &&
@@ -98,6 +99,7 @@ service cloud.firestore {
 
     function isValidPublicChangeRequestAccessUpdate(token) {
       return resource.data.active == true &&
+        (!('assignmentSummary' in resource.data) || resource.data.assignmentSummary == null || resource.data.assignmentSummary.status != 'completed') &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['changeRequestStatus']) &&
         request.resource.data.changeRequestStatus == 'open' &&
         getAfter(/databases/$(database)/documents/interviewChangeRequests/$(token)).data.status == 'open';
@@ -107,6 +109,7 @@ service cloud.firestore {
       let access = get(/databases/$(database)/documents/interviewAccess/$(token));
       return exists(/databases/$(database)/documents/interviewAccess/$(token)) &&
         access.data.active == true &&
+        (!('assignmentSummary' in access.data) || access.data.assignmentSummary == null || access.data.assignmentSummary.status != 'completed') &&
         request.resource.data.keys().hasOnly([
           'roundId', 'applicantId', 'applicantName', 'status', 'reason',
           'requestedAt', 'resolvedAt', 'resolvedBy'

@@ -39,4 +39,17 @@ describe('getPublicInterviewState', () => {
       now,
     )).toBe('closed');
   });
+
+  it('면접이 완료되면 조사 기간과 무관하게 개인 링크의 기능을 닫는다', () => {
+    const completedAccess = {
+      ...access(),
+      assignmentSummary: { status: 'completed' },
+    } as InterviewAccess;
+
+    expect(getPublicInterviewState(
+      completedAccess,
+      round('collecting', new Date('2026-08-13T05:00:00.000Z'), new Date('2026-09-13T06:00:00.000Z')),
+      now,
+    )).toBe('completed');
+  });
 });

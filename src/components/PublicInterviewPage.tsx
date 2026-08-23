@@ -12,6 +12,7 @@ const STATE_MESSAGES = {
   inactive: ['사용이 중지된 링크입니다', '보안을 위해 링크가 폐기되었습니다. 운영진에게 문의해주세요.'],
   before: ['아직 조사가 시작되지 않았습니다', '조사 시작 시간이 되면 이 페이지에서 가능한 시간을 선택할 수 있습니다.'],
   closed: ['가능시간 조사가 마감되었습니다', '기존 응답은 아래에서 확인할 수 있지만 더 이상 수정할 수 없습니다.'],
+  completed: ['면접이 완료되었습니다', '이 링크는 더 이상 일정 변경에 사용할 수 없습니다.'],
   error: ['면접 정보를 불러오지 못했습니다', '잠시 후 다시 시도하거나 운영진에게 문의해주세요.'],
 } as const;
 
@@ -76,8 +77,8 @@ export default function PublicInterviewPage() {
     );
   }
 
-  const stateMessage = state !== 'collecting' ? STATE_MESSAGES[state] : null;
-  const canShowGrid = !!round && !!access && !['invalid', 'inactive', 'error'].includes(state);
+  const stateMessage = state !== 'collecting' && state !== 'completed' ? STATE_MESSAGES[state] : null;
+  const canShowGrid = !!round && !!access && !['invalid', 'inactive', 'completed', 'error'].includes(state);
 
   return (
     <main className="min-h-screen bg-slate-50 px-3 py-6 text-navy sm:px-6 sm:py-10">
@@ -102,9 +103,9 @@ export default function PublicInterviewPage() {
         {access?.assignmentSummary && (
           <section className="rounded-3xl border border-amber-100 bg-amber-50 p-5 shadow-sm sm:p-7">
             <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Assigned interview</p>
-            <h2 className="mt-2 text-lg font-black text-navy">확정된 면접 일정</h2>
+            <h2 className="mt-2 text-lg font-black text-navy">{access.assignmentSummary.status === 'completed' ? '완료된 면접 일정' : '확정된 면접 일정'}</h2>
             <p className="mt-2 text-sm font-bold text-slate-700">{access.assignmentSummary.slotId.replace('|', ' ')}</p>
-            {access.changeRequestStatus === 'open' ? <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm font-bold text-amber-700">일정 변경 요청이 접수되었습니다. 운영진 확인 전까지 기존 일정은 유지됩니다.</p> : !['completed', 'no_show', 'cancelled'].includes(access.assignmentSummary.status) && <div className="mt-4 space-y-2"><label className="block text-xs font-bold text-slate-600">일정 변경이 필요한 이유 (선택)<textarea value={changeReason} maxLength={500} onChange={event => setChangeReason(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="가능한 대체 시간이나 사유를 적어주세요." /></label><button disabled={requestingChange} onClick={async () => { if (!window.confirm('일정 변경을 요청할까요? 요청만 접수되며 기존 면접시간은 자동으로 바뀌지 않습니다.')) return; if (await requestChange(changeReason)) setChangeReason(''); }} className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">{requestingChange ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}변경 요청 보내기</button></div>}
+            {access.assignmentSummary.status === 'completed' ? <p className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700"><CheckCircle2 size={17} />면접이 완료되었습니다. 이 링크는 더 이상 일정 변경에 사용할 수 없습니다.</p> : access.changeRequestStatus === 'open' ? <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm font-bold text-amber-700">일정 변경 요청이 접수되었습니다. 운영진 확인 전까지 기존 일정은 유지됩니다.</p> : !['no_show', 'cancelled'].includes(access.assignmentSummary.status) && <div className="mt-4 space-y-2"><label className="block text-xs font-bold text-slate-600">일정 변경이 필요한 이유 (선택)<textarea value={changeReason} maxLength={500} onChange={event => setChangeReason(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm" placeholder="가능한 대체 시간이나 사유를 적어주세요." /></label><button disabled={requestingChange} onClick={async () => { if (!window.confirm('일정 변경을 요청할까요? 요청만 접수되며 기존 면접시간은 자동으로 바뀌지 않습니다.')) return; if (await requestChange(changeReason)) setChangeReason(''); }} className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50">{requestingChange ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}변경 요청 보내기</button></div>}
           </section>
         )}
 

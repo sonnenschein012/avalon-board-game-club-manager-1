@@ -45,8 +45,8 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
             {isAdminModeActive && (
               <label className="flex items-center gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-slate-50 text-navy hover:text-gold rounded-xl hover:bg-indigo-100 transition-all shadow-sm text-xs font-bold cursor-pointer border border-slate-100">
                 {importing ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FileUp size={16} className="shrink-0" />} 
-                <span className="hidden sm:inline">{importing ? '임포트 중...' : 'CSV 업로드'}</span>
-                <span className="sm:hidden">CSV</span>
+                <span className="hidden sm:inline">{importing ? '임포트 중...' : '파일 업로드'}</span>
+                <span className="sm:hidden">업로드</span>
                 <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} disabled={importing} />
               </label>
             )}

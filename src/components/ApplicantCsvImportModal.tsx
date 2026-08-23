@@ -23,7 +23,7 @@ export default function ApplicantCsvImportModal({ open, onClose, onConfirm, getM
     if (headers.length === 0) return null;
     const indexes = Object.values(mapping);
     if (indexes.some(value => value < 0)) return '지원자 번호, 이름, 연락처 열을 모두 연결해주세요.';
-    if (new Set(indexes).size !== indexes.length) return '세 필수 항목은 서로 다른 CSV 열에 연결해야 합니다.';
+    if (new Set(indexes).size !== indexes.length) return '세 필수 항목은 서로 다른 파일 열에 연결해야 합니다.';
     return null;
   }, [headers.length, mapping]);
 
@@ -77,9 +77,9 @@ export default function ApplicantCsvImportModal({ open, onClose, onConfirm, getM
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 className="font-black text-navy">지원자 CSV 등록</h2><p className="text-[10px] uppercase text-slate-400">Map columns · Preview · Confirm</p></div><button onClick={onClose} className="p-2 text-slate-400"><X size={18} /></button></div>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 className="font-black text-navy">지원자 파일 등록</h2><p className="text-[10px] uppercase text-slate-400">Map columns · Preview · Confirm</p></div><button onClick={onClose} className="p-2 text-slate-400"><X size={18} /></button></div>
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
-          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 p-7 text-sm font-bold text-slate-500 hover:border-gold hover:text-navy"><FileUp size={18} />CSV 파일 선택<input type="file" accept=".csv,text/csv" className="hidden" onChange={event => loadFile(event.target.files?.[0])} /></label>
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 p-7 text-sm font-bold text-slate-500 hover:border-gold hover:text-navy"><FileUp size={18} />파일 선택<input type="file" accept=".csv,text/csv" className="hidden" onChange={event => loadFile(event.target.files?.[0])} /></label>
           {(fileError || mappingError) && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-xs font-bold text-red-700">{fileError ?? mappingError}</p>}
           {headers.length > 0 && <section className="rounded-2xl bg-slate-50 p-4"><h3 className="mb-3 text-xs font-black text-navy">필수 열 연결</h3><p className="mb-3 text-[11px] text-amber-700">지원번호는 같은 지원자를 안전하게 찾는 고유값입니다. 생년월일은 사용하지 마세요.</p><div className="grid gap-3 sm:grid-cols-3">{(['applicantNumber', 'name', 'phone'] as const).map(key => <label key={key} className="text-[11px] font-bold text-slate-500">{key === 'applicantNumber' ? '지원번호' : key === 'name' ? '이름' : '연락처'}<select value={mapping[key]} onChange={event => setMapping({ ...mapping, [key]: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs"><option value={-1}>열 선택</option>{headers.map((header, index) => <option key={`${header}-${index}`} value={index}>{header || `(빈 열 ${index + 1})`}</option>)}</select></label>)}</div></section>}
           {mergePreview && <section className="grid grid-cols-2 gap-2 sm:grid-cols-4"><Summary label="신규" count={mergePreview.counts.create} tone="emerald" /><Summary label="업데이트" count={mergePreview.counts.update} tone="amber" /><Summary label="변경 없음" count={mergePreview.counts.unchanged} tone="slate" /><Summary label="확인 필요" count={mergePreview.counts.review} tone="red" />{mergePreview.counts.review > 0 && <div className="col-span-full rounded-xl bg-red-50 p-3 text-xs text-red-700">{mergePreview.items.filter(item => item.action === 'review').slice(0, 8).map(item => <p key={item.row.sourceRowNumber}>{item.row.sourceRowNumber}행: {item.reason}</p>)}</div>}</section>}

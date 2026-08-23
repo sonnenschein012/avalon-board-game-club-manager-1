@@ -103,6 +103,9 @@ export async function savePublicAvailability(token: string, availability: string
 }
 
 export async function requestPublicInterviewChange(token: string, access: InterviewAccess, reason: string) {
+  if (access.assignmentSummary?.status === 'completed') {
+    throw new Error('완료된 면접에는 일정 변경을 요청할 수 없습니다.');
+  }
   const batch = writeBatch(db);
   batch.set(doc(db, 'interviewChangeRequests', token), {
     roundId: access.roundId,

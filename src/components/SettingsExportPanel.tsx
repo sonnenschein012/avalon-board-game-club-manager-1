@@ -33,7 +33,7 @@ export default function SettingsExportPanel({
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-navy hover:text-navy text-slate-600 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
           >
             {exportingMembers ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            CSV 다운로드
+            다운로드
           </button>
         </div>
 
@@ -48,7 +48,7 @@ export default function SettingsExportPanel({
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-navy hover:text-navy text-slate-600 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
           >
             {exportingGames ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            CSV 다운로드
+            다운로드
           </button>
         </div>
 
@@ -63,7 +63,7 @@ export default function SettingsExportPanel({
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-navy hover:text-navy text-slate-600 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
           >
             {exportingSessions ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            CSV 다운로드
+            다운로드
           </button>
         </div>
       </div>

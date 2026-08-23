@@ -578,6 +578,38 @@ describe('Firestore Security Rules', () => {
     await assertFails(updateDoc(doc(publicDb, 'interviewAccess', token), { assignmentSummary: null }));
   });
 
+  it('면접 완료 후에는 공개 링크로 응답이나 일정 변경 요청을 만들 수 없다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    const { token, roundId, applicantId } = await seedInterviewFixture();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'interviewAccess', token), {
+        assignmentSummary: { slotId: ALLOWED_SLOT_A, interviewerName: '면접관', status: 'completed' },
+      });
+    });
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+
+    await assertFails(updateDoc(doc(publicDb, 'interviewAccess', token), {
+      availability: [ALLOWED_SLOT_A],
+      submittedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      responseUpdatedAt: serverTimestamp(),
+    }));
+
+    const batch = writeBatch(publicDb);
+    batch.set(doc(publicDb, 'interviewChangeRequests', token), {
+      roundId,
+      applicantId,
+      applicantName: '지원자',
+      status: 'open',
+      reason: '완료 후 요청',
+      requestedAt: serverTimestamp(),
+      resolvedAt: null,
+      resolvedBy: null,
+    });
+    batch.update(doc(publicDb, 'interviewAccess', token), { changeRequestStatus: 'open' });
+    await assertFails(batch.commit());
+  });
+
   describe('Google Workspace 보안 격리 규칙 (_private_integrations, _private_oauth_states, system_settings)', () => {
     it('비인증 사용자는 모든 통합 컬렉션에 접근할 수 없다', async () => {
       if (!testEnv) throw new Error('testEnv not initialized');
@@ -636,5 +668,5 @@ describe('Firestore Security Rules', () => {
         connectedEmail: 'avalon@gmail.com',
       }));
     });
-  });
+});
 });
