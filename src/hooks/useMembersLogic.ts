@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   addDoc, 
   updateDoc, 
-  deleteDoc, 
   doc, 
   serverTimestamp,
   collection,
   query,
   orderBy,
-  getDocs
+  getDocs,
+  where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Member, Session, Game } from '../types';
@@ -16,6 +17,7 @@ import { useFirestore } from './useFirestore';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
+import { defaultMemberNickname, formatMemberPhone, normalizeMemberName, normalizeStudentYear } from '../domain/interviews/memberRegistration';
 
 export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
 
@@ -232,23 +234,24 @@ export function useMembersLogic() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 동명이인 + 학번 완전 동일 방어 로직
-    const isDuplicate = members.some(m => 
-      m.name === formData.name && 
-      m.studentId === formData.studentId && 
-      m.id !== editingId
+    const studentId = normalizeStudentYear(formData.studentId);
+    const nickname = formData.nickname.trim() || defaultMemberNickname(formData.name, studentId);
+    const isDuplicate = members.some(member =>
+      normalizeMemberName(member.name) === normalizeMemberName(formData.name)
+      && normalizeStudentYear(member.studentId) === studentId
+      && member.nickname.trim().toLocaleLowerCase('ko-KR') === nickname.toLocaleLowerCase('ko-KR')
+      && member.id !== editingId
     );
 
     if (isDuplicate) {
-      toast.error('오류: 이름과 학번이 완전히 동일한 멤버가 이미 존재합니다. 구분을 위해 이름 뒤에 기호(예: 홍길동A)를 추가해주세요.');
+      toast.error('이름과 학번이 같은 부원이 있습니다. 동명이인을 구분할 수 있도록 다른 닉네임을 입력해주세요.');
       return;
     }
 
     try {
-      const nickname = formData.nickname.trim() || `${formData.studentId} ${formData.name}`;
       const status = formData.dormantSemester ? '휴면' : '활동';
       const _dormantSemester = formData.dormantSemester || '';
-      const dataToSave = { ...formData, nickname, status, dormantSemester: _dormantSemester };
+      const dataToSave = { ...formData, studentId, phone: formatMemberPhone(formData.phone), nickname, status, dormantSemester: _dormantSemester };
 
       if (editingId) {
         await updateDoc(doc(db, 'members', editingId), dataToSave);
@@ -271,7 +274,16 @@ export function useMembersLogic() {
   const handleDelete = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'members', itemToDelete.id));
+      const linkedApplicants = await getDocs(query(collection(db, 'interviewApplicants'), where('memberId', '==', itemToDelete.id)));
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'members', itemToDelete.id));
+      linkedApplicants.docs.forEach(snapshot => batch.update(snapshot.ref, {
+        memberId: null,
+        memberRegisteredAt: null,
+        memberRegisteredBy: null,
+        updatedAt: serverTimestamp(),
+      }));
+      await batch.commit();
       toast.success('멤버가 삭제되었습니다.');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `members/${itemToDelete.id}`);

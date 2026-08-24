@@ -502,6 +502,11 @@ export function useInterviewRoundLogic(roundId: string) {
   };
 
   const updateSelectionStatus = async (applicantId: string, status: InterviewSelectionStatus) => {
+    const applicant = joinedApplicants.find(item => item.id === applicantId);
+    if (status !== 'selected' && applicant?.selectionStatus === 'selected' && applicant.memberId) {
+      const confirmed = window.confirm('선발을 취소해도 등록된 동아리원 정보는 자동 삭제되지 않습니다. 필요한 경우 동아리원 관리에서 직접 처리해주세요.\n\n선발 상태를 변경할까요?');
+      if (!confirmed) return false;
+    }
     try {
       await updateInterviewSelectionStatus(applicantId, status);
       return true;

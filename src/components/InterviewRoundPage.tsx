@@ -12,6 +12,7 @@ import InterviewersPanel from './InterviewersPanel';
 import InterviewerDashboard from './InterviewerDashboard';
 import InterviewSchedulePanel from './InterviewSchedulePanel';
 import SelectionPanel from './SelectionPanel';
+import MemberRegistrationPanel from './MemberRegistrationPanel';
 import { useInterviewRoundLogic, type InterviewApplicantFilter } from '../hooks/useInterviewRoundLogic';
 import { parseSlotId } from '../domain/interviews/scheduling';
 import type { InterviewRoundDraft } from '../services/interviewsService';
@@ -20,9 +21,9 @@ import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interv
 import { getApplicantJourney } from '../domain/interviews/applicantJourney';
 import ApplicantJourney from './ApplicantJourney';
 
-type Tab = 'overview' | 'applicants' | 'schedule' | 'interviewers' | 'progress' | 'selection' | 'settings';
+type Tab = 'overview' | 'applicants' | 'schedule' | 'interviewers' | 'progress' | 'selection' | 'member-registration' | 'settings';
 const TABS: Array<{ id: Tab; label: string }> = [
-  { id: 'overview', label: '개요' }, { id: 'applicants', label: '지원자' }, { id: 'schedule', label: '일정' }, { id: 'interviewers', label: '면접관 관리' }, { id: 'progress', label: '면접 진행' }, { id: 'selection', label: '선발' }, { id: 'settings', label: '설정' },
+  { id: 'overview', label: '개요' }, { id: 'applicants', label: '지원자' }, { id: 'schedule', label: '일정' }, { id: 'interviewers', label: '면접관 관리' }, { id: 'progress', label: '면접 진행' }, { id: 'selection', label: '선발' }, { id: 'member-registration', label: '부원 등록' }, { id: 'settings', label: '설정' },
 ];
 const FILTERS: Array<{ id: InterviewApplicantFilter; label: string }> = [
   { id: 'all', label: '전체' }, { id: 'responded', label: '응답완료' }, { id: 'pending', label: '미응답' }, { id: 'assigned', label: '배정완료' }, { id: 'unassigned', label: '미배정' }, { id: 'availability-unsent', label: '조사 미발송' }, { id: 'availability-sent', label: '조사 발송' }, { id: 'availability-sent-pending', label: '조사 발송 후 미응답' }, { id: 'confirmation-unsent', label: '배정 후 확정 미발송' }, { id: 'confirmation-sent', label: '확정 발송' }, { id: 'withdrawn', label: '지원 철회' }, { id: 'archived', label: '보관됨' },
@@ -150,6 +151,8 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     {tab === 'progress' && <InterviewerDashboard round={round} interviewers={logic.interviewers} applicants={logic.applicants} changeRequests={logic.changeRequests} onComplete={logic.completeApplicantInterview} onActionNeeded={logic.markActionNeeded} onRestoreScheduled={logic.restoreScheduled} onResetSchedule={logic.resetApplicantSchedule} onResolveRequest={logic.resolveChangeRequest} />}
 
     {tab === 'selection' && <SelectionPanel round={round} applicants={logic.applicants} onUpdateOverallRating={logic.updateCompletedRating} onUpdateSelectionStatus={logic.updateSelectionStatus} onReopenCompletedInterview={logic.reopenCompletedInterview} />}
+
+    {tab === 'member-registration' && <MemberRegistrationPanel roundId={round.id} applicants={logic.applicants} />}
 
     {tab === 'settings' && <section className="rounded-3xl bg-white p-6 shadow-sm"><div className="flex items-start justify-between gap-4"><div><h3 className="font-black text-navy">회차 설정</h3><p className="mt-1 text-sm text-slate-500">조사 기간, 면접 날짜, 시간 범위, 슬롯 단위, 메시지 템플릿을 관리합니다.</p><p className="mt-2 text-xs font-bold text-amber-600">일정 변경 시 기존 응답에 포함된 무효 슬롯을 미리 계산하고 확인 후 일괄 정리합니다.</p></div><button onClick={() => setSettingsOpen(true)} className="flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white"><Settings size={15} />설정 변경</button></div></section>}
 

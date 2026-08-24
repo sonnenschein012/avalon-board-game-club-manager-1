@@ -16,6 +16,8 @@ export interface Member {
   isBoardMember?: boolean;
   status?: '활동' | '휴면';
   dormantSemester?: string;
+  registrationSource?: { roundId: string; applicantId: string };
+  lastReactivatedAt?: Timestamp;
   createdAt: Timestamp;
 }
 
@@ -225,6 +227,9 @@ export interface InterviewApplicant {
   selectionStatus?: InterviewSelectionStatus;
   selectionDecidedAt?: Timestamp | null;
   selectionDecidedBy?: string | null;
+  memberId?: string | null;
+  memberRegisteredAt?: Timestamp | null;
+  memberRegisteredBy?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

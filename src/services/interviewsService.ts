@@ -6,4 +6,5 @@ export * from './interviews/applicantsService';
 export * from './interviews/schedulingService';
 export * from './interviews/interviewersService';
 export * from './interviews/recordsService';
+export * from './interviews/memberRegistrationService';
 export type { InterviewApplicantWithAccess } from '../types';
