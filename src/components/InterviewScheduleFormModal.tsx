@@ -55,7 +55,7 @@ export function suggestedInterviewScheduleDraft(round: InterviewRound, schedules
     dayStartTime: round.dayStartTime,
     dayEndTime: round.dayEndTime,
     availabilitySlotMinutes: round.availabilitySlotMinutes,
-    assignmentSlotMinutes: round.assignmentSlotMinutes,
+    assignmentSlotMinutes: round.availabilitySlotMinutes % 10 === 0 ? 10 : round.assignmentSlotMinutes,
     status: 'collecting',
     instructions: round.instructions,
     allowedSlots: [],
@@ -162,9 +162,9 @@ export default function InterviewScheduleFormModal({ open, round, schedules, sch
         <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
           <div><h3 className="text-xs font-black uppercase tracking-wider text-navy">면접 날짜와 시간</h3><p className="mt-1 text-[11px] leading-5 text-slate-400">연속된 범위를 추가한 뒤 필요 없는 날짜만 제외할 수 있습니다.</p></div>
           <div className="grid min-w-0 grid-cols-2 gap-2"><label className="min-w-0 text-[10px] font-bold text-slate-400">시작일<input type="date" value={rangeStart} onChange={event => { setRangeStart(event.target.value); if (!rangeEnd || rangeEnd < event.target.value) setRangeEnd(event.target.value); }} className="mt-1 block w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-2 py-2 text-xs text-navy" /></label><label className="min-w-0 text-[10px] font-bold text-slate-400">종료일<input type="date" min={rangeStart || undefined} value={rangeEnd} onChange={event => setRangeEnd(event.target.value)} className="mt-1 block w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-2 py-2 text-xs text-navy" /></label></div>
-          <button type="button" disabled={!rangeStart || !rangeEnd || rangeEnd < rangeStart} onClick={addDateRange} className="inline-flex w-full items-center justify-center gap-1 rounded-xl bg-indigo-50 px-3 py-2.5 text-xs font-black text-navy disabled:opacity-40"><Plus size={14} />{rangeStart && rangeEnd ? `${datesInRange(rangeStart, rangeEnd).length}일 한 번에 추가` : '날짜 범위 선택'}</button>
+          <button type="button" disabled={!rangeStart || !rangeEnd || rangeEnd < rangeStart} onClick={addDateRange} className="inline-flex w-full items-center justify-center gap-1 rounded-xl bg-slate-100 px-3 py-2.5 text-xs font-black text-navy disabled:opacity-40"><Plus size={14} />{rangeStart && rangeEnd ? `${datesInRange(rangeStart, rangeEnd).length}일 한 번에 추가` : '날짜 범위 선택'}</button>
           <div className="space-y-2">{draft.daySchedules.map(item => <article key={item.date} className="rounded-xl bg-slate-50 p-2.5"><div className="flex items-center justify-between gap-2"><strong className="text-xs text-navy">{new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' }).format(dateFromKey(item.date))}</strong><button type="button" aria-label={`${item.date} 삭제`} onClick={() => setDraft(current => ({ ...current, daySchedules: current.daySchedules.filter(scheduleItem => scheduleItem.date !== item.date) }))} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={14} /></button></div><div className="mt-2 grid grid-cols-2 gap-2"><label className="min-w-0 text-[10px] font-bold text-slate-400">시작<input type="time" value={item.startTime} onChange={event => updateSchedule(item.date, { startTime: event.target.value })} className="mt-1 block w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-navy" /></label><label className="min-w-0 text-[10px] font-bold text-slate-400">종료<input type="time" value={item.endTime} onChange={event => updateSchedule(item.date, { endTime: event.target.value })} className="mt-1 block w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs text-navy" /></label></div></article>)}</div>
-          <p className="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-navy">생성될 응답 슬롯 {generatedSlots.length}개</p>
+          <p className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-navy">생성될 응답 슬롯 {generatedSlots.length}개</p>
         </section>
       </div>
 

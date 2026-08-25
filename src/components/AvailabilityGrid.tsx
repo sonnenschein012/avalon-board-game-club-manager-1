@@ -10,6 +10,7 @@ interface AvailabilityGridProps {
   onCountClick?: (slotId: string) => void;
   disabled?: boolean;
   slotMinutes?: number;
+  compact?: boolean;
 }
 
 function formatDate(date: string) {
@@ -34,6 +35,7 @@ export default function AvailabilityGrid({
   onCountClick,
   disabled = false,
   slotMinutes,
+  compact = false,
 }: AvailabilityGridProps) {
   const paintMode = useRef<boolean | null>(null);
   const paintedSlots = useRef(new Set<string>());
@@ -99,7 +101,7 @@ export default function AvailabilityGrid({
     >
       <div
         className="grid min-w-max select-none"
-        style={{ gridTemplateColumns: `${slotMinutes ? 92 : 76}px repeat(${dates.length}, minmax(68px, 1fr))` }}
+        style={{ gridTemplateColumns: `${compact ? 58 : slotMinutes ? 92 : 76}px repeat(${dates.length}, minmax(${compact ? 46 : 68}px, 1fr))` }}
       >
         <div className="sticky left-0 top-0 z-30 border-b border-r border-slate-100 bg-slate-50 p-2 text-center text-[10px] font-bold text-slate-400">시간대</div>
         {dates.map((date) => (
@@ -109,8 +111,8 @@ export default function AvailabilityGrid({
         ))}
         {times.map((time) => (
           <div key={time} className="contents">
-            <div className="sticky left-0 z-10 flex min-h-11 items-center justify-center whitespace-nowrap border-b border-r border-slate-100 bg-white px-2 text-xs font-bold text-slate-500">
-              {slotMinutes ? `${time}~${getEndTime(time, slotMinutes)}` : time}
+            <div className={`sticky left-0 z-10 flex items-center justify-center whitespace-nowrap border-b border-r border-slate-100 bg-white font-bold text-slate-500 ${compact ? 'min-h-8 px-1 text-[9px]' : 'min-h-11 px-2 text-xs'}`}>
+              {slotMinutes && !compact ? `${time}~${getEndTime(time, slotMinutes)}` : time}
             </div>
             {dates.map((date) => {
               const slotId = `${date}|${time}`;
@@ -138,7 +140,8 @@ export default function AvailabilityGrid({
                   } : undefined}
                   onPointerEnter={onToggle ? (event) => continuePaint(slotId, event.buttons) : undefined}
                   className={cn(
-                    'flex min-h-11 min-w-[68px] touch-none items-center justify-center border-b border-r border-slate-100 text-xs font-black transition-colors',
+                    'flex touch-none items-center justify-center border-b border-r border-slate-100 font-black transition-colors',
+                    compact ? 'min-h-8 min-w-[46px] text-[10px]' : 'min-h-11 min-w-[68px] text-xs',
                     count !== undefined
                       ? 'bg-white text-navy hover:bg-gold/15'
                       : isSelected
@@ -149,7 +152,7 @@ export default function AvailabilityGrid({
                 >
                   {count !== undefined ? count : isSelected ? '✓' : ''}
                 </button>
-              ) : <div key={slotId} className="min-h-11 border-b border-r border-slate-100 bg-slate-50/60" />;
+              ) : <div key={slotId} className={`${compact ? 'min-h-8' : 'min-h-11'} border-b border-r border-slate-100 bg-slate-50/60`} />;
             })}
           </div>
         ))}

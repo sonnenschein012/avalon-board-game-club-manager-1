@@ -41,10 +41,10 @@ interface InterviewerTheme {
 
 const INTERVIEWER_THEMES: InterviewerTheme[] = [
   { selected: 'ring-2 ring-slate-400', marker: 'bg-slate-500' },
-  { selected: 'ring-2 ring-indigo-400', marker: 'bg-indigo-500' },
   { selected: 'ring-2 ring-sky-400', marker: 'bg-sky-500' },
   { selected: 'ring-2 ring-teal-400', marker: 'bg-teal-500' },
-  { selected: 'ring-2 ring-violet-400', marker: 'bg-violet-500' },
+  { selected: 'ring-2 ring-cyan-400', marker: 'bg-cyan-600' },
+  { selected: 'ring-2 ring-emerald-400', marker: 'bg-emerald-600' },
 ];
 
 function activeApplicant(applicant: InterviewApplicantWithAccess) {
@@ -100,9 +100,10 @@ function ScheduleCard({ entry, actionNeeded, selected, onSelect, actions, overla
   const interviewerId = assignment?.interviewerId ?? proposal?.interviewerId ?? 'unassigned';
   const interviewerName = assignment?.interviewerName ?? proposal?.interviewerName ?? '면접관 미지정';
   const theme = interviewerTheme(interviewerId);
-  const content = <div className="flex min-w-0 items-center gap-2"><span className={`h-7 w-1 shrink-0 rounded-full ${theme.marker}`} /><span className="min-w-0 flex-1"><span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-[11px] font-black leading-4 text-navy">{applicant?.name ?? proposal?.applicantName}</span>{applicant?.applicantNumber && <span className="shrink-0 text-[8px] font-bold text-slate-400">{applicant.applicantNumber}</span>}{assignment?.locked && <Lock aria-label="잠긴 배정" size={11} className="shrink-0 text-slate-500" />}</span><span className="mt-0.5 flex min-w-0 items-center gap-1"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.marker}`} /><span className="truncate text-[9px] font-bold leading-3 text-slate-500">{interviewerName}</span>{applicant && <CompactStatus applicant={applicant} actionNeeded={Boolean(actionNeeded)} />}</span></span></div>;
-  if (proposal) return <div aria-label={`${proposal.applicantName} 검토안`} className={`w-full rounded-lg border border-white/70 bg-white/55 px-2 py-1.5 shadow-[0_5px_16px_rgba(15,23,42,0.06)] backdrop-blur-md ${overlay ? 'w-44 opacity-90 shadow-xl' : 'opacity-65'}`}>{content}</div>;
-  return <div className={`relative ${selected ? 'z-30' : ''}`}><button type="button" onClick={onSelect} className={`w-full rounded-lg border border-white bg-white/95 px-2 py-1.5 text-left shadow-[0_2px_8px_rgba(15,23,42,0.08)] transition-shadow hover:shadow-[0_5px_14px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-navy ${overlay ? 'w-44 shadow-xl' : ''} ${selected ? theme.selected : ''}`}>{content}</button>{selected && actions && !overlay && <div onPointerDown={event => event.stopPropagation()} className="absolute left-0 top-full z-40 mt-1.5 flex min-w-max items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"><button type="button" onClick={event => { event.stopPropagation(); actions.onToggleLock(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-100">{actions.locked ? <Unlock size={12} /> : <Lock size={12} />}{actions.locked ? '잠금 해제' : '잠금'}</button><button type="button" onClick={event => { event.stopPropagation(); actions.onClear(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-red-600 transition hover:bg-red-50"><Trash2 size={12} />배정 해제</button><button type="button" onClick={event => { event.stopPropagation(); actions.onReset(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-amber-700 transition hover:bg-amber-50"><RotateCcw size={12} />일정 초기화</button></div>}</div>;
+  const slotTime = parseSlotId(assignment?.slotId ?? proposal?.slotId ?? '')?.time;
+  const content = <div className="flex min-w-0 items-center gap-1.5"><span className={`h-6 w-1 shrink-0 rounded-full ${theme.marker}`} /><span className="min-w-0 flex-1"><span className="flex min-w-0 items-center gap-1"><span className="shrink-0 text-[8px] font-black text-slate-400">{slotTime}</span><span className="truncate text-[10px] font-black leading-3 text-navy">{applicant?.name ?? proposal?.applicantName}</span>{applicant?.applicantNumber && <span className="shrink-0 text-[8px] font-bold text-slate-400">{applicant.applicantNumber}</span>}{assignment?.locked && <Lock aria-label="잠긴 배정" size={10} className="shrink-0 text-slate-500" />}</span><span className="mt-0.5 flex min-w-0 items-center gap-1"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.marker}`} /><span className="truncate text-[8px] font-bold leading-3 text-slate-500">{interviewerName}</span>{applicant && <CompactStatus applicant={applicant} actionNeeded={Boolean(actionNeeded)} />}</span></span></div>;
+  if (proposal) return <div aria-label={`${proposal.applicantName} 검토안`} className={`w-full rounded-lg border border-white/70 bg-white/55 px-1.5 py-1 shadow-[0_5px_16px_rgba(15,23,42,0.06)] backdrop-blur-md ${overlay ? 'w-44 opacity-90 shadow-xl' : 'opacity-65'}`}>{content}</div>;
+  return <div className={`relative ${selected ? 'z-30' : ''}`}><button type="button" onClick={onSelect} className={`w-full rounded-lg border border-white bg-white/95 px-1.5 py-1 text-left shadow-[0_2px_8px_rgba(15,23,42,0.08)] transition-shadow hover:shadow-[0_5px_14px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-navy ${overlay ? 'w-44 shadow-xl' : ''} ${selected ? theme.selected : ''}`}>{content}</button>{selected && actions && !overlay && <div onPointerDown={event => event.stopPropagation()} className="absolute left-0 top-full z-40 mt-1.5 flex min-w-max items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"><button type="button" onClick={event => { event.stopPropagation(); actions.onToggleLock(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-100">{actions.locked ? <Unlock size={12} /> : <Lock size={12} />}{actions.locked ? '잠금 해제' : '잠금'}</button><button type="button" onClick={event => { event.stopPropagation(); actions.onClear(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-red-600 transition hover:bg-red-50"><Trash2 size={12} />배정 해제</button><button type="button" onClick={event => { event.stopPropagation(); actions.onReset(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-amber-700 transition hover:bg-amber-50"><RotateCcw size={12} />일정 초기화</button></div>}</div>;
 }
 
 function DraggableScheduleCard({ entry, disabled, children }: { entry: ScheduleEntry; disabled: boolean; children: React.ReactNode }) {
@@ -112,7 +113,12 @@ function DraggableScheduleCard({ entry, disabled, children }: { entry: ScheduleE
 
 function DroppableScheduleCell({ slotId, enabled, dragActive, valid, children }: { slotId: string; enabled: boolean; dragActive: boolean; valid: boolean; children: React.ReactNode }) {
   const { isOver, setNodeRef } = useDroppable({ id: `slot:${slotId}`, data: { slotId }, disabled: !enabled || !valid });
-  return <div ref={setNodeRef} className={`min-h-[72px] border-l border-slate-100 p-1.5 transition-colors ${enabled ? 'bg-white' : 'bg-slate-50/70'} ${dragActive && enabled && valid ? 'bg-emerald-50/70 ring-1 ring-inset ring-emerald-200' : ''} ${dragActive && enabled && !valid ? 'bg-slate-100/80' : ''} ${isOver && valid ? '!bg-emerald-100 ring-2 ring-inset ring-emerald-400' : ''}`}>{children}</div>;
+  return <div ref={setNodeRef} className={`min-h-[102px] border-l border-slate-100 p-1.5 transition-colors ${enabled ? 'bg-white' : 'bg-slate-50/70'} ${dragActive && enabled && valid ? 'bg-emerald-50/70 ring-1 ring-inset ring-emerald-200' : ''} ${dragActive && enabled && !valid ? 'bg-slate-100/80' : ''} ${isOver && valid ? '!bg-emerald-100 ring-2 ring-inset ring-emerald-400' : ''}`}>{children}</div>;
+}
+
+function halfHourBucket(time: string) {
+  const [hour = '00', minute = '00'] = time.split(':');
+  return `${hour}:${Number(minute) < 30 ? '00' : '30'}`;
 }
 
 function slotStartMillis(slotId: string) {
@@ -188,6 +194,32 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
     }));
     return next;
   }, [assigned, draftProposals, scheduleSlots]);
+  const displayTimes = useMemo(() => [...new Set(times.map(halfHourBucket))].sort(), [times]);
+  const slotsByDisplayCell = useMemo(() => {
+    const next = new Map<string, string[]>();
+    scheduleSlots.forEach(slotId => {
+      const parsed = parseSlotId(slotId);
+      if (!parsed) return;
+      const key = `${parsed.date}|${halfHourBucket(parsed.time)}`;
+      next.set(key, [...(next.get(key) ?? []), slotId].sort());
+    });
+    return next;
+  }, [scheduleSlots]);
+  const entriesByDisplayCell = useMemo(() => {
+    const next = new Map<string, ScheduleEntry[]>();
+    scheduleEntriesBySlot.forEach((entries, slotId) => {
+      const parsed = parseSlotId(slotId);
+      if (!parsed) return;
+      const key = `${parsed.date}|${halfHourBucket(parsed.time)}`;
+      next.set(key, [...(next.get(key) ?? []), ...entries]);
+    });
+    next.forEach(entries => entries.sort((left, right) => {
+      const leftSlot = left.kind === 'assigned' ? left.applicant.assignment?.slotId ?? '' : left.proposal.slotId;
+      const rightSlot = right.kind === 'assigned' ? right.applicant.assignment?.slotId ?? '' : right.proposal.slotId;
+      return leftSlot.localeCompare(rightSlot) || scheduleEntryId(left).localeCompare(scheduleEntryId(right), 'ko-KR');
+    }));
+    return next;
+  }, [scheduleEntriesBySlot]);
   const entriesById = useMemo(() => new Map([...scheduleEntriesBySlot.values()].flat().map(entry => [scheduleEntryId(entry), entry])), [scheduleEntriesBySlot]);
   const activeEntry = activeDragId ? entriesById.get(activeDragId) ?? null : null;
   const applicantById = useMemo(() => new Map(applicants.map(applicant => [applicant.id, applicant])), [applicants]);
@@ -254,7 +286,7 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
 
   return <DndContext sensors={sensors} collisionDetection={pointerWithin} autoScroll onDragStart={handleDragStart} onDragCancel={() => setActiveDragId(null)} onDragEnd={handleDragEnd}><div className="hidden lg:block">
     <div className="flex items-center justify-between gap-3">
-      <div><h3 className="font-black text-navy">면접 시간표</h3><p className="mt-1 text-xs text-slate-400">면접 일정이 있는 날짜만 5개씩 표시합니다. 반투명 카드는 아직 확정되지 않은 검토안이며, 드래그해서 시간을 조정할 수 있습니다.</p></div>
+      <div><h3 className="font-black text-navy">면접 시간표</h3><p className="mt-1 text-xs text-slate-400">면접 일정이 있는 날짜만 5개씩, 30분 단위로 표시합니다. 칸 안의 카드는 실제 배정 시간순이며 반투명 카드는 검토안입니다.</p></div>
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">확정 {visibleAssignmentCount} · 검토 {visibleDraftCount}</span>
     </div>
     <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 p-2">
@@ -268,13 +300,15 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
           <div className="sticky left-0 z-30 bg-white p-3 text-[10px] font-black text-slate-400">시간</div>
           {visibleDates.map(date => <div key={date} className="border-l border-slate-100 p-3 text-center text-[11px] font-black text-navy">{scheduleDateLabel(date)}</div>)}
         </div>
-        {times.map(time => <div key={time} className="grid border-b border-slate-100 last:border-b-0" style={gridStyle}>
-          <div className="sticky left-0 z-10 flex min-h-[72px] items-start bg-white px-3 pt-2.5 text-xs font-black text-slate-500">{time}</div>
+        {displayTimes.map(time => <div key={time} className="grid border-b border-slate-100 last:border-b-0" style={gridStyle}>
+          <div className="sticky left-0 z-10 flex min-h-[102px] items-start bg-white px-3 pt-2.5 text-xs font-black text-slate-500">{time}</div>
           {visibleDates.map(date => {
-            const slotId = `${date}|${time}`;
-            const slotIsAvailable = scheduleSlots.has(slotId);
-            const entries = scheduleEntriesBySlot.get(slotId) ?? [];
-            return <DroppableScheduleCell key={slotId} slotId={slotId} enabled={slotIsAvailable} dragActive={Boolean(activeEntry)} valid={validDropSlots.has(slotId)}>
+            const displayCellId = `${date}|${time}`;
+            const cellSlots = slotsByDisplayCell.get(displayCellId) ?? [];
+            const targetSlot = activeEntry ? cellSlots.find(slot => validDropSlots.has(slot)) ?? cellSlots[0] ?? displayCellId : cellSlots[0] ?? displayCellId;
+            const slotIsAvailable = cellSlots.length > 0;
+            const entries = entriesByDisplayCell.get(displayCellId) ?? [];
+            return <DroppableScheduleCell key={displayCellId} slotId={targetSlot} enabled={slotIsAvailable} dragActive={Boolean(activeEntry)} valid={Boolean(activeEntry && cellSlots.some(slot => validDropSlots.has(slot)))}>
               {slotIsAvailable && <div className="space-y-1.5">
                 {entries.slice(0, 3).map(entry => <DraggableScheduleCard key={scheduleEntryId(entry)} entry={entry} disabled={!entryDraggable(entry)}>{entry.kind === 'assigned' ? <ScheduleCard entry={entry} actionNeeded={actionNeededIds.has(entry.applicant.id)} selected={selectedApplicantId === entry.applicant.id} onSelect={() => selectApplicant(entry.applicant.id)} actions={{ locked: Boolean(entry.applicant.assignment?.locked), onToggleLock: () => void onChangeAssignmentState(entry.applicant.id, { locked: !entry.applicant.assignment?.locked }), onClear: () => { if (window.confirm(`${entry.applicant.name} 지원자의 현재 배정을 해제할까요? 이력은 보존됩니다.`)) void onClearAssignment(entry.applicant.id); }, onReset: () => { if (window.confirm(`${entry.applicant.name} 지원자의 접속 기준·응답·현재 배정을 초기화할까요? 지원서와 면접 기록은 보존됩니다.`)) void onResetSchedule(entry.applicant.id); } }} /> : <ScheduleCard entry={entry} />}</DraggableScheduleCard>)}
                 {entries.length > 3 && <p className="px-2 py-1 text-[10px] font-bold text-slate-400">+ {entries.length - 3}개 더 있음</p>}
@@ -282,7 +316,7 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
             </DroppableScheduleCell>;
           })}
         </div>)}
-        {times.length === 0 && <div className="p-12 text-center text-sm text-slate-400">설정된 면접 일정이 없습니다.</div>}
+        {displayTimes.length === 0 && <div className="p-12 text-center text-sm text-slate-400">설정된 면접 일정이 없습니다.</div>}
       </div>
     </div>
   </div><DragOverlay dropAnimation={null}>{activeEntry ? <ScheduleCard entry={activeEntry} actionNeeded={activeEntry.kind === 'assigned' && actionNeededIds.has(activeEntry.applicant.id)} overlay /> : null}</DragOverlay></DndContext>;

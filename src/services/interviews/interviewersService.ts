@@ -13,6 +13,7 @@ import {
 import { db } from '../../lib/firebase';
 import type { InterviewChangeRequest, InterviewRoundInterviewer, InterviewerProfile } from '../../types';
 import type { RoundInterviewerDraft } from './models';
+import { formatMemberPhone } from '../../domain/interviews/memberRegistration';
 import { actorEmail, mapSnapshot } from './shared';
 
 export function subscribeRoundInterviewers(
@@ -33,7 +34,7 @@ export async function addRoundInterviewer(
   const profileRef = doc(collection(db, 'interviewerProfiles'));
   const participantRef = doc(db, 'interviewRoundInterviewers', `${roundId}__${profileRef.id}`);
   const normalizedEmail = draft.email?.trim().toLowerCase() || null;
-  const normalizedPhone = draft.phone?.trim() || null;
+  const normalizedPhone = draft.phone ? formatMemberPhone(draft.phone) || null : null;
   const batch = writeBatch(db);
   const profile: Omit<InterviewerProfile, 'id' | 'createdAt' | 'updatedAt'> = { name: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, active: true };
   batch.set(profileRef, { ...profile, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -62,7 +63,7 @@ export async function updateScheduleInterviewerAvailability(participantId: strin
 }
 
 export async function updateInterviewerPhone(participant: InterviewRoundInterviewer, phone: string): Promise<void> {
-  const normalizedPhone = phone.trim() || null;
+  const normalizedPhone = formatMemberPhone(phone) || null;
   const scheduleParticipants = await getDocs(query(collection(db, 'interviewScheduleInterviewers'), where('interviewerId', '==', participant.interviewerId)));
   if (scheduleParticipants.size > 490) throw new Error('연락처를 한 번에 반영할 수 있는 일정 수를 초과했습니다.');
   const batch = writeBatch(db);

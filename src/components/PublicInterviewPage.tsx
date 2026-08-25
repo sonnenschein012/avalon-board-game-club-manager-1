@@ -1,7 +1,7 @@
 import { CalendarClock, CheckCircle2, Clock3, Loader2, LockKeyhole, Save } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import AvalonLogo from './AvalonLogo';
-import ApplicantAvailabilityRanges from './ApplicantAvailabilityRanges';
+import AvailabilityGrid from './AvailabilityGrid';
 import { usePublicInterviewLogic } from '../hooks/usePublicInterviewLogic';
 import { summarizeAvailabilitySlots, type AvailabilitySummaryRow } from '../domain/interviews/availabilitySummary';
 import { formatDateTime } from '../lib/utils';
@@ -124,9 +124,9 @@ export default function PublicInterviewPage() {
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {round.instructions || '선택하신 시간 중 운영진이 실제 면접 시간을 정하여 별도로 안내합니다.'}
               </p>
-              <p className="mt-1 text-xs text-slate-400">날짜를 열고 가능한 시간의 시작·종료를 선택하세요. 다른 시간대도 추가할 수 있습니다.</p>
+              <p className="mt-1 text-xs text-slate-400">가능한 칸을 누르거나 손가락으로 쓸어 여러 시간을 연속 선택하세요.</p>
             </div>
-            <div className="space-y-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm leading-6 text-slate-600">
+            <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
               <SlotSummary
                 label="이전에 저장한 시간"
                 rows={access.submittedAt ? summarizeAvailabilitySlots(access.availability, round.availabilitySlotMinutes) : []}
@@ -137,16 +137,22 @@ export default function PublicInterviewPage() {
                 rows={summarizeAvailabilitySlots(availability, round.availabilitySlotMinutes)}
                 emptyText="선택한 시간이 없습니다."
               />
-              <p className="border-t border-indigo-100 pt-2 text-xs text-slate-500">
+              <p className="border-t border-slate-200 pt-2 text-xs text-slate-500">
                 각 시간 셀은 시작부터 {round.availabilitySlotMinutes}분 동안을 뜻합니다. 예를 들어 10:00 셀은 10:00~{getEndTime('10:00', round.availabilitySlotMinutes)} 시간대입니다.
               </p>
             </div>
-            <ApplicantAvailabilityRanges
+            <AvailabilityGrid
               slots={visibleSlots}
               selected={availability}
-              onChange={replaceAvailability}
+              onToggle={(slotId, force) => {
+                const next = new Set(availability);
+                const shouldSelect = force ?? !next.has(slotId);
+                if (shouldSelect) next.add(slotId); else next.delete(slotId);
+                replaceAvailability([...next].sort());
+              }}
               disabled={state !== 'collecting'}
               slotMinutes={round.availabilitySlotMinutes}
+              compact
             />
             {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error}</p>}
             {saved && (
