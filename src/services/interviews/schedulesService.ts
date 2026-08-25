@@ -117,7 +117,7 @@ export async function applyConcreteInterviewScheduleChange(
       if (!snapshot.exists()) return [];
       const applicant = snapshot.data() as InterviewApplicant;
       return applicant.roundId === roundId && applicant.scheduleId === scheduleId
-        ? [{ applicantId: applicant.id, applicant, assignment: applicant.assignment, ref: snapshot.ref }]
+        ? [{ applicantId: snapshot.id, applicant, assignment: applicant.assignment, ref: snapshot.ref }]
         : [];
     });
     const assignmentImpact = getAssignmentScheduleImpact(
@@ -196,7 +196,7 @@ export async function assignApplicantsToInterviewSchedule(
     const applicantSnapshots = await Promise.all(applicantRefs.map(ref => transaction.get(ref)));
     const latestApplicants = applicantSnapshots.map(snapshot => {
       if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
-      return { ref: snapshot.ref, applicant: snapshot.data() as InterviewApplicant };
+      return { applicantId: snapshot.id, ref: snapshot.ref, applicant: snapshot.data() as InterviewApplicant };
     });
     const accessSnapshots = await Promise.all(latestApplicants.map(({ applicant }) => transaction.get(doc(db, 'interviewAccess', applicant.accessToken))));
     const requestSnapshots = await Promise.all(latestApplicants.map(({ applicant }) => transaction.get(doc(db, 'interviewChangeRequests', applicant.accessToken))));
@@ -212,7 +212,7 @@ export async function assignApplicantsToInterviewSchedule(
     });
 
     let moved = 0;
-    latestApplicants.forEach(({ ref, applicant }) => {
+    latestApplicants.forEach(({ applicantId, ref, applicant }) => {
       if (applicant.scheduleId === scheduleId) return;
       moved += 1;
       const accessRef = doc(db, 'interviewAccess', applicant.accessToken);
@@ -249,7 +249,7 @@ export async function assignApplicantsToInterviewSchedule(
         roundId,
         scheduleId,
         scheduleName: schedule.name,
-        applicantId: applicant.id,
+        applicantId,
         type: previousAssignment ? 'changed' : 'schedule_assigned',
         previousAssignment,
         nextAssignment: null,
