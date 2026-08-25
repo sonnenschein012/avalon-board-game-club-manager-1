@@ -1,4 +1,5 @@
-import { CalendarClock, CheckCircle2, Clock3, Loader2, LockKeyhole, Save } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CalendarClock, CheckCircle2, Clock3, Loader2, LockKeyhole, Pencil, Save } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import AvalonLogo from './AvalonLogo';
 import AvailabilityGrid from './AvailabilityGrid';
@@ -56,6 +57,25 @@ function SlotSummary({
 export default function PublicInterviewPage() {
   const { token } = useParams<{ token: string }>();
   const { access, round, visibleSlots, availability, state, error, saving, saved, replaceAvailability, submit, retryInitialization } = usePublicInterviewLogic(token);
+  const [editing, setEditing] = useState<boolean | null>(null);
+  const isEditing = editing ?? !access?.submittedAt;
+  const hasUnsavedChanges = (() => {
+    if (!access?.submittedAt || !isEditing) return false;
+    const savedSlots = [...access.availability].sort();
+    const draftSlots = [...availability].sort();
+    return savedSlots.length !== draftSlots.length || savedSlots.some((slot, index) => slot !== draftSlots[index]);
+  })();
+
+  useEffect(() => {
+    if (saved) setEditing(false);
+  }, [saved]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [hasUnsavedChanges]);
 
   const confirmAndSubmit = () => {
     const selectedCount = availability.size;
@@ -124,7 +144,7 @@ export default function PublicInterviewPage() {
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 {round.instructions || '선택하신 시간 중 운영진이 실제 면접 시간을 정하여 별도로 안내합니다.'}
               </p>
-              <p className="mt-1 text-xs text-slate-400">가능한 칸을 누르거나 손가락으로 쓸어 여러 시간을 연속 선택하세요.</p>
+              <p className="mt-1 text-xs text-slate-400">{isEditing ? '가능한 칸을 누르거나 손가락으로 쓸어 여러 시간을 연속 선택하세요.' : '저장된 응답입니다. 변경하려면 아래 수정하기를 눌러주세요.'}</p>
             </div>
             <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
               <SlotSummary
@@ -132,11 +152,11 @@ export default function PublicInterviewPage() {
                 rows={access.submittedAt ? summarizeAvailabilitySlots(access.availability, round.availabilitySlotMinutes) : []}
                 emptyText={access.submittedAt ? '가능한 시간 없음' : '아직 저장한 응답이 없습니다.'}
               />
-              <SlotSummary
-                label="현재 선택한 시간"
+              {isEditing && <SlotSummary
+                label={access.submittedAt ? '수정 중인 시간' : '현재 선택한 시간'}
                 rows={summarizeAvailabilitySlots(availability, round.availabilitySlotMinutes)}
                 emptyText="선택한 시간이 없습니다."
-              />
+              />}
               <p className="border-t border-slate-200 pt-2 text-xs text-slate-500">
                 각 시간 셀은 시작부터 {round.availabilitySlotMinutes}분 동안을 뜻합니다. 예를 들어 10:00 셀은 10:00~{getEndTime('10:00', round.availabilitySlotMinutes)} 시간대입니다.
               </p>
@@ -150,7 +170,7 @@ export default function PublicInterviewPage() {
                 if (shouldSelect) next.add(slotId); else next.delete(slotId);
                 replaceAvailability([...next].sort());
               }}
-              disabled={state !== 'collecting'}
+              disabled={state !== 'collecting' || !isEditing}
               slotMinutes={round.availabilitySlotMinutes}
               compact
             />
@@ -162,15 +182,15 @@ export default function PublicInterviewPage() {
             )}
             {state === 'collecting' && (
               <div className="sticky bottom-3 z-50 flex justify-end">
-                <button
-                  type="button"
-                  onClick={confirmAndSubmit}
-                  disabled={saving}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-6 py-4 text-sm font-black text-white shadow-xl transition-colors hover:bg-gold disabled:opacity-50 sm:w-auto"
-                >
-                  {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                  {saving ? '저장 중...' : `${availability.size}개 시간 저장`}
-                </button>
+                {access.submittedAt && !isEditing ? <button type="button" onClick={() => setEditing(true)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-navy/20 bg-white px-6 py-4 text-sm font-black text-navy shadow-xl sm:w-auto"><Pencil size={18} />수정하기</button> : <button
+                    type="button"
+                    onClick={confirmAndSubmit}
+                    disabled={saving}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-6 py-4 text-sm font-black text-white shadow-xl transition-colors hover:bg-gold disabled:opacity-50 sm:w-auto"
+                  >
+                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    {saving ? '저장 중...' : access.submittedAt ? '변경사항 저장' : `${availability.size}개 시간 저장`}
+                  </button>}
               </div>
             )}
           </section>
