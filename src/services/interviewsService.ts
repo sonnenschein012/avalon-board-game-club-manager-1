@@ -2,6 +2,7 @@
 // `services/interviews/`, while existing consumers retain this stable path.
 export * from './interviews/models';
 export * from './interviews/roundsService';
+export * from './interviews/schedulesService';
 export * from './interviews/applicantsService';
 export * from './interviews/schedulingService';
 export * from './interviews/interviewersService';

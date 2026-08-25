@@ -118,6 +118,9 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
     transaction.set(keyRef, { roundId, applicantId: applicantRef.id, applicantNumber: normalizeApplicantNumber(draft.applicantNumber), createdAt: serverTimestamp() });
     transaction.set(applicantRef, {
       roundId,
+      scheduleId: null,
+      scheduleAssignedAt: null,
+      scheduleAssignmentRevision: 0,
       applicantNumber: draft.applicantNumber.trim(),
       name: draft.name.trim(),
       phone: draft.phone.trim(),
@@ -150,6 +153,8 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
     });
     transaction.set(doc(db, 'interviewAccess', token), {
       roundId,
+      scheduleId: null,
+      scheduleAssignmentRevision: 0,
       applicantId: applicantRef.id,
       displayName: draft.name.trim(),
       availability: [],
@@ -233,7 +238,8 @@ export async function mergeInterviewApplicants(roundId: string, items: Applicant
       const token = generateInterviewToken();
       transaction.set(keyRefs[index]!, { roundId, applicantId: applicantRef.id, applicantNumber: normalizeApplicantNumber(item.applicantNumber), createdAt: serverTimestamp() });
       transaction.set(applicantRef, {
-        roundId, applicantNumber: item.applicantNumber.trim(), name: item.name.trim(), phone: item.phone.trim(),
+        roundId, scheduleId: null, scheduleAssignedAt: null, scheduleAssignmentRevision: 0,
+        applicantNumber: item.applicantNumber.trim(), name: item.name.trim(), phone: item.phone.trim(),
         applicationData: item.applicationData, accessToken: token, sourceRowNumber: item.sourceRowNumber,
         source: 'csv', lifecycle: 'active', applicationStatus: 'active', withdrawnAt: null, withdrawnBy: null,
         archivedAt: null, archivedReason: null,
@@ -247,7 +253,8 @@ export async function mergeInterviewApplicants(roundId: string, items: Applicant
         createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
       });
       transaction.set(doc(db, 'interviewAccess', token), {
-        roundId, applicantId: applicantRef.id, displayName: item.name.trim(), availability: [], submittedAt: null,
+        roundId, scheduleId: null, scheduleAssignmentRevision: 0,
+        applicantId: applicantRef.id, displayName: item.name.trim(), availability: [], submittedAt: null,
         updatedAt: null, responseUpdatedAt: null, firstAccessedAt: null,
         tokenRevision: 1, supersededBy: null, supersededAt: null, reissuedFrom: null,
         active: true, createdAt: serverTimestamp(),

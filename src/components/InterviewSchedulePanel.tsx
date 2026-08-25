@@ -1,4 +1,16 @@
 import { useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { AlertTriangle, Bot, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Lock, RotateCcw, Trash2, Unlock } from 'lucide-react';
 import type { AutoAssignmentProposal, AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { availabilityToAssignmentCandidates, parseSlotId } from '../domain/interviews/scheduling';
@@ -56,10 +68,14 @@ function interviewerTheme(interviewerId: string) {
   return INTERVIEWER_THEMES[Math.abs(hash) % INTERVIEWER_THEMES.length] ?? INTERVIEWER_THEMES[0]!;
 }
 
-function StatusBadges({ applicant, actionNeeded }: { applicant: InterviewApplicantWithAccess; actionNeeded: boolean }) {
+function CompactStatus({ applicant, actionNeeded }: { applicant: InterviewApplicantWithAccess; actionNeeded: boolean }) {
   const confirmed = confirmationCurrent(applicant);
   const progressStatus = getInterviewProgressStatus(applicant);
-  return <div className="mt-1.5 flex flex-wrap gap-1">{confirmed ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-700"><CheckCircle2 size={10} />안내</span> : <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-700">안내 전</span>}{progressStatus === 'completed' && <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[9px] font-black text-slate-700">완료</span>}{actionNeeded && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-black text-red-700"><AlertTriangle size={10} />조치</span>}</div>;
+  return <span className="ml-auto flex shrink-0 items-center gap-1">
+    {confirmed ? <CheckCircle2 aria-label="안내 완료" size={11} className="text-emerald-600" /> : <span aria-label="안내 전" title="안내 전" className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+    {progressStatus === 'completed' && <span className="text-[8px] font-black text-slate-500">완료</span>}
+    {actionNeeded && <AlertTriangle aria-label="조치 필요" size={11} className="text-red-500" />}
+  </span>;
 }
 
 type ScheduleEntry =
@@ -73,21 +89,52 @@ interface ScheduleCardActions {
   onReset: () => void;
 }
 
-function ScheduleCard({ entry, actionNeeded, selected, onSelect, actions }: { entry: ScheduleEntry; actionNeeded?: boolean; selected?: boolean; onSelect?: () => void; actions?: ScheduleCardActions }) {
+function scheduleEntryId(entry: ScheduleEntry) {
+  return `${entry.kind}:${entry.kind === 'assigned' ? entry.applicant.id : entry.proposal.applicantId}`;
+}
+
+function ScheduleCard({ entry, actionNeeded, selected, onSelect, actions, overlay = false }: { entry: ScheduleEntry; actionNeeded?: boolean; selected?: boolean; onSelect?: () => void; actions?: ScheduleCardActions; overlay?: boolean }) {
   const applicant = entry.kind === 'assigned' ? entry.applicant : null;
   const assignment = applicant?.assignment;
   const proposal = entry.kind === 'draft' ? entry.proposal : null;
   const interviewerId = assignment?.interviewerId ?? proposal?.interviewerId ?? 'unassigned';
   const interviewerName = assignment?.interviewerName ?? proposal?.interviewerName ?? '면접관 미지정';
   const theme = interviewerTheme(interviewerId);
-  const content = <><div className="flex min-w-0 items-start gap-2"><span className={`mt-0.5 h-8 w-1 shrink-0 rounded-full ${theme.marker}`} /><span className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black leading-4 text-navy">{applicant?.name ?? proposal?.applicantName}</span>{applicant?.applicantNumber && <span className="block truncate text-[9px] font-medium leading-3 text-slate-400">{applicant.applicantNumber}</span>}</span>{assignment?.locked && <Lock aria-label="잠긴 배정" size={12} className="mt-0.5 shrink-0 text-slate-500" />}</div><div className="mt-1.5 flex min-w-0 items-center gap-1.5 pl-3"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.marker}`} /><span className="truncate text-[9px] font-bold text-slate-500">{interviewerName}</span></div>{applicant && <StatusBadges applicant={applicant} actionNeeded={Boolean(actionNeeded)} />}</>;
-  if (proposal) return <div aria-label={`${proposal.applicantName} 검토안`} className="w-full rounded-xl border border-white/70 bg-white/50 px-2.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.06)] backdrop-blur-md opacity-70">{content}</div>;
-  return <div className={`relative ${selected ? 'z-30' : ''}`}><button type="button" onClick={onSelect} className={`w-full rounded-xl border border-white bg-white/95 px-2.5 py-2 text-left shadow-[0_2px_10px_rgba(15,23,42,0.08)] transition-shadow hover:shadow-[0_6px_16px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-navy ${selected ? theme.selected : ''}`}>{content}</button>{selected && actions && <div className="absolute left-0 top-full z-40 mt-2 flex min-w-max items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"><button type="button" onClick={event => { event.stopPropagation(); actions.onToggleLock(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-100">{actions.locked ? <Unlock size={12} /> : <Lock size={12} />}{actions.locked ? '잠금 해제' : '잠금'}</button><button type="button" onClick={event => { event.stopPropagation(); actions.onClear(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-red-600 transition hover:bg-red-50"><Trash2 size={12} />배정 해제</button><button type="button" onClick={event => { event.stopPropagation(); actions.onReset(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-amber-700 transition hover:bg-amber-50"><RotateCcw size={12} />일정 초기화</button></div>}</div>;
+  const content = <div className="flex min-w-0 items-center gap-2"><span className={`h-7 w-1 shrink-0 rounded-full ${theme.marker}`} /><span className="min-w-0 flex-1"><span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-[11px] font-black leading-4 text-navy">{applicant?.name ?? proposal?.applicantName}</span>{applicant?.applicantNumber && <span className="shrink-0 text-[8px] font-bold text-slate-400">{applicant.applicantNumber}</span>}{assignment?.locked && <Lock aria-label="잠긴 배정" size={11} className="shrink-0 text-slate-500" />}</span><span className="mt-0.5 flex min-w-0 items-center gap-1"><span className={`h-1.5 w-1.5 shrink-0 rounded-full ${theme.marker}`} /><span className="truncate text-[9px] font-bold leading-3 text-slate-500">{interviewerName}</span>{applicant && <CompactStatus applicant={applicant} actionNeeded={Boolean(actionNeeded)} />}</span></span></div>;
+  if (proposal) return <div aria-label={`${proposal.applicantName} 검토안`} className={`w-full rounded-lg border border-white/70 bg-white/55 px-2 py-1.5 shadow-[0_5px_16px_rgba(15,23,42,0.06)] backdrop-blur-md ${overlay ? 'w-44 opacity-90 shadow-xl' : 'opacity-65'}`}>{content}</div>;
+  return <div className={`relative ${selected ? 'z-30' : ''}`}><button type="button" onClick={onSelect} className={`w-full rounded-lg border border-white bg-white/95 px-2 py-1.5 text-left shadow-[0_2px_8px_rgba(15,23,42,0.08)] transition-shadow hover:shadow-[0_5px_14px_rgba(15,23,42,0.12)] focus:outline-none focus-visible:ring-2 focus-visible:ring-navy ${overlay ? 'w-44 shadow-xl' : ''} ${selected ? theme.selected : ''}`}>{content}</button>{selected && actions && !overlay && <div onPointerDown={event => event.stopPropagation()} className="absolute left-0 top-full z-40 mt-1.5 flex min-w-max items-center gap-1 rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"><button type="button" onClick={event => { event.stopPropagation(); actions.onToggleLock(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-100">{actions.locked ? <Unlock size={12} /> : <Lock size={12} />}{actions.locked ? '잠금 해제' : '잠금'}</button><button type="button" onClick={event => { event.stopPropagation(); actions.onClear(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-red-600 transition hover:bg-red-50"><Trash2 size={12} />배정 해제</button><button type="button" onClick={event => { event.stopPropagation(); actions.onReset(); }} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-black text-amber-700 transition hover:bg-amber-50"><RotateCcw size={12} />일정 초기화</button></div>}</div>;
 }
 
-function WeeklySchedule({ round, assigned, draft, actionNeededIds, onClearAssignment, onChangeAssignmentState, onResetSchedule }: { round: InterviewRound; assigned: InterviewApplicantWithAccess[]; draft: AutoAssignmentResult | null; actionNeededIds: Set<string>; onClearAssignment: Props['onClearAssignment']; onChangeAssignmentState: Props['onChangeAssignmentState']; onResetSchedule: Props['onResetSchedule'] }) {
+function DraggableScheduleCard({ entry, disabled, children }: { entry: ScheduleEntry; disabled: boolean; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: scheduleEntryId(entry), disabled, data: { entry } });
+  return <div ref={setNodeRef} {...attributes} {...listeners} className={`${disabled ? '' : 'cursor-grab active:cursor-grabbing'} ${isDragging ? 'opacity-20' : ''}`}>{children}</div>;
+}
+
+function DroppableScheduleCell({ slotId, enabled, dragActive, valid, children }: { slotId: string; enabled: boolean; dragActive: boolean; valid: boolean; children: React.ReactNode }) {
+  const { isOver, setNodeRef } = useDroppable({ id: `slot:${slotId}`, data: { slotId }, disabled: !enabled || !valid });
+  return <div ref={setNodeRef} className={`min-h-[72px] border-l border-slate-100 p-1.5 transition-colors ${enabled ? 'bg-white' : 'bg-slate-50/70'} ${dragActive && enabled && valid ? 'bg-emerald-50/70 ring-1 ring-inset ring-emerald-200' : ''} ${dragActive && enabled && !valid ? 'bg-slate-100/80' : ''} ${isOver && valid ? '!bg-emerald-100 ring-2 ring-inset ring-emerald-400' : ''}`}>{children}</div>;
+}
+
+function slotStartMillis(slotId: string) {
+  const parsed = parseSlotId(slotId);
+  return parsed ? Date.parse(`${parsed.date}T${parsed.time}:00.000Z`) : Number.NaN;
+}
+
+function slotsOverlap(firstSlot: string, firstDuration: number, secondSlot: string, secondDuration: number) {
+  const firstStart = slotStartMillis(firstSlot);
+  const secondStart = slotStartMillis(secondSlot);
+  return Number.isFinite(firstStart) && Number.isFinite(secondStart)
+    && firstStart < secondStart + secondDuration * 60_000
+    && secondStart < firstStart + firstDuration * 60_000;
+}
+
+function WeeklySchedule({ round, applicants, assigned, interviewers, draft, actionNeededIds, onDraftChange, onAssign, onClearAssignment, onChangeAssignmentState, onResetSchedule }: { round: InterviewRound; applicants: InterviewApplicantWithAccess[]; assigned: InterviewApplicantWithAccess[]; interviewers: InterviewRoundInterviewer[]; draft: AutoAssignmentResult | null; actionNeededIds: Set<string>; onDraftChange: Props['onDraftChange']; onAssign: Props['onAssign']; onClearAssignment: Props['onClearAssignment']; onChangeAssignmentState: Props['onChangeAssignmentState']; onResetSchedule: Props['onResetSchedule'] }) {
   const [datePage, setDatePage] = useState(0);
   const [selectedApplicantId, setSelectedApplicantId] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }));
+  const configuredSlots = useMemo(() => availabilityToAssignmentCandidates(round.allowedSlots, round.availabilitySlotMinutes, round.assignmentSlotMinutes), [round.allowedSlots, round.assignmentSlotMinutes, round.availabilitySlotMinutes]);
+  const configuredSlotSet = useMemo(() => new Set(configuredSlots), [configuredSlots]);
   const draftProposals = useMemo(() => {
     if (!draft) return [];
     const assignmentByApplicantId = new Map(assigned.map(applicant => [applicant.id, applicant.assignment]));
@@ -97,16 +144,16 @@ function WeeklySchedule({ round, assigned, draft, actionNeededIds, onClearAssign
     });
   }, [assigned, draft]);
   const scheduleDates = useMemo(() => [...new Set([
-    ...round.allowedSlots.map(slot => parseSlotId(slot)?.date),
+    ...configuredSlots.map(slot => parseSlotId(slot)?.date),
     ...assigned.map(applicant => applicant.assignment?.slotId ? parseSlotId(applicant.assignment.slotId)?.date : undefined),
     ...draftProposals.map(proposal => parseSlotId(proposal.slotId)?.date),
-  ].filter((date): date is string => Boolean(date)))].sort(), [assigned, draftProposals, round.allowedSlots]);
+  ].filter((date): date is string => Boolean(date)))].sort(), [assigned, configuredSlots, draftProposals]);
   const pageCount = Math.max(1, Math.ceil(scheduleDates.length / 5));
   const activeDatePage = Math.min(datePage, pageCount - 1);
   const visibleDates = useMemo(() => scheduleDates.slice(activeDatePage * 5, activeDatePage * 5 + 5), [activeDatePage, scheduleDates]);
   const visibleDateSet = useMemo(() => new Set(visibleDates), [visibleDates]);
   const scheduleSlots = useMemo(() => {
-    const slots = new Set(round.allowedSlots.filter(slot => {
+    const slots = new Set(configuredSlots.filter(slot => {
       const parsed = parseSlotId(slot);
       return parsed && visibleDateSet.has(parsed.date);
     }));
@@ -120,7 +167,7 @@ function WeeklySchedule({ round, assigned, draft, actionNeededIds, onClearAssign
       if (parsed && visibleDateSet.has(parsed.date)) slots.add(proposal.slotId);
     });
     return slots;
-  }, [assigned, draftProposals, round.allowedSlots, visibleDateSet]);
+  }, [assigned, configuredSlots, draftProposals, visibleDateSet]);
   const times = useMemo(() => [...new Set([...scheduleSlots].map(slot => parseSlotId(slot)?.time).filter((time): time is string => Boolean(time)))].sort(), [scheduleSlots]);
   const scheduleEntriesBySlot = useMemo(() => {
     const next = new Map<string, ScheduleEntry[]>();
@@ -141,16 +188,73 @@ function WeeklySchedule({ round, assigned, draft, actionNeededIds, onClearAssign
     }));
     return next;
   }, [assigned, draftProposals, scheduleSlots]);
+  const entriesById = useMemo(() => new Map([...scheduleEntriesBySlot.values()].flat().map(entry => [scheduleEntryId(entry), entry])), [scheduleEntriesBySlot]);
+  const activeEntry = activeDragId ? entriesById.get(activeDragId) ?? null : null;
+  const applicantById = useMemo(() => new Map(applicants.map(applicant => [applicant.id, applicant])), [applicants]);
+  const interviewerById = useMemo(() => new Map(interviewers.filter(interviewer => interviewer.active).map(interviewer => [interviewer.interviewerId, interviewer])), [interviewers]);
+  const draftApplicantIds = useMemo(() => new Set(draft?.proposals.map(proposal => proposal.applicantId) ?? []), [draft]);
+  const canDropEntryAt = (entry: ScheduleEntry, targetSlot: string) => {
+    if (!configuredSlotSet.has(targetSlot)) return false;
+    const applicantId = entry.kind === 'assigned' ? entry.applicant.id : entry.proposal.applicantId;
+    const applicant = entry.kind === 'assigned' ? entry.applicant : applicantById.get(entry.proposal.applicantId);
+    const interviewerId = entry.kind === 'assigned' ? entry.applicant.assignment?.interviewerId : entry.proposal.interviewerId;
+    const sourceSlot = entry.kind === 'assigned' ? entry.applicant.assignment?.slotId : entry.proposal.slotId;
+    if (!applicant || !interviewerId || !sourceSlot || sourceSlot === targetSlot) return false;
+    const applicantSlots = new Set(availabilityToAssignmentCandidates(applicant.access?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes));
+    const interviewer = interviewerById.get(interviewerId);
+    if (!applicantSlots.has(targetSlot) || !interviewer) return false;
+    const interviewerSlots = new Set(availabilityToAssignmentCandidates(interviewer.availability, round.availabilitySlotMinutes, round.assignmentSlotMinutes));
+    if (!interviewerSlots.has(targetSlot)) return false;
+    const conflictsWithDraft = draft?.proposals.some(proposal => proposal.applicantId !== applicantId
+      && proposal.interviewerId === interviewerId
+      && slotsOverlap(targetSlot, round.assignmentSlotMinutes, proposal.slotId, round.assignmentSlotMinutes)) ?? false;
+    if (conflictsWithDraft) return false;
+    return !assigned.some(other => {
+      const assignment = other.assignment;
+      if (!assignment || other.id === applicantId || assignment.interviewerId !== interviewerId) return false;
+      if (entry.kind === 'draft' && draftApplicantIds.has(other.id)) return false;
+      const otherSlot = assignment.slotId;
+      return otherSlot ? slotsOverlap(targetSlot, round.assignmentSlotMinutes, otherSlot, assignment.durationMinutes) : false;
+    });
+  };
+  const validDropSlots = new Set(activeEntry ? configuredSlots.filter(slot => canDropEntryAt(activeEntry, slot)) : []);
   const visibleAssignmentCount = [...scheduleEntriesBySlot.values()].flat().filter(entry => entry.kind === 'assigned').length;
   const visibleDraftCount = [...scheduleEntriesBySlot.values()].flat().filter(entry => entry.kind === 'draft').length;
   const gridStyle = { gridTemplateColumns: `76px repeat(${Math.max(visibleDates.length, 1)}, minmax(168px, 1fr))` };
   const pageStart = activeDatePage * 5 + 1;
   const pageEnd = activeDatePage * 5 + visibleDates.length;
   const selectApplicant = (applicantId: string) => setSelectedApplicantId(current => current === applicantId ? null : applicantId);
+  const entryDraggable = (entry: ScheduleEntry) => {
+    if (entry.kind === 'draft') return !entry.proposal.locked && !entry.proposal.protected;
+    const progressStatus = getInterviewProgressStatus(entry.applicant);
+    return !entry.applicant.assignment?.locked && progressStatus === 'scheduled' && !actionNeededIds.has(entry.applicant.id);
+  };
+  const handleDragStart = (event: DragStartEvent) => {
+    setSelectedApplicantId(null);
+    setActiveDragId(String(event.active.id));
+  };
+  const handleDragEnd = (event: DragEndEvent) => {
+    const entry = entriesById.get(String(event.active.id));
+    const targetSlot = typeof event.over?.data.current?.slotId === 'string' ? event.over.data.current.slotId : null;
+    setActiveDragId(null);
+    if (!entry || !targetSlot || !canDropEntryAt(entry, targetSlot)) return;
+    if (entry.kind === 'draft') {
+      if (!draft) return;
+      onDraftChange({ ...draft, proposals: draft.proposals.map(proposal => proposal.applicantId === entry.proposal.applicantId ? { ...proposal, slotId: targetSlot, preserved: false } : proposal) });
+      return;
+    }
+    const assignment = entry.applicant.assignment;
+    if (!assignment) return;
+    if (confirmationCurrent(entry.applicant) && !window.confirm(`${entry.applicant.name} 지원자에게 현재 일정 안내가 이미 발송되었습니다. 시간을 변경할까요? 변경 후 다시 안내해야 합니다.`)) return;
+    void onAssign(entry.applicant, targetSlot, assignment.interviewerId, false).then(success => {
+      if (!success || !draft?.proposals.some(proposal => proposal.applicantId === entry.applicant.id)) return;
+      onDraftChange({ ...draft, proposals: draft.proposals.map(proposal => proposal.applicantId === entry.applicant.id ? { ...proposal, slotId: targetSlot, preserved: true, protected: false, expectedAssignmentRevision: (entry.applicant.assignmentRevision ?? 0) + 1 } : proposal) });
+    });
+  };
 
-  return <div className="hidden lg:block">
+  return <DndContext sensors={sensors} collisionDetection={pointerWithin} autoScroll onDragStart={handleDragStart} onDragCancel={() => setActiveDragId(null)} onDragEnd={handleDragEnd}><div className="hidden lg:block">
     <div className="flex items-center justify-between gap-3">
-      <div><h3 className="font-black text-navy">주간 면접 시간표</h3><p className="mt-1 text-xs text-slate-400">면접 일정이 있는 날짜만 5개씩 표시합니다. 반투명 카드는 아직 확정되지 않은 검토안입니다.</p></div>
+      <div><h3 className="font-black text-navy">면접 시간표</h3><p className="mt-1 text-xs text-slate-400">면접 일정이 있는 날짜만 5개씩 표시합니다. 반투명 카드는 아직 확정되지 않은 검토안이며, 드래그해서 시간을 조정할 수 있습니다.</p></div>
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">확정 {visibleAssignmentCount} · 검토 {visibleDraftCount}</span>
     </div>
     <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 p-2">
@@ -165,23 +269,23 @@ function WeeklySchedule({ round, assigned, draft, actionNeededIds, onClearAssign
           {visibleDates.map(date => <div key={date} className="border-l border-slate-100 p-3 text-center text-[11px] font-black text-navy">{scheduleDateLabel(date)}</div>)}
         </div>
         {times.map(time => <div key={time} className="grid border-b border-slate-100 last:border-b-0" style={gridStyle}>
-          <div className="sticky left-0 z-10 flex min-h-[104px] items-start bg-white px-3 pt-3 text-xs font-black text-slate-500">{time}</div>
+          <div className="sticky left-0 z-10 flex min-h-[72px] items-start bg-white px-3 pt-2.5 text-xs font-black text-slate-500">{time}</div>
           {visibleDates.map(date => {
             const slotId = `${date}|${time}`;
             const slotIsAvailable = scheduleSlots.has(slotId);
             const entries = scheduleEntriesBySlot.get(slotId) ?? [];
-            return <div key={slotId} className={`min-h-[104px] border-l border-slate-100 p-2 ${slotIsAvailable ? 'bg-white' : 'bg-slate-50/70'}`}>
-              {slotIsAvailable && <div className="space-y-2">
-                {entries.slice(0, 3).map(entry => entry.kind === 'assigned' ? <ScheduleCard key={`assigned-${entry.applicant.id}`} entry={entry} actionNeeded={actionNeededIds.has(entry.applicant.id)} selected={selectedApplicantId === entry.applicant.id} onSelect={() => selectApplicant(entry.applicant.id)} actions={{ locked: Boolean(entry.applicant.assignment?.locked), onToggleLock: () => void onChangeAssignmentState(entry.applicant.id, { locked: !entry.applicant.assignment?.locked }), onClear: () => { if (window.confirm(`${entry.applicant.name} 지원자의 현재 배정을 해제할까요? 이력은 보존됩니다.`)) void onClearAssignment(entry.applicant.id); }, onReset: () => { if (window.confirm(`${entry.applicant.name} 지원자의 접속 기준·응답·현재 배정을 초기화할까요? 지원서와 면접 기록은 보존됩니다.`)) void onResetSchedule(entry.applicant.id); } }} /> : <ScheduleCard key={`draft-${entry.proposal.applicantId}`} entry={entry} />)}
+            return <DroppableScheduleCell key={slotId} slotId={slotId} enabled={slotIsAvailable} dragActive={Boolean(activeEntry)} valid={validDropSlots.has(slotId)}>
+              {slotIsAvailable && <div className="space-y-1.5">
+                {entries.slice(0, 3).map(entry => <DraggableScheduleCard key={scheduleEntryId(entry)} entry={entry} disabled={!entryDraggable(entry)}>{entry.kind === 'assigned' ? <ScheduleCard entry={entry} actionNeeded={actionNeededIds.has(entry.applicant.id)} selected={selectedApplicantId === entry.applicant.id} onSelect={() => selectApplicant(entry.applicant.id)} actions={{ locked: Boolean(entry.applicant.assignment?.locked), onToggleLock: () => void onChangeAssignmentState(entry.applicant.id, { locked: !entry.applicant.assignment?.locked }), onClear: () => { if (window.confirm(`${entry.applicant.name} 지원자의 현재 배정을 해제할까요? 이력은 보존됩니다.`)) void onClearAssignment(entry.applicant.id); }, onReset: () => { if (window.confirm(`${entry.applicant.name} 지원자의 접속 기준·응답·현재 배정을 초기화할까요? 지원서와 면접 기록은 보존됩니다.`)) void onResetSchedule(entry.applicant.id); } }} /> : <ScheduleCard entry={entry} />}</DraggableScheduleCard>)}
                 {entries.length > 3 && <p className="px-2 py-1 text-[10px] font-bold text-slate-400">+ {entries.length - 3}개 더 있음</p>}
               </div>}
-            </div>;
+            </DroppableScheduleCell>;
           })}
         </div>)}
         {times.length === 0 && <div className="p-12 text-center text-sm text-slate-400">설정된 면접 일정이 없습니다.</div>}
       </div>
     </div>
-  </div>;
+  </div><DragOverlay dropAnimation={null}>{activeEntry ? <ScheduleCard entry={activeEntry} actionNeeded={activeEntry.kind === 'assigned' && actionNeededIds.has(activeEntry.applicant.id)} overlay /> : null}</DragOverlay></DndContext>;
 }
 
 export default function InterviewSchedulePanel({ round, applicants, interviewers, changeRequests, draft, onDraftChange, onRunApplicantAutoAssignment, onApplyDraft, onAssign, onClearAssignment, onChangeAssignmentState, onResetSchedule }: Props) {
@@ -205,7 +309,7 @@ export default function InterviewSchedulePanel({ round, applicants, interviewers
     window.setTimeout(() => setAutoAssigningApplicantId(null), 280);
   };
 
-  return <div className="space-y-4"><div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]"><aside className="rounded-3xl bg-white p-4 shadow-sm"><div><h3 className="font-black text-navy">배정 대기 지원자</h3><p className="mt-1 text-xs leading-5 text-slate-400">가능시간 응답 완료 · 현재 면접시간 없음</p></div><div className="mt-4 space-y-2">{waiting.map(applicant => { const autoAssigning = autoAssigningApplicantId === applicant.id; return <article key={applicant.id} className="rounded-2xl border border-slate-100 p-3"><div className="flex items-center justify-between gap-2"><div><p className="text-sm font-black text-navy">{applicant.name}</p><p className="text-[10px] text-slate-400">{applicant.applicantNumber} · {applicant.access?.availability.length ?? 0}개 응답</p></div><button type="button" disabled={autoAssigningApplicantId !== null} onClick={() => runApplicantAutoAssignment(applicant.id)} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[10px] font-black shadow-sm transition-colors duration-150 disabled:cursor-wait disabled:opacity-75 ${autoAssigning ? 'border-gold bg-gold/20 text-navy shadow-[0_0_0_3px_rgba(212,175,55,0.16)]' : 'border-gold/50 bg-navy text-white hover:border-gold hover:bg-slate-800'}`}><Bot size={14} className={autoAssigning ? 'text-navy' : 'text-gold'} />자동배정</button></div><button type="button" onClick={() => { setManualApplicantId(current => current === applicant.id ? null : applicant.id); setManualChoice(''); }} className="mt-2 text-[10px] font-bold text-slate-500">수동 배정 {manualApplicantId === applicant.id ? '닫기' : '열기'}</button>{manualApplicantId === applicant.id && <div className="mt-2 space-y-2"><select value={manualChoice} onChange={event => setManualChoice(event.target.value)} className="w-full rounded-xl border border-slate-200 px-2 py-2 text-[10px]"><option value="">공통 가능시간 선택</option>{manualOptions.map(option => <option key={option.value} value={option.value}>{option.slot.replace('|', ' ')} · {option.interviewerName}</option>)}</select><button type="button" disabled={!manualChoice} onClick={async () => { const [interviewerId, slot] = manualChoice.split('|||'); if (interviewerId && slot && await onAssign(applicant, slot, interviewerId, true)) { setManualApplicantId(null); setManualChoice(''); } }} className="w-full rounded-xl bg-navy px-3 py-2 text-[10px] font-black text-white disabled:opacity-40">수동 배정·잠금</button></div>}</article>; })}{waiting.length === 0 && <p className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center text-xs text-slate-400">배정 대기자가 없습니다.</p>}</div></aside><section className="min-w-0 space-y-4 rounded-3xl bg-white p-4 shadow-sm">{draft && <AutoAssignmentPanel compact round={round} applicants={applicants} interviewers={interviewers} draft={draft} onRun={() => undefined} onDraftChange={onDraftChange} onApply={onApplyDraft} />}<WeeklySchedule round={round} assigned={assigned} draft={draft} actionNeededIds={openChangeRequestApplicantIds} onClearAssignment={onClearAssignment} onChangeAssignmentState={onChangeAssignmentState} onResetSchedule={onResetSchedule} /><MobileScheduleList assigned={assigned} actionNeededIds={openChangeRequestApplicantIds} onClearAssignment={onClearAssignment} onChangeAssignmentState={onChangeAssignmentState} onResetSchedule={onResetSchedule} /></section></div></div>;
+  return <div className="space-y-4"><div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]"><aside className="rounded-3xl bg-white p-4 shadow-sm"><div><h3 className="font-black text-navy">배정 대기 지원자</h3><p className="mt-1 text-xs leading-5 text-slate-400">가능시간 응답 완료 · 현재 면접시간 없음</p></div><div className="mt-4 space-y-2">{waiting.map(applicant => { const autoAssigning = autoAssigningApplicantId === applicant.id; return <article key={applicant.id} className="rounded-2xl border border-slate-100 p-3"><div className="flex items-center justify-between gap-2"><div><p className="text-sm font-black text-navy">{applicant.name}</p><p className="text-[10px] text-slate-400">{applicant.applicantNumber} · {applicant.access?.availability.length ?? 0}개 응답</p></div><button type="button" disabled={autoAssigningApplicantId !== null} onClick={() => runApplicantAutoAssignment(applicant.id)} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[10px] font-black shadow-sm transition-colors duration-150 disabled:cursor-wait disabled:opacity-75 ${autoAssigning ? 'border-gold bg-gold/20 text-navy shadow-[0_0_0_3px_rgba(212,175,55,0.16)]' : 'border-gold/50 bg-navy text-white hover:border-gold hover:bg-slate-800'}`}><Bot size={14} className={autoAssigning ? 'text-navy' : 'text-gold'} />자동배정</button></div><button type="button" onClick={() => { setManualApplicantId(current => current === applicant.id ? null : applicant.id); setManualChoice(''); }} className="mt-2 text-[10px] font-bold text-slate-500">수동 배정 {manualApplicantId === applicant.id ? '닫기' : '열기'}</button>{manualApplicantId === applicant.id && <div className="mt-2 space-y-2"><select value={manualChoice} onChange={event => setManualChoice(event.target.value)} className="w-full rounded-xl border border-slate-200 px-2 py-2 text-[10px]"><option value="">공통 가능시간 선택</option>{manualOptions.map(option => <option key={option.value} value={option.value}>{option.slot.replace('|', ' ')} · {option.interviewerName}</option>)}</select><button type="button" disabled={!manualChoice} onClick={async () => { const [interviewerId, slot] = manualChoice.split('|||'); if (interviewerId && slot && await onAssign(applicant, slot, interviewerId, true)) { setManualApplicantId(null); setManualChoice(''); } }} className="w-full rounded-xl bg-navy px-3 py-2 text-[10px] font-black text-white disabled:opacity-40">수동 배정·잠금</button></div>}</article>; })}{waiting.length === 0 && <p className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center text-xs text-slate-400">배정 대기자가 없습니다.</p>}</div></aside><section className="min-w-0 space-y-4 rounded-3xl bg-white p-4 shadow-sm">{draft && <AutoAssignmentPanel compact round={round} applicants={applicants} interviewers={interviewers} draft={draft} onRun={() => undefined} onDraftChange={onDraftChange} onApply={onApplyDraft} />}<WeeklySchedule round={round} applicants={applicants} assigned={assigned} interviewers={interviewers} draft={draft} actionNeededIds={openChangeRequestApplicantIds} onDraftChange={onDraftChange} onAssign={onAssign} onClearAssignment={onClearAssignment} onChangeAssignmentState={onChangeAssignmentState} onResetSchedule={onResetSchedule} /><MobileScheduleList assigned={assigned} actionNeededIds={openChangeRequestApplicantIds} onClearAssignment={onClearAssignment} onChangeAssignmentState={onChangeAssignmentState} onResetSchedule={onResetSchedule} /></section></div></div>;
 }
 
 function MobileScheduleList({ assigned, actionNeededIds, onClearAssignment, onChangeAssignmentState, onResetSchedule }: { assigned: InterviewApplicantWithAccess[]; actionNeededIds: Set<string>; onClearAssignment: Props['onClearAssignment']; onChangeAssignmentState: Props['onChangeAssignmentState']; onResetSchedule: Props['onResetSchedule'] }) {

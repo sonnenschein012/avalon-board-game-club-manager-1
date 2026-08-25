@@ -1,0 +1,41 @@
+import { Archive, CalendarDays, CircleAlert, Clock3, Pencil, Plus, Users } from 'lucide-react';
+import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
+import type { InterviewApplicantWithAccess, InterviewSchedule } from '../types';
+
+interface Props {
+  applicants: InterviewApplicantWithAccess[];
+  schedules: InterviewSchedule[];
+  legacyApplicantCount: number;
+  onAssignUnassigned: () => void;
+  onMigrateLegacy: () => void;
+  onOpenSchedule: (scheduleId: string) => void;
+  onCreateSchedule: () => void;
+  onEditSchedule: (schedule: InterviewSchedule) => void;
+  onArchiveSchedule: (schedule: InterviewSchedule) => void;
+}
+
+function activeApplicant(applicant: InterviewApplicantWithAccess) {
+  return (applicant.lifecycle ?? 'active') === 'active' && (applicant.applicationStatus ?? 'active') === 'active';
+}
+
+function dateRange(schedule: InterviewSchedule) {
+  const dates = schedule.interviewDates;
+  if (dates.length === 0) return '날짜 미설정';
+  const formatter = new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short', timeZone: 'UTC' });
+  const first = formatter.format(new Date(`${dates[0]}T00:00:00.000Z`));
+  const last = formatter.format(new Date(`${dates.at(-1)}T00:00:00.000Z`));
+  return first === last ? first : `${first}–${last}`;
+}
+
+export default function InterviewSchedulesOverview({ applicants, schedules, legacyApplicantCount, onAssignUnassigned, onMigrateLegacy, onOpenSchedule, onCreateSchedule, onEditSchedule, onArchiveSchedule }: Props) {
+  const activeApplicants = applicants.filter(activeApplicant);
+  const activeSchedules = schedules.filter(schedule => schedule.status !== 'archived');
+  const unassigned = activeApplicants.filter(applicant => applicant.scheduleId === null);
+  const responsePending = activeApplicants.filter(applicant => applicant.scheduleId != null && !applicant.access?.submittedAt);
+  const assignmentPending = activeApplicants.filter(applicant => applicant.scheduleId != null && applicant.access?.submittedAt && !applicant.assignment && getInterviewProgressStatus(applicant) === 'scheduled');
+  const scheduled = activeApplicants.filter(applicant => Boolean(applicant.assignment) && getInterviewProgressStatus(applicant) === 'scheduled');
+  const completed = activeApplicants.filter(applicant => getInterviewProgressStatus(applicant) === 'completed');
+  const actionNeeded = activeApplicants.filter(applicant => getInterviewProgressStatus(applicant) === 'action_needed');
+
+  return <section className="space-y-5"><div className="flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Operations / Interview</p><h2 className="mt-1 text-xl font-black text-navy">면접 운영</h2><p className="mt-1 text-sm text-slate-500">지원자를 중심으로 응답과 면접 일정을 관리합니다.</p></div><button type="button" onClick={onCreateSchedule} className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white"><Plus size={15} />면접 일정 추가</button></div>{legacyApplicantCount > 0 && <button type="button" onClick={onMigrateLegacy} className="flex w-full items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-left text-indigo-950 transition hover:bg-indigo-100"><span className="rounded-xl bg-white p-2 text-navy"><Archive size={18} /></span><span className="min-w-0 flex-1"><strong className="block text-sm font-black">기존 면접 데이터 {legacyApplicantCount}명</strong><span className="mt-1 block text-xs font-medium text-indigo-800">응답과 배정은 유지한 채 새 면접 일정으로 가져올 수 있습니다.</span></span><span className="text-xs font-black">기존 일정 가져오기</span></button>}{unassigned.length > 0 && <button type="button" onClick={onAssignUnassigned} className="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left text-amber-900 transition hover:bg-amber-100"><span className="rounded-xl bg-amber-100 p-2 text-amber-700"><CircleAlert size={18} /></span><span className="min-w-0 flex-1"><strong className="block text-sm font-black">조치 필요 {unassigned.length}명</strong><span className="mt-1 block text-xs font-medium text-amber-800">새 지원자가 아직 면접 일정에 지정되지 않았습니다.</span></span><span className="text-xs font-black">{unassigned.length}명 일정 지정</span></button>}<div className="flex items-center justify-between"><div><h3 className="font-black text-navy">면접 일정</h3><p className="mt-1 text-xs text-slate-400">진행 중인 일정 묶음만 표시합니다.</p></div><button type="button" onClick={onCreateSchedule} className="text-xs font-black text-navy">+ 일정 추가</button></div><div className="space-y-3">{activeSchedules.map(schedule => { const items = activeApplicants.filter(applicant => applicant.scheduleId === schedule.id); const responded = items.filter(applicant => applicant.access?.submittedAt).length; const assigned = items.filter(applicant => applicant.assignment).length; return <article key={schedule.id} className="grid gap-3 rounded-2xl bg-white p-4 shadow-sm sm:grid-cols-[auto_minmax(0,1fr)_auto]"><div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-100 text-navy"><CalendarDays size={16} /><span className="mt-0.5 text-[9px] font-black">{schedule.interviewDates[0]?.slice(5).replace('-', '/') ?? '—'}</span></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h4 className="font-black text-navy">{schedule.name}</h4><span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${schedule.status === 'collecting' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{schedule.status === 'collecting' ? '응답 수집 중' : schedule.status === 'draft' ? '준비 중' : '응답 마감'}</span></div><p className="mt-1 text-xs text-slate-500">{dateRange(schedule)} · 지원자 {items.length}명</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-bold text-slate-500"><span className="inline-flex items-center gap-1"><Users size={12} />응답 {responded}/{items.length}</span><span className="inline-flex items-center gap-1"><Clock3 size={12} />시간 배정 {assigned}/{items.length}</span></div></div><div className="flex items-center gap-1 sm:self-center"><button type="button" onClick={() => onEditSchedule(schedule)} aria-label={`${schedule.name} 수정`} className="rounded-xl bg-slate-100 p-2 text-slate-600"><Pencil size={14} /></button><button type="button" onClick={() => onArchiveSchedule(schedule)} aria-label={`${schedule.name} 보관`} className="rounded-xl bg-amber-50 p-2 text-amber-700"><Archive size={14} /></button><button type="button" onClick={() => onOpenSchedule(schedule.id)} className="ml-1 rounded-xl border border-navy px-3 py-2 text-xs font-black text-navy">일정 보기</button></div></article>; })}{activeSchedules.length === 0 && <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center"><CalendarDays className="mx-auto text-slate-300" size={26} /><p className="mt-3 text-sm font-bold text-slate-500">아직 만든 면접 일정이 없습니다.</p><button type="button" onClick={onCreateSchedule} className="mt-4 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white">첫 면접 일정 추가</button></div>}</div><div><h3 className="font-black text-navy">지원자 상태</h3><p className="mt-1 text-xs text-slate-400">상태는 지원자 목록에서 바로 필터링할 수 있습니다.</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">{[['전체', activeApplicants.length], ['일정 미지정', unassigned.length], ['응답 대기', responsePending.length], ['시간 배정 대기', assignmentPending.length], ['면접 예정', scheduled.length], ['면접 완료', completed.length]].map(([label, value]) => <div key={String(label)} className="rounded-2xl bg-white p-3 shadow-sm"><p className="text-[10px] font-bold text-slate-400">{label}</p><p className="mt-2 text-2xl font-black text-navy">{value}</p></div>)}</div>{actionNeeded.length > 0 && <p className="text-xs font-bold text-red-600">별도 조치 필요: {actionNeeded.length}명</p>}</section>;
+}

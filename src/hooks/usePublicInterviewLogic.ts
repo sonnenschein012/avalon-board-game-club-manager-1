@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { InterviewAccess, InterviewPublicRound } from '../types';
+import type { InterviewAccess, InterviewPublicRound, InterviewPublicSchedule } from '../types';
 import {
   initializePublicInterviewAccess,
-  requestPublicInterviewChange,
   savePublicAvailability,
   subscribeToPublicInterview,
 } from '../services/publicInterviewService';
 import { getSurveyPhase } from '../domain/interviews/scheduling';
 import { calculateApplicantTimeWindow } from '../domain/interviews/publicTimeWindow';
 
-type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'before' | 'collecting' | 'closed' | 'completed' | 'error';
+type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'unassigned' | 'before' | 'collecting' | 'closed' | 'completed' | 'error';
 
 function toDate(value: unknown): Date | null {
   if (value instanceof Date) return value;
@@ -19,8 +18,9 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-export function getPublicInterviewState(access: InterviewAccess | null, round: InterviewPublicRound | null, now: Date): PublicInterviewState {
+export function getPublicInterviewState(access: InterviewAccess | null, round: InterviewPublicRound | InterviewPublicSchedule | null, now: Date): PublicInterviewState {
   if (!access) return 'invalid';
+  if (access.scheduleId === null) return 'unassigned';
   if (!access.active || !round?.active) return 'inactive';
   if (access.assignmentSummary?.status === 'completed') return 'completed';
   const opensAt = toDate(round.surveyOpensAt);
@@ -39,13 +39,12 @@ export function getPublicInterviewState(access: InterviewAccess | null, round: I
 
 export function usePublicInterviewLogic(token: string | undefined) {
   const [access, setAccess] = useState<InterviewAccess | null>(null);
-  const [round, setRound] = useState<InterviewPublicRound | null>(null);
+  const [round, setRound] = useState<InterviewPublicRound | InterviewPublicSchedule | null>(null);
   const [availability, setAvailability] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [requestingChange, setRequestingChange] = useState(false);
   const [saved, setSaved] = useState(false);
   const [initializationRetry, setInitializationRetry] = useState(0);
   const [now, setNow] = useState(() => new Date());
@@ -127,10 +126,15 @@ export function usePublicInterviewLogic(token: string | undefined) {
   };
 
   const state: PublicInterviewState = needsAccessInitialization ? 'loading' : baseState;
-  const visibleSlots = useMemo(() => calculateApplicantTimeWindow(
-    toDate(access?.firstAccessedAt),
-    round?.allowedSlots ?? [],
-  ).activeSlots, [access?.firstAccessedAt, round?.allowedSlots]);
+  const visibleSlots = useMemo(() => {
+    // Schedules are fixed by the administrator. Keep the legacy four-day
+    // rolling window only for access links created before schedules existed.
+    if (access?.scheduleId) return round?.allowedSlots ?? [];
+    return calculateApplicantTimeWindow(
+      toDate(access?.firstAccessedAt),
+      round?.allowedSlots ?? [],
+    ).activeSlots;
+  }, [access?.firstAccessedAt, access?.scheduleId, round?.allowedSlots]);
 
   const toggleSlot = (slotId: string, force?: boolean) => {
     if (state !== 'collecting') return;
@@ -144,6 +148,15 @@ export function usePublicInterviewLogic(token: string | undefined) {
       else next.delete(slotId);
       return next;
     });
+  };
+
+  const replaceAvailability = (slotIds: string[]) => {
+    if (state !== 'collecting') return;
+    localEditRef.current = true;
+    setSaved(false);
+    setSaveError(null);
+    const allowed = new Set(visibleSlots);
+    setAvailability(new Set(slotIds.filter(slotId => allowed.has(slotId))));
   };
 
   const submit = async () => {
@@ -164,14 +177,6 @@ export function usePublicInterviewLogic(token: string | undefined) {
     }
   };
 
-  const requestChange = async (reason: string) => {
-    if (!token || !access?.assignmentSummary || access.assignmentSummary.status === 'completed' || requestingChange) return false;
-    setRequestingChange(true);
-    try { await requestPublicInterviewChange(token, access, reason); return true; }
-    catch { setSaveError('변경 요청을 보내지 못했습니다. 잠시 후 다시 시도해주세요.'); return false; }
-    finally { setRequestingChange(false); }
-  };
-
   return {
     access,
     round,
@@ -180,11 +185,10 @@ export function usePublicInterviewLogic(token: string | undefined) {
     state,
     error: loadError ?? saveError,
     saving,
-    requestingChange,
     saved,
     toggleSlot,
+    replaceAvailability,
     submit,
-    requestChange,
     retryInitialization,
   };
 }

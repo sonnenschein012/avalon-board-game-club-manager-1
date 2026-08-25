@@ -11,11 +11,14 @@ import ApplicantFormModal from './ApplicantFormModal';
 import InterviewersPanel from './InterviewersPanel';
 import InterviewerDashboard from './InterviewerDashboard';
 import InterviewSchedulePanel from './InterviewSchedulePanel';
+import InterviewSchedulesOverview from './InterviewSchedulesOverview';
+import InterviewScheduleFormModal from './InterviewScheduleFormModal';
+import InterviewScheduleAssignmentModal from './InterviewScheduleAssignmentModal';
 import SelectionPanel from './SelectionPanel';
 import MemberRegistrationPanel from './MemberRegistrationPanel';
 import { useInterviewRoundLogic, type InterviewApplicantFilter } from '../hooks/useInterviewRoundLogic';
 import { parseSlotId } from '../domain/interviews/scheduling';
-import type { InterviewRoundDraft } from '../services/interviewsService';
+import type { InterviewRoundDraft, InterviewScheduleDraft } from '../services/interviewsService';
 import type { InterviewApplicantWithAccess } from '../types';
 import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interviews/applicantSort';
 import { getApplicantJourney } from '../domain/interviews/applicantJourney';
@@ -26,34 +29,9 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'overview', label: '개요' }, { id: 'applicants', label: '지원자' }, { id: 'schedule', label: '일정' }, { id: 'interviewers', label: '면접관 관리' }, { id: 'progress', label: '면접 진행' }, { id: 'selection', label: '선발' }, { id: 'member-registration', label: '부원 등록' }, { id: 'settings', label: '설정' },
 ];
 const FILTERS: Array<{ id: InterviewApplicantFilter; label: string }> = [
-  { id: 'all', label: '전체' }, { id: 'responded', label: '응답완료' }, { id: 'pending', label: '미응답' }, { id: 'assigned', label: '배정완료' }, { id: 'unassigned', label: '미배정' }, { id: 'availability-unsent', label: '조사 미발송' }, { id: 'availability-sent', label: '조사 발송' }, { id: 'availability-sent-pending', label: '조사 발송 후 미응답' }, { id: 'confirmation-unsent', label: '배정 후 확정 미발송' }, { id: 'confirmation-sent', label: '확정 발송' }, { id: 'withdrawn', label: '지원 철회' }, { id: 'archived', label: '보관됨' },
+  { id: 'all', label: '전체' }, { id: 'schedule-unassigned', label: '일정 미지정' }, { id: 'schedule-pending', label: '응답 대기' }, { id: 'assignment-pending', label: '시간 배정 대기' }, { id: 'assigned', label: '면접 예정' }, { id: 'completed', label: '면접 완료' }, { id: 'action-needed', label: '조치 필요' }, { id: 'responded', label: '응답완료' }, { id: 'pending', label: '미응답' }, { id: 'unassigned', label: '시간 미배정' }, { id: 'availability-unsent', label: '조사 미발송' }, { id: 'availability-sent', label: '조사 발송' }, { id: 'availability-sent-pending', label: '조사 발송 후 미응답' }, { id: 'confirmation-unsent', label: '배정 후 확정 미발송' }, { id: 'confirmation-sent', label: '확정 발송' }, { id: 'withdrawn', label: '지원 철회' }, { id: 'archived', label: '보관됨' },
 ];
-function getSurveyStatusLabel(opensAt: Date, closesAt: Date) {
-  const now = Date.now();
-  if (now < opensAt.getTime()) return '조사 시작 전';
-  if (now >= closesAt.getTime()) return '조사 마감';
-  return '응답 수집 중';
-}
-
 function formatSlot(slot: string) { const parsed = parseSlotId(slot); return parsed ? `${parsed.date} ${parsed.time}` : slot; }
-function formatDaySchedules(slots: string[], slotMinutes: number) {
-  const timesByDate = new Map<string, string[]>();
-  slots.forEach(slot => {
-    const parsed = parseSlotId(slot);
-    if (!parsed) return;
-    const times = timesByDate.get(parsed.date) ?? [];
-    times.push(parsed.time);
-    timesByDate.set(parsed.date, times);
-  });
-  return [...timesByDate.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([date, times]) => {
-    const sortedTimes = [...new Set(times)].sort();
-    const [endHourText, endMinuteText] = (sortedTimes.at(-1) ?? '00:00').split(':');
-    const endMinutes = Number(endHourText) * 60 + Number(endMinuteText) + slotMinutes;
-    const endTime = `${String(Math.floor(endMinutes / 60) % 24).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
-    const dateLabel = new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short' }).format(new Date(`${date}T00:00:00`));
-    return `${dateLabel} ${sortedTimes[0]}~${endTime}`;
-  }).join(' / ');
-}
 function formatAssignment(applicant: InterviewApplicantWithAccess) {
   if (!applicant.assignment) return '';
   return applicant.assignment.slotId
@@ -78,6 +56,12 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   const [sortKey, setSortKey] = useState<ApplicantSortKey>('applicantNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [exporting, setExporting] = useState(false);
+  const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set());
+  const [scheduleAssignmentOpen, setScheduleAssignmentOpen] = useState(false);
+  const [scheduleFormOpen, setScheduleFormOpen] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [pendingNewScheduleApplicantIds, setPendingNewScheduleApplicantIds] = useState<string[]>([]);
 
   const counts = useMemo(() => ({
     total: logic.applicants.filter(item => (item.lifecycle ?? 'active') === 'active' && (item.applicationStatus ?? 'active') === 'active').length,
@@ -90,6 +74,58 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   if (logic.loading) return <div className="flex justify-center py-24 text-slate-300"><Loader2 className="animate-spin" /></div>;
   if (!logic.round) return <div className="rounded-2xl bg-white p-12 text-center text-sm font-bold text-slate-500">면접 회차를 찾을 수 없습니다.</div>;
   const round = logic.round;
+  const activeSchedule = logic.activeSchedule;
+  const scheduleApplicants = activeSchedule ? logic.applicants.filter(applicant => applicant.scheduleId === activeSchedule.id) : [];
+  const scheduleViewRound: typeof round = activeSchedule ? { ...round, ...activeSchedule, id: round.id, status: activeSchedule.status === 'archived' ? 'closed' : activeSchedule.status, schemaVersion: round.schemaVersion, messageTemplates: round.messageTemplates, interviewQuestions: round.interviewQuestions } : round;
+  const selectedApplicants = logic.applicants.filter(applicant => selectedApplicantIds.has(applicant.id));
+  const toggleApplicantSelection = (applicantId: string, selected: boolean) => setSelectedApplicantIds(current => {
+    const next = new Set(current);
+    if (selected) next.add(applicantId); else next.delete(applicantId);
+    return next;
+  });
+  const openScheduleAssignment = (applicantIds: string[]) => {
+    setSelectedApplicantIds(new Set(applicantIds));
+    setScheduleAssignmentOpen(true);
+  };
+  const openNewScheduleForm = (applicantIds: string[] = []) => {
+    setPendingNewScheduleApplicantIds(applicantIds);
+    setEditingScheduleId(null);
+    setScheduleFormOpen(true);
+  };
+  const saveInterviewSchedule = async (draft: InterviewScheduleDraft) => {
+    if (scheduleSaving) return false;
+    setScheduleSaving(true);
+    try {
+      const editing = logic.schedules.find(schedule => schedule.id === editingScheduleId) ?? null;
+      if (editing) {
+        const impact = logic.previewInterviewScheduleImpact(editing, draft);
+        if (impact.affectedResponseCount > 0 || impact.affectedAssignmentCount > 0) {
+          const confirmed = window.confirm(`일정 변경 영향 미리보기\n\n응답 선택 정리 ${impact.affectedResponseCount}명 / ${impact.removedSelectionCount}개\n기존 면접 배정 해제 ${impact.affectedAssignmentCount}명\n\n확인을 누르면 설정 저장과 함께 무효 응답·배정을 정리합니다.`);
+          if (!confirmed) return false;
+        }
+      }
+      let saved: boolean;
+      if (editing) {
+        saved = await logic.editInterviewSchedule(editing, draft);
+      } else {
+        const scheduleId = await logic.addInterviewSchedule(draft);
+        saved = Boolean(scheduleId);
+        if (scheduleId && pendingNewScheduleApplicantIds.length > 0) {
+          const assigned = await logic.assignApplicantsToSchedule(scheduleId, pendingNewScheduleApplicantIds);
+          logic.setActiveScheduleId(scheduleId);
+          if (assigned) {
+            setSelectedApplicantIds(new Set());
+          }
+        }
+      }
+      if (saved) {
+        setScheduleFormOpen(false);
+        setEditingScheduleId(null);
+        setPendingNewScheduleApplicantIds([]);
+      }
+      return saved;
+    } finally { setScheduleSaving(false); }
+  };
 
   const exportApplicants = async () => {
     if (exporting) return;
@@ -140,13 +176,13 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     <div><Link to="/interviews" className="mb-2 inline-flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-navy"><ArrowLeft size={14} />면접 회차 목록</Link><PageHeader title={round.name} subtitle="Operations / Interview Round" icon={CalendarClock} stats={{ label: '지원자', value: counts.total }} actions={<div className="flex flex-wrap gap-2">{isAdminModeActive && <button type="button" onClick={() => void exportApplicants()} disabled={exporting} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-navy disabled:opacity-50">{exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}전체 내보내기</button>}<button onClick={() => { setEditingApplicantId(null); setApplicantFormOpen(true); }} className="flex items-center gap-2 rounded-xl border border-navy px-3 py-2.5 text-xs font-black text-navy"><UserPlus size={15} />개별 추가</button><button onClick={() => setImportOpen(true)} className="flex items-center gap-2 rounded-xl bg-navy px-3 py-2.5 text-xs font-black text-white hover:bg-gold"><FileUp size={15} />파일 병합</button></div>} /></div>
     <nav className="flex gap-1 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm">{TABS.map(item => <button key={item.id} onClick={() => setTab(item.id)} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold ${tab === item.id ? 'bg-navy text-white' : 'text-slate-400 hover:bg-slate-50 hover:text-navy'}`}>{item.label}</button>)}</nav>
 
-    {tab === 'overview' && <div className="grid gap-4 md:grid-cols-3"><Metric label="전체 지원자" value={counts.total} tone="navy" /><Metric label="응답 완료" value={counts.responded} tone="green" /><Metric label="면접 배정" value={counts.assigned} tone="gold" /><section className="rounded-3xl bg-white p-5 shadow-sm md:col-span-3"><h3 className="text-xs font-black text-navy">조사 운영 정보</h3><dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2"><Info label="조사 시작" value={round.surveyOpensAt.toDate().toLocaleString('ko-KR')} /><Info label="조사 마감" value={round.surveyClosesAt.toDate().toLocaleString('ko-KR')} /><Info label="날짜별 면접 시간" value={formatDaySchedules(round.allowedSlots, round.availabilitySlotMinutes)} /><Info label="응답/배정 단위" value={`${round.availabilitySlotMinutes}분 / ${round.assignmentSlotMinutes}분`} /><Info label="조사 상태" value={getSurveyStatusLabel(round.surveyOpensAt.toDate(), round.surveyClosesAt.toDate())} /></dl></section></div>}
+    {tab === 'overview' && <InterviewSchedulesOverview applicants={logic.applicants} schedules={logic.schedules} legacyApplicantCount={logic.applicants.filter(item => item.scheduleId === undefined).length} onAssignUnassigned={() => { setTab('applicants'); logic.setFilter('schedule-unassigned'); openScheduleAssignment(logic.applicants.filter(item => item.scheduleId === null && (item.lifecycle ?? 'active') === 'active' && (item.applicationStatus ?? 'active') === 'active').map(item => item.id)); }} onMigrateLegacy={() => { if (window.confirm('기존 지원자의 응답과 현재 배정을 그대로 보존한 “기존 면접 일정”을 만들고 가져올까요?')) void logic.migrateLegacyApplicants(); }} onOpenSchedule={scheduleId => { logic.setActiveScheduleId(scheduleId); setTab('schedule'); }} onCreateSchedule={() => openNewScheduleForm()} onEditSchedule={schedule => { setPendingNewScheduleApplicantIds([]); setEditingScheduleId(schedule.id); setScheduleFormOpen(true); }} onArchiveSchedule={schedule => { const completedCount = logic.applicants.filter(item => item.scheduleId === schedule.id).length; if (window.confirm(`${schedule.name} 일정을 보관할까요? 이 일정의 지원자 ${completedCount}명은 기록에 남고 개인 링크는 비활성화됩니다.`)) void logic.archiveSchedule(schedule); }} />}
 
-    {tab === 'applicants' && <section className="space-y-4"><div className="rounded-2xl bg-white p-4 shadow-sm"><div className="flex flex-col gap-2 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-300" size={16} /><input value={logic.search} onChange={event => logic.setSearch(event.target.value)} className="w-full rounded-xl border border-slate-100 py-2 pl-9 pr-3 text-sm" placeholder="이름, 번호, 연락처 검색" /></div><div className="flex gap-2"><select aria-label="지원자 정렬 기준" value={sortKey} onChange={event => setSortKey(event.target.value as ApplicantSortKey)} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy sm:w-48"><option value="applicantNumber">지원번호</option><option value="name">이름</option><option value="createdAt">등록 시각</option><option value="updatedAt">정보 수정 시각</option><option value="responseUpdatedAt">응답 수정 시각</option><option value="assignmentStartsAt">면접 시각</option>{applicationHeaders.map(header => <option key={header} value={`application:${header}`}>지원서 · {header}</option>)}</select><button aria-label={sortDirection === 'asc' ? '오름차순' : '내림차순'} title={sortDirection === 'asc' ? '오름차순' : '내림차순'} onClick={() => setSortDirection(current => current === 'asc' ? 'desc' : 'asc')} className="rounded-xl border border-slate-200 bg-white p-2.5 text-navy">{sortDirection === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowUpAZ size={16} />}</button></div></div><div className="mt-3 flex gap-2 overflow-x-auto">{FILTERS.map(item => <button key={item.id} onClick={() => logic.setFilter(item.id)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-bold ${logic.filter === item.id ? 'bg-navy text-white' : 'bg-slate-50 text-slate-500'}`}>{item.label}</button>)}</div></div><div className="space-y-2">{sortedApplicants.map(applicant => <ApplicantRow key={applicant.id} applicant={applicant} onOpen={() => setDetailApplicantId(applicant.id)} onEdit={() => { setEditingApplicantId(applicant.id); setApplicantFormOpen(true); }} onArchive={() => { const archived = (applicant.lifecycle ?? 'active') !== 'archived'; const warning = applicant.assignment ? '\n현재 면접 일정은 기록으로 유지되고 개인 링크가 비활성화됩니다.' : ''; if (window.confirm(`${applicant.name} 지원자를 ${archived ? '보관' : '복원'}할까요?${warning}`)) void logic.archiveApplicant(applicant, archived); }} onWithdraw={() => { const withdrawn = (applicant.applicationStatus ?? 'active') !== 'withdrawn'; const warning = withdrawn ? '\n개인 링크가 차단되고 현재 활성 배정은 이력으로 남긴 뒤 해제됩니다.' : '\n기존 배정은 자동 복원되지 않습니다.'; if (window.confirm(`${applicant.name} 지원자를 ${withdrawn ? '지원 철회' : '정상 상태로 복구'}할까요?${warning}`)) void logic.setApplicantWithdrawn(applicant.id, withdrawn); }} onReset={() => { if (window.confirm(`${applicant.name} 지원자의 최초 접속·가능시간·현재 배정을 초기화할까요? 지원서와 면접 기록은 보존됩니다.`)) void logic.resetApplicantSchedule(applicant.id); }} />)}</div></section>}
+    {tab === 'applicants' && <section className="space-y-4"><div className="rounded-2xl bg-white p-4 shadow-sm"><div className="flex flex-col gap-2 sm:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-slate-300" size={16} /><input value={logic.search} onChange={event => logic.setSearch(event.target.value)} className="w-full rounded-xl border border-slate-100 py-2 pl-9 pr-3 text-sm" placeholder="이름, 번호, 연락처 검색" /></div><div className="flex gap-2"><select aria-label="지원자 정렬 기준" value={sortKey} onChange={event => setSortKey(event.target.value as ApplicantSortKey)} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy sm:w-48"><option value="applicantNumber">지원번호</option><option value="name">이름</option><option value="createdAt">등록 시각</option><option value="updatedAt">정보 수정 시각</option><option value="responseUpdatedAt">응답 수정 시각</option><option value="assignmentStartsAt">면접 시각</option>{applicationHeaders.map(header => <option key={header} value={`application:${header}`}>지원서 · {header}</option>)}</select><button aria-label={sortDirection === 'asc' ? '오름차순' : '내림차순'} title={sortDirection === 'asc' ? '오름차순' : '내림차순'} onClick={() => setSortDirection(current => current === 'asc' ? 'desc' : 'asc')} className="rounded-xl border border-slate-200 bg-white p-2.5 text-navy">{sortDirection === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowUpAZ size={16} />}</button></div></div><div className="mt-3 flex gap-2 overflow-x-auto">{FILTERS.map(item => <button key={item.id} onClick={() => logic.setFilter(item.id)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-bold ${logic.filter === item.id ? 'bg-navy text-white' : 'bg-slate-50 text-slate-500'}`}>{item.label}</button>)}</div></div>{selectedApplicants.length > 0 && <div className="flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold"><strong className="font-black">{selectedApplicants.length}명</strong> 선택됨</p><button type="button" onClick={() => setScheduleAssignmentOpen(true)} className="rounded-xl bg-gold px-4 py-2 text-xs font-black text-navy">면접 일정 지정</button></div>}<div className="space-y-2">{sortedApplicants.map(applicant => <ApplicantRow key={applicant.id} applicant={applicant} selected={selectedApplicantIds.has(applicant.id)} onSelectionChange={selected => toggleApplicantSelection(applicant.id, selected)} onOpen={() => setDetailApplicantId(applicant.id)} onEdit={() => { setEditingApplicantId(applicant.id); setApplicantFormOpen(true); }} onArchive={() => { const archived = (applicant.lifecycle ?? 'active') !== 'archived'; const warning = applicant.assignment ? '\n현재 면접 일정은 기록으로 유지되고 개인 링크가 비활성화됩니다.' : ''; if (window.confirm(`${applicant.name} 지원자를 ${archived ? '보관' : '복원'}할까요?${warning}`)) void logic.archiveApplicant(applicant, archived); }} onWithdraw={() => { const withdrawn = (applicant.applicationStatus ?? 'active') !== 'withdrawn'; const warning = withdrawn ? '\n개인 링크가 차단되고 현재 활성 배정은 이력으로 남긴 뒤 해제됩니다.' : '\n기존 배정은 자동 복원되지 않습니다.'; if (window.confirm(`${applicant.name} 지원자를 ${withdrawn ? '지원 철회' : '정상 상태로 복구'}할까요?${warning}`)) void logic.setApplicantWithdrawn(applicant.id, withdrawn); }} onReset={() => { if (window.confirm(`${applicant.name} 지원자의 최초 접속·가능시간·현재 배정을 초기화할까요? 지원서와 면접 기록은 보존됩니다.`)) void logic.resetApplicantSchedule(applicant.id); }} />)}</div></section>}
 
-    {tab === 'interviewers' && <InterviewersPanel round={round} interviewers={logic.interviewers} applicants={logic.applicants} onAdd={logic.addInterviewer} onSaveAvailability={logic.saveInterviewerAvailability} onRemove={logic.removeInterviewer} />}
+    {tab === 'interviewers' && <section className="space-y-4"><div className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-black text-navy">면접관 관리</h2><p className="mt-1 text-xs text-slate-400">면접관 가능시간은 선택한 면접 일정별로 따로 관리합니다.</p></div><select aria-label="면접관 관리 일정" value={activeSchedule?.id ?? ''} onChange={event => logic.setActiveScheduleId(event.target.value || null)} className="min-w-56 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-navy"><option value="">기존 회차 공통 설정</option>{logic.schedules.filter(schedule => schedule.status !== 'archived').map(schedule => <option key={schedule.id} value={schedule.id}>{schedule.name}</option>)}</select></div><InterviewersPanel round={scheduleViewRound} interviewers={logic.activeInterviewers} applicants={activeSchedule ? scheduleApplicants : logic.applicants} onAdd={logic.addInterviewer} onSaveAvailability={logic.saveInterviewerAvailability} onRemove={logic.removeInterviewer} /></section>}
 
-    {tab === 'schedule' && <InterviewSchedulePanel round={round} applicants={logic.applicants} interviewers={logic.interviewers} changeRequests={logic.changeRequests} draft={logic.autoDraft} onDraftChange={logic.setAutoDraft} onRunApplicantAutoAssignment={applicantId => { logic.runAutoAssignment('applicant', applicantId); }} onApplyDraft={logic.applyAutoDraft} onAssign={logic.assignApplicant} onClearAssignment={logic.clearAssignment} onChangeAssignmentState={logic.changeAssignmentState} onResetSchedule={logic.resetApplicantSchedule} />}
+    {tab === 'schedule' && <section className="space-y-4"><div className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-black text-navy">면접 일정</h2><p className="mt-1 text-xs text-slate-400">선택한 일정 안에서 응답과 실제 면접 시간을 관리합니다.</p></div><div className="flex items-center gap-2"><select aria-label="현재 면접 일정" value={activeSchedule?.id ?? ''} onChange={event => logic.setActiveScheduleId(event.target.value || null)} className="min-w-56 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-navy"><option value="">면접 일정 선택</option>{logic.schedules.filter(schedule => schedule.status !== 'archived').map(schedule => <option key={schedule.id} value={schedule.id}>{schedule.name} · {schedule.interviewDates[0]?.slice(5).replace('-', '/')}~{schedule.interviewDates.at(-1)?.slice(5).replace('-', '/')}</option>)}</select><button type="button" onClick={() => openNewScheduleForm()} className="rounded-xl bg-navy px-3 py-2.5 text-xs font-black text-white">일정 추가</button></div></div>{activeSchedule ? <InterviewSchedulePanel round={scheduleViewRound} applicants={scheduleApplicants} interviewers={logic.activeInterviewers} changeRequests={logic.changeRequests.filter(request => request.scheduleId === activeSchedule.id)} draft={logic.autoDraft} onDraftChange={logic.setAutoDraft} onRunApplicantAutoAssignment={applicantId => { logic.runAutoAssignment('applicant', applicantId); }} onApplyDraft={logic.applyAutoDraft} onAssign={logic.assignApplicant} onClearAssignment={logic.clearAssignment} onChangeAssignmentState={logic.changeAssignmentState} onResetSchedule={logic.resetApplicantSchedule} /> : <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-4 py-16 text-center"><CalendarClock className="mx-auto text-slate-300" size={30} /><p className="mt-3 text-sm font-bold text-slate-500">관리할 면접 일정을 먼저 추가해주세요.</p><button type="button" onClick={() => openNewScheduleForm()} className="mt-4 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white">면접 일정 추가</button></div>}</section>}
 
     {tab === 'progress' && <InterviewerDashboard round={round} interviewers={logic.interviewers} applicants={logic.applicants} changeRequests={logic.changeRequests} onComplete={logic.completeApplicantInterview} onActionNeeded={logic.markActionNeeded} onRestoreScheduled={logic.restoreScheduled} onResetSchedule={logic.resetApplicantSchedule} onResolveRequest={logic.resolveChangeRequest} />}
 
@@ -163,15 +199,21 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     }} />
     <ApplicantDetailModal applicant={detailApplicant} round={round} onClose={() => setDetailApplicantId(null)} onMarkSent={(kind, markedSent) => detailApplicant ? logic.markSent(detailApplicant.id, kind, markedSent) : Promise.resolve()} />
     <InterviewRoundFormModal open={settingsOpen} round={round} onClose={() => setSettingsOpen(false)} onSave={applySettings} />
+    <InterviewScheduleAssignmentModal open={scheduleAssignmentOpen} applicantsCount={selectedApplicants.length} schedules={logic.schedules} onClose={() => setScheduleAssignmentOpen(false)} onCreateSchedule={() => { setScheduleAssignmentOpen(false); openNewScheduleForm(selectedApplicants.map(applicant => applicant.id)); }} onAssign={async scheduleId => {
+      if (!window.confirm(`${selectedApplicants.length}명의 지원자에게 선택한 면접 일정을 지정할까요? 기존 가능시간 응답 또는 현재 배정은 초기화되며 이력은 보존됩니다.`)) return false;
+      const assigned = await logic.assignApplicantsToSchedule(scheduleId, selectedApplicants.map(applicant => applicant.id));
+      if (assigned) { setSelectedApplicantIds(new Set()); logic.setActiveScheduleId(scheduleId); }
+      return assigned;
+    }} />
+    <InterviewScheduleFormModal open={scheduleFormOpen} round={round} schedules={logic.schedules} schedule={logic.schedules.find(schedule => schedule.id === editingScheduleId) ?? null} saving={scheduleSaving} onClose={() => { setScheduleFormOpen(false); setEditingScheduleId(null); setPendingNewScheduleApplicantIds([]); }} onSave={saveInterviewSchedule} />
   </div>;
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone: 'navy' | 'green' | 'gold' }) { const styles = tone === 'green' ? 'bg-emerald-50 text-emerald-700' : tone === 'gold' ? 'bg-amber-50 text-amber-700' : 'bg-white text-navy'; return <div className={`rounded-3xl p-5 shadow-sm ${styles}`}><p className="text-[10px] font-bold uppercase opacity-60">{label}</p><p className="mt-2 text-3xl font-black">{value}</p></div>; }
-function Info({ label, value }: { label: string; value: string }) { return <div><dt className="text-[10px] font-bold uppercase text-slate-400">{label}</dt><dd className="mt-1 font-bold text-slate-700">{value}</dd></div>; }
-function ApplicantRow({ applicant, onOpen, onEdit, onArchive, onWithdraw, onReset }: { applicant: InterviewApplicantWithAccess; onOpen: () => void; onEdit: () => void; onArchive: () => void; onWithdraw: () => void; onReset: () => void }) {
+function ApplicantRow({ applicant, selected, onSelectionChange, onOpen, onEdit, onArchive, onWithdraw, onReset }: { applicant: InterviewApplicantWithAccess; selected: boolean; onSelectionChange: (selected: boolean) => void; onOpen: () => void; onEdit: () => void; onArchive: () => void; onWithdraw: () => void; onReset: () => void }) {
   const withdrawn = (applicant.applicationStatus ?? 'active') === 'withdrawn';
   const journey = getApplicantJourney(applicant, applicant.assignment ? formatAssignment(applicant) : '');
   return <article className="flex w-full flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm transition hover:bg-indigo-50 xl:flex-row xl:items-center">
+    <label className="flex shrink-0 items-center gap-2 text-[10px] font-bold text-slate-400"><input type="checkbox" checked={selected} onChange={event => onSelectionChange(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-navy" /><span className="xl:sr-only">{applicant.name} 선택</span></label>
     <button type="button" onClick={onOpen} className="flex min-w-0 items-center gap-3 text-left xl:w-[210px] xl:shrink-0"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-navy"><Users size={16} /></span><span className="min-w-0"><span className="block truncate font-black text-navy">{applicant.name} <span className="text-xs font-normal text-slate-400">{applicant.applicantNumber}</span></span><span className="block text-[11px] text-slate-400">{applicant.phone}</span></span></button>
     <ApplicantJourney model={journey} />
     <div className="flex shrink-0 flex-wrap gap-2 xl:justify-end"><button type="button" onClick={onEdit} className="rounded-xl bg-slate-100 px-2.5 py-2 text-[10px] font-bold text-navy">수정</button><button type="button" onClick={onWithdraw} title={withdrawn ? '지원 철회 취소' : '지원 철회'} aria-label={withdrawn ? '지원 철회 취소' : '지원 철회'} className={`rounded-xl p-2.5 ${withdrawn ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}><UserMinus size={14} /></button><button type="button" disabled={withdrawn} onClick={onReset} title={withdrawn ? '철회 취소 후 일정 초기화 가능' : '일정 초기화'} aria-label={withdrawn ? '철회 취소 후 일정 초기화 가능' : '일정 초기화'} className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600 disabled:cursor-not-allowed disabled:opacity-35"><RotateCcw size={14} /></button><button type="button" onClick={onArchive} title={(applicant.lifecycle ?? 'active') === 'archived' ? '복원' : '보관'} aria-label={(applicant.lifecycle ?? 'active') === 'archived' ? '보관 복원' : '보관'} className="rounded-xl bg-amber-50 p-2.5 text-amber-700"><Archive size={14} /></button><button type="button" disabled={withdrawn} onClick={() => navigator.clipboard.writeText(applicant.link).then(() => toast.success('링크를 복사했습니다.')).catch(() => toast.error('링크를 복사하지 못했습니다.'))} title={withdrawn ? '지원 철회로 링크가 비활성화됨' : '개인 링크 복사'} aria-label={withdrawn ? '지원 철회로 링크가 비활성화됨' : '개인 링크 복사'} className="rounded-xl bg-slate-100 p-2.5 text-slate-500 disabled:opacity-35"><Copy size={14} /></button><button type="button" onClick={onOpen} className="flex items-center gap-1 rounded-xl bg-navy px-3 py-2 text-[11px] font-bold text-white"><MessageSquare size={14} />문자</button></div>

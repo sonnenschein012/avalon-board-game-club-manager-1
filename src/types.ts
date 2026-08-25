@@ -150,6 +150,50 @@ export interface InterviewPublicRound {
   updatedAt: Timestamp;
 }
 
+/** A concrete set of interview dates inside one recruitment round. */
+export interface InterviewSchedule {
+  id: string;
+  roundId: string;
+  name: string;
+  order: number;
+  status: InterviewRoundStatus | 'archived';
+  surveyOpensAt: Timestamp;
+  surveyClosesAt: Timestamp;
+  interviewDates: string[];
+  dayStartTime: string;
+  dayEndTime: string;
+  availabilitySlotMinutes: number;
+  assignmentSlotMinutes: number;
+  instructions: string;
+  allowedSlots: string[];
+  daySchedules: InterviewDaySchedule[];
+  timeZone: 'Asia/Seoul';
+  scheduleRevision: number;
+  schemaVersion: 1;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Public-safe copy of a concrete interview schedule. */
+export interface InterviewPublicSchedule {
+  id: string;
+  roundId: string;
+  surveyOpensAt: Timestamp;
+  surveyClosesAt: Timestamp;
+  interviewDates: string[];
+  dayStartTime: string;
+  dayEndTime: string;
+  availabilitySlotMinutes: number;
+  instructions: string;
+  allowedSlots: string[];
+  daySchedules: InterviewDaySchedule[];
+  timeZone: 'Asia/Seoul';
+  scheduleRevision: number;
+  active: boolean;
+  schemaVersion: 1;
+  updatedAt: Timestamp;
+}
+
 export interface InterviewApplicationField {
   header: string;
   value: string;
@@ -162,6 +206,8 @@ export interface InterviewMessageStatus {
 }
 
 export interface InterviewAssignment {
+  scheduleId?: string | null;
+  scheduleName?: string | null;
   slotId?: string;
   startsAt: Timestamp;
   durationMinutes: number;
@@ -200,6 +246,10 @@ export type InterviewSelectionStatus = 'pending' | 'selected' | 'rejected';
 export interface InterviewApplicant {
   id: string;
   roundId: string;
+  /** Null means that the applicant has not yet been put into an interview schedule. */
+  scheduleId?: string | null;
+  scheduleAssignedAt?: Timestamp | null;
+  scheduleAssignmentRevision?: number;
   applicantNumber: string;
   name: string;
   phone: string;
@@ -255,9 +305,15 @@ export interface InterviewRoundInterviewer {
   updatedAt: Timestamp;
 }
 
+/** Schedule-specific availability copied from the round interviewer roster. */
+export interface InterviewScheduleInterviewer extends InterviewRoundInterviewer {
+  scheduleId: string;
+}
+
 export interface InterviewChangeRequest {
   id: string;
   roundId: string;
+  scheduleId?: string | null;
   applicantId: string;
   applicantName: string;
   status: 'open' | 'resolved' | 'dismissed';
@@ -270,8 +326,11 @@ export interface InterviewChangeRequest {
 export interface InterviewAssignmentEvent {
   id: string;
   roundId: string;
+  scheduleId?: string | null;
+  scheduleName?: string | null;
   applicantId: string;
   type:
+    | 'schedule_assigned'
     | 'assigned'
     | 'changed'
     | 'unassigned'
@@ -334,6 +393,8 @@ export interface InterviewRecordEvent {
 export interface InterviewAccess {
   id: string;
   roundId: string;
+  scheduleId?: string | null;
+  scheduleAssignmentRevision?: number;
   applicantId: string;
   displayName: string;
   availability: string[];

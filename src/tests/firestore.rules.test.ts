@@ -12,7 +12,6 @@ import {
   setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from 'firebase/firestore';
 
 let testEnv: RulesTestEnvironment | undefined;
@@ -99,6 +98,40 @@ async function seedInterviewFixture(options: InterviewFixtureOptions = {}) {
   });
 
   return { roundId, token, applicantId };
+}
+
+async function seedScheduledInterviewFixture() {
+  if (!testEnv) throw new Error('testEnv not initialized');
+  const fixture = await seedInterviewFixture({ roundId: 'scheduled-round', token: 'scheduled-token', applicantId: 'scheduled-applicant' });
+  const scheduleId = 'schedule-1';
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'interviewSchedules', scheduleId), {
+      roundId: fixture.roundId,
+      name: '8월 4주 면접',
+      status: 'collecting',
+      order: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    await setDoc(doc(db, 'interviewPublicSchedules', scheduleId), {
+      roundId: fixture.roundId,
+      surveyOpensAt: new Date(Date.now() - 60 * 60 * 1000),
+      surveyClosesAt: new Date(Date.now() + 60 * 60 * 1000),
+      interviewDates: ['2026-08-25'],
+      dayStartTime: '18:00',
+      dayEndTime: '20:00',
+      availabilitySlotMinutes: 30,
+      instructions: '가능한 시간을 모두 선택해 주세요.',
+      allowedSlots: [ALLOWED_SLOT_A, ALLOWED_SLOT_B],
+      active: true,
+      schemaVersion: 1,
+      updatedAt: new Date(),
+    });
+    await updateDoc(doc(db, 'interviewApplicants', fixture.applicantId), { scheduleId });
+    await updateDoc(doc(db, 'interviewAccess', fixture.token), { scheduleId });
+  });
+  return { ...fixture, scheduleId };
 }
 
 describe('Firestore Security Rules', () => {
@@ -325,6 +358,22 @@ describe('Firestore Security Rules', () => {
     );
   });
 
+  it('일정에 지정된 공개 사용자는 자신의 public schedule만 읽고 그 슬롯에 응답할 수 있다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    const { token, scheduleId } = await seedScheduledInterviewFixture();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const accessRef = doc(publicDb, 'interviewAccess', token);
+
+    await assertSucceeds(getDoc(doc(publicDb, 'interviewPublicSchedules', scheduleId)));
+    await assertFails(getDocs(collection(publicDb, 'interviewPublicSchedules')));
+    await assertSucceeds(updateDoc(accessRef, {
+      availability: [ALLOWED_SLOT_A],
+      submittedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      responseUpdatedAt: serverTimestamp(),
+    }));
+  });
+
   it('공개 사용자는 token 문서를 생성하거나 삭제할 수 없다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     const { token } = await seedInterviewFixture();
@@ -547,12 +596,11 @@ describe('Firestore Security Rules', () => {
     }
   });
 
-  it('공개 사용자는 자신의 token으로 일정 변경 요청만 만들 수 있다', async () => {
+  it('공개 사용자는 일정 변경 요청을 만들거나 access 상태를 바꿀 수 없다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     const { token, roundId, applicantId } = await seedInterviewFixture();
     const publicDb = testEnv.unauthenticatedContext().firestore();
-    const batch = writeBatch(publicDb);
-    batch.set(doc(publicDb, 'interviewChangeRequests', token), {
+    await assertFails(setDoc(doc(publicDb, 'interviewChangeRequests', token), {
       roundId,
       applicantId,
       applicantName: '지원자',
@@ -561,25 +609,13 @@ describe('Firestore Security Rules', () => {
       requestedAt: serverTimestamp(),
       resolvedAt: null,
       resolvedBy: null,
-    });
-    batch.update(doc(publicDb, 'interviewAccess', token), { changeRequestStatus: 'open' });
-    await assertSucceeds(batch.commit());
-
-    await assertFails(setDoc(doc(publicDb, 'interviewChangeRequests', 'forged-token'), {
-      roundId,
-      applicantId,
-      applicantName: '지원자',
-      status: 'open',
-      reason: '위조 요청',
-      requestedAt: serverTimestamp(),
-      resolvedAt: null,
-      resolvedBy: null,
     }));
+    await assertFails(updateDoc(doc(publicDb, 'interviewAccess', token), { changeRequestStatus: 'open' }));
     await assertFails(updateDoc(doc(publicDb, 'interviewAccess', token), { assignmentSummary: null }));
   });
-  it('면접 완료 후에는 공개 링크로 응답이나 일정 변경 요청을 만들 수 없다', async () => {
+  it('면접 완료 후에는 공개 링크로 응답을 수정할 수 없다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
-    const { token, roundId, applicantId } = await seedInterviewFixture();
+    const { token } = await seedInterviewFixture();
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await updateDoc(doc(context.firestore(), 'interviewAccess', token), {
         assignmentSummary: { slotId: ALLOWED_SLOT_A, interviewerName: '면접관', status: 'completed' },
@@ -593,20 +629,6 @@ describe('Firestore Security Rules', () => {
       updatedAt: serverTimestamp(),
       responseUpdatedAt: serverTimestamp(),
     }));
-
-    const batch = writeBatch(publicDb);
-    batch.set(doc(publicDb, 'interviewChangeRequests', token), {
-      roundId,
-      applicantId,
-      applicantName: '지원자',
-      status: 'open',
-      reason: '완료 후 요청',
-      requestedAt: serverTimestamp(),
-      resolvedAt: null,
-      resolvedBy: null,
-    });
-    batch.update(doc(publicDb, 'interviewAccess', token), { changeRequestStatus: 'open' });
-    await assertFails(batch.commit());
   });
 
 });

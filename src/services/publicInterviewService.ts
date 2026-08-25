@@ -1,12 +1,11 @@
-import { doc, onSnapshot, runTransaction, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { InterviewAccess, InterviewPublicRound } from '../types';
+import { InterviewAccess, InterviewPublicRound, InterviewPublicSchedule } from '../types';
 
 export interface PublicInterviewSnapshot {
   access: InterviewAccess | null;
-  round: InterviewPublicRound | null;
+  round: InterviewPublicRound | InterviewPublicSchedule | null;
 }
-
 export async function initializePublicInterviewAccess(token: string): Promise<void> {
   const accessRef = doc(db, 'interviewAccess', token);
   await runTransaction(db, async transaction => {
@@ -50,19 +49,28 @@ export function subscribeToPublicInterview(
         onValue({ access, round: null });
         return;
       }
+      // New applicants explicitly have no schedule yet. Do not fetch the
+      // legacy round document; the public UI can show its waiting state from
+      // the access record alone.
+      if (access.scheduleId === null) {
+        onValue({ access, round: null });
+        return;
+      }
 
+      const publicCollection = access.scheduleId ? 'interviewPublicSchedules' : 'interviewPublicRounds';
+      const publicDocumentId = access.scheduleId ?? access.roundId;
       roundUnsubscribe = onSnapshot(
-        doc(db, 'interviewPublicRounds', access.roundId),
+        doc(db, publicCollection, publicDocumentId),
         (roundSnapshot) => {
           const latestAccess = currentAccess;
           if (!latestAccess) return;
           const round = roundSnapshot.exists()
-            ? ({ id: roundSnapshot.id, ...roundSnapshot.data() } as InterviewPublicRound)
+            ? ({ id: roundSnapshot.id, ...roundSnapshot.data() } as InterviewPublicRound | InterviewPublicSchedule)
             : null;
           onValue({ access: latestAccess, round });
         },
         (error) => {
-          handleFirestoreError(error, OperationType.GET, `interviewPublicRounds/${access.roundId}`);
+          handleFirestoreError(error, OperationType.GET, `${publicCollection}/${publicDocumentId}`);
           onError(error);
         },
       );
@@ -100,23 +108,4 @@ export async function savePublicAvailability(token: string, availability: string
     handleFirestoreError(error, OperationType.UPDATE, 'interviewAccess/[redacted]');
     throw error;
   }
-}
-
-export async function requestPublicInterviewChange(token: string, access: InterviewAccess, reason: string) {
-  if (access.assignmentSummary?.status === 'completed') {
-    throw new Error('완료된 면접에는 일정 변경을 요청할 수 없습니다.');
-  }
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'interviewChangeRequests', token), {
-    roundId: access.roundId,
-    applicantId: access.applicantId,
-    applicantName: access.displayName,
-    status: 'open',
-    reason: reason.trim().slice(0, 500),
-    requestedAt: serverTimestamp(),
-    resolvedAt: null,
-    resolvedBy: null,
-  });
-  batch.update(doc(db, 'interviewAccess', token), { changeRequestStatus: 'open' });
-  await batch.commit();
 }

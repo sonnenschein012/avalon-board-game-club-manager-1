@@ -10,6 +10,7 @@ import type {
   InterviewQuestion,
   InterviewRecordEvent,
   InterviewRound,
+  InterviewSchedule,
   InterviewRoundStatus,
 } from '../../types';
 
@@ -30,6 +31,21 @@ export interface InterviewRoundDraft {
   allowedSlots: string[];
   daySchedules: InterviewDaySchedule[];
   interviewQuestions: InterviewQuestion[];
+}
+
+export interface InterviewScheduleDraft {
+  name: string;
+  surveyOpensAt: Date;
+  surveyClosesAt: Date;
+  interviewDates: string[];
+  dayStartTime: string;
+  dayEndTime: string;
+  availabilitySlotMinutes: number;
+  assignmentSlotMinutes: number;
+  status: Exclude<InterviewSchedule['status'], 'archived'>;
+  instructions: string;
+  allowedSlots: string[];
+  daySchedules: InterviewDaySchedule[];
 }
 
 export interface ApplicantImportRow {

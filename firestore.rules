@@ -39,7 +39,16 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
     }
 
-    function isSurveyWindowOpen(roundId) {
+    function publicScheduleExists(scheduleId) {
+      return scheduleId is string &&
+        exists(/databases/$(database)/documents/interviewPublicSchedules/$(scheduleId));
+    }
+
+    function accessScheduleId(access) {
+      return ('scheduleId' in access && access.scheduleId is string) ? access.scheduleId : null;
+    }
+
+    function isLegacySurveyWindowOpen(roundId) {
       let round = get(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
       return publicRoundExists(roundId) &&
         round.data.active == true &&
@@ -49,14 +58,42 @@ service cloud.firestore {
         request.time < round.data.surveyClosesAt;
     }
 
-    function hasValidAvailability(roundId) {
+    function isScheduleSurveyWindowOpen(scheduleId) {
+      let schedule = get(/databases/$(database)/documents/interviewPublicSchedules/$(scheduleId));
+      return publicScheduleExists(scheduleId) &&
+        schedule.data.active == true &&
+        schedule.data.surveyOpensAt is timestamp &&
+        schedule.data.surveyClosesAt is timestamp &&
+        request.time >= schedule.data.surveyOpensAt &&
+        request.time < schedule.data.surveyClosesAt;
+    }
+
+    function isSurveyWindowOpen(roundId, scheduleId) {
+      return (scheduleId is string && isScheduleSurveyWindowOpen(scheduleId)) ||
+        (scheduleId == null && isLegacySurveyWindowOpen(roundId));
+    }
+
+    function hasLegacyAvailability(roundId, availability) {
       let round = get(/databases/$(database)/documents/interviewPublicRounds/$(roundId));
+      return publicRoundExists(roundId) &&
+        round.data.allowedSlots is list &&
+        availability.toSet().hasOnly(round.data.allowedSlots);
+    }
+
+    function hasScheduleAvailability(scheduleId, availability) {
+      let schedule = get(/databases/$(database)/documents/interviewPublicSchedules/$(scheduleId));
+      return publicScheduleExists(scheduleId) &&
+        schedule.data.allowedSlots is list &&
+        availability.toSet().hasOnly(schedule.data.allowedSlots);
+    }
+
+    function hasValidAvailability(roundId, scheduleId) {
       let availability = request.resource.data.availability;
       return availability is list &&
-        round.data.allowedSlots is list &&
         resource.data.firstAccessedAt is timestamp &&
         availability.size() == availability.toSet().size() &&
-        availability.toSet().hasOnly(round.data.allowedSlots);
+        ((scheduleId is string && hasScheduleAvailability(scheduleId, availability)) ||
+          (scheduleId == null && hasLegacyAvailability(roundId, availability)));
     }
 
     // Spark 요금제 호환 정책: 최초 접속 시각은 Firestore 서버 시각으로
@@ -70,7 +107,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['firstAccessedAt']) &&
         request.resource.data.firstAccessedAt is timestamp &&
         request.resource.data.firstAccessedAt == request.time &&
-        isSurveyWindowOpen(resource.data.roundId);
+        isSurveyWindowOpen(resource.data.roundId, accessScheduleId(resource.data));
     }
 
     function hasValidSubmissionTimestamps() {
@@ -90,43 +127,11 @@ service cloud.firestore {
         (!('assignmentSummary' in resource.data) || resource.data.assignmentSummary == null || resource.data.assignmentSummary.status != 'completed') &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['availability', 'submittedAt', 'updatedAt', 'responseUpdatedAt']) &&
-        isSurveyWindowOpen(resource.data.roundId) &&
-        hasValidAvailability(resource.data.roundId) &&
+        isSurveyWindowOpen(resource.data.roundId, accessScheduleId(resource.data)) &&
+        hasValidAvailability(resource.data.roundId, accessScheduleId(resource.data)) &&
         request.resource.data.responseUpdatedAt is timestamp &&
         request.resource.data.responseUpdatedAt == request.time &&
         hasValidSubmissionTimestamps();
-    }
-
-    function isValidPublicChangeRequestAccessUpdate(token) {
-      return resource.data.active == true &&
-        (!('assignmentSummary' in resource.data) || resource.data.assignmentSummary == null || resource.data.assignmentSummary.status != 'completed') &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['changeRequestStatus']) &&
-        request.resource.data.changeRequestStatus == 'open' &&
-        getAfter(/databases/$(database)/documents/interviewChangeRequests/$(token)).data.status == 'open';
-    }
-
-    function isValidPublicChangeRequest(token) {
-      let access = get(/databases/$(database)/documents/interviewAccess/$(token));
-      return exists(/databases/$(database)/documents/interviewAccess/$(token)) &&
-        access.data.active == true &&
-        (!('assignmentSummary' in access.data) || access.data.assignmentSummary == null || access.data.assignmentSummary.status != 'completed') &&
-        request.resource.data.keys().hasOnly([
-          'roundId', 'applicantId', 'applicantName', 'status', 'reason',
-          'requestedAt', 'resolvedAt', 'resolvedBy'
-        ]) &&
-        request.resource.data.keys().hasAll([
-          'roundId', 'applicantId', 'applicantName', 'status', 'reason',
-          'requestedAt', 'resolvedAt', 'resolvedBy'
-        ]) &&
-        request.resource.data.roundId == access.data.roundId &&
-        request.resource.data.applicantId == access.data.applicantId &&
-        request.resource.data.applicantName == access.data.displayName &&
-        request.resource.data.status == 'open' &&
-        request.resource.data.reason is string &&
-        request.resource.data.reason.size() <= 500 &&
-        request.resource.data.requestedAt == request.time &&
-        request.resource.data.resolvedAt == null &&
-        request.resource.data.resolvedBy == null;
     }
 
     // Internal club operations are available only to registered operators.
@@ -190,6 +195,10 @@ service cloud.firestore {
       allow read, write: if canManageInterviews();
     }
 
+    match /interviewSchedules/{scheduleId} {
+      allow read, write: if canManageInterviews();
+    }
+
     match /interviewApplicants/{applicantId} {
       allow read, write: if canManageInterviews();
     }
@@ -210,6 +219,10 @@ service cloud.firestore {
       allow read, write: if canManageInterviews();
     }
 
+    match /interviewScheduleInterviewers/{participantId} {
+      allow read, write: if canManageInterviews();
+    }
+
     match /interviewAssignmentEvents/{eventId} {
       allow read, create: if canManageInterviews();
     }
@@ -227,13 +240,18 @@ service cloud.firestore {
     }
 
     match /interviewChangeRequests/{token} {
-      allow read, delete: if canManageInterviews();
-      allow create, update: if canManageInterviews() || isValidPublicChangeRequest(token);
+      allow read, write: if canManageInterviews();
     }
 
     // A public round can be fetched only by its exact document path while it is
     // active. Collection enumeration and all writes remain admin-only.
     match /interviewPublicRounds/{roundId} {
+      allow get: if canManageInterviews() || resource.data.active == true;
+      allow list: if canManageInterviews();
+      allow create, update, delete: if canManageInterviews();
+    }
+
+    match /interviewPublicSchedules/{scheduleId} {
       allow get: if canManageInterviews() || resource.data.active == true;
       allow list: if canManageInterviews();
       allow create, update, delete: if canManageInterviews();
@@ -250,7 +268,7 @@ service cloud.firestore {
         resource.data.active == true;
       allow list: if canManageInterviews();
       allow create, delete: if canManageInterviews();
-      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate() || isValidPublicChangeRequestAccessUpdate(token);
+      allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate();
     }
 
     // 6. Default deny for all other paths

@@ -52,4 +52,13 @@ describe('getPublicInterviewState', () => {
       now,
     )).toBe('completed');
   });
+
+  it('아직 면접 일정에 지정되지 않은 새 지원자의 링크는 입력을 열지 않는다', () => {
+    const unassignedAccess = { ...access(), scheduleId: null } as InterviewAccess;
+    expect(getPublicInterviewState(
+      unassignedAccess,
+      round('collecting', new Date('2026-08-13T05:00:00.000Z'), new Date('2026-09-13T06:00:00.000Z')),
+      now,
+    )).toBe('unassigned');
+  });
 });

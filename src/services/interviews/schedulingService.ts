@@ -20,6 +20,8 @@ import type {
   InterviewProgressStatus,
   InterviewRound,
   InterviewRoundInterviewer,
+  InterviewSchedule,
+  InterviewScheduleInterviewer,
 } from '../../types';
 import type { AssignmentProposalWrite, InterviewRoundDraft } from './models';
 import {
@@ -49,32 +51,39 @@ export async function saveInterviewAssignment(
     const currentAssignment = applicant.assignment;
     const previousRevision = currentAssignmentRevision(applicant);
     const nextRevision = previousRevision + 1;
+    const scheduleId = applicant.scheduleId ?? null;
     const nextAssignment = assignment
-      ? { ...assignment, status: 'scheduled' as const, confirmationRevision: nextRevision }
+      ? { ...assignment, scheduleId, status: 'scheduled' as const, confirmationRevision: nextRevision }
       : null;
 
     let nextLockRef: DocumentReference | null = null;
     if (nextAssignment) {
       nextLockRef = doc(db, 'interviewAssignmentLocks', getAssignmentLockId(applicant.roundId, nextAssignment));
-      const [lockSnapshot, roundSnapshot, accessSnapshot, participantSnapshot] = await Promise.all([
+      const configRef = scheduleId
+        ? doc(db, 'interviewSchedules', scheduleId)
+        : doc(db, 'interviewRounds', applicant.roundId);
+      const participantRef = scheduleId
+        ? doc(db, 'interviewScheduleInterviewers', `${scheduleId}__${nextAssignment.interviewerId}`)
+        : doc(db, 'interviewRoundInterviewers', `${applicant.roundId}__${nextAssignment.interviewerId}`);
+      const [lockSnapshot, configSnapshot, accessSnapshot, participantSnapshot] = await Promise.all([
         transaction.get(nextLockRef),
-        transaction.get(doc(db, 'interviewRounds', applicant.roundId)),
+        transaction.get(configRef),
         transaction.get(doc(db, 'interviewAccess', applicant.accessToken)),
-        transaction.get(doc(db, 'interviewRoundInterviewers', `${applicant.roundId}__${nextAssignment.interviewerId}`)),
+        transaction.get(participantRef),
       ]);
       if (lockSnapshot.exists() && lockSnapshot.data().applicantId !== applicantId) {
         throw new Error('같은 면접관에게 이미 배정된 시간입니다.');
       }
-      if (!roundSnapshot.exists() || !accessSnapshot.exists() || !participantSnapshot.exists()) throw new Error('최신 면접 가능시간 정보를 찾을 수 없습니다.');
-      const round = roundSnapshot.data() as InterviewRound;
+      if (!configSnapshot.exists() || !accessSnapshot.exists() || !participantSnapshot.exists()) throw new Error('최신 면접 가능시간 정보를 찾을 수 없습니다.');
+      const scheduleConfig = configSnapshot.data() as InterviewRound | InterviewSchedule;
       const access = accessSnapshot.data() as InterviewAccess;
-      const participant = participantSnapshot.data() as InterviewRoundInterviewer;
-      const applicantCandidates = availabilityToAssignmentCandidates(access.availability, round.availabilitySlotMinutes, round.assignmentSlotMinutes);
-      const interviewerCandidates = availabilityToAssignmentCandidates(participant.availability, round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+      const participant = participantSnapshot.data() as InterviewRoundInterviewer | InterviewScheduleInterviewer;
+      const applicantCandidates = availabilityToAssignmentCandidates(access.availability, scheduleConfig.availabilitySlotMinutes, scheduleConfig.assignmentSlotMinutes);
+      const interviewerCandidates = availabilityToAssignmentCandidates(participant.availability, scheduleConfig.availabilitySlotMinutes, scheduleConfig.assignmentSlotMinutes);
       if (!participant.active || !nextAssignment.slotId || !applicantCandidates.includes(nextAssignment.slotId) || !interviewerCandidates.includes(nextAssignment.slotId)) {
         throw new Error('지원자와 면접관의 최신 가능시간이 겹치지 않습니다.');
       }
-      if (nextAssignment.durationMinutes !== round.assignmentSlotMinutes) throw new Error('현재 회차의 면접 배정 단위와 다릅니다.');
+      if (nextAssignment.durationMinutes !== scheduleConfig.assignmentSlotMinutes) throw new Error('현재 면접 일정의 배정 단위와 다릅니다.');
     }
 
     if (currentAssignment?.slotId) {
@@ -84,6 +93,7 @@ export async function saveInterviewAssignment(
     if (nextLockRef && nextAssignment) {
       transaction.set(nextLockRef, {
         roundId: applicant.roundId,
+        scheduleId,
         applicantId,
         interviewerId: nextAssignment.interviewerId,
         slotId: nextAssignment.slotId,
@@ -110,6 +120,8 @@ export async function saveInterviewAssignment(
     const eventRef = doc(collection(db, 'interviewAssignmentEvents'));
     transaction.set(eventRef, {
       roundId: applicant.roundId,
+      scheduleId,
+      scheduleName: nextAssignment?.scheduleName ?? currentAssignment?.scheduleName ?? null,
       applicantId,
       type: !currentAssignment && nextAssignment ? 'assigned' : currentAssignment && !nextAssignment ? 'unassigned' : 'changed',
       previousAssignment: currentAssignment ?? null,
@@ -125,6 +137,7 @@ export async function saveInterviewAssignment(
 export async function applyInterviewAssignmentProposals(
   roundId: string,
   proposals: AssignmentProposalWrite[],
+  scheduleId: string | null = null,
 ): Promise<number> {
   const resourceKeys = proposals.map(proposal => `${proposal.interviewerId}|${proposal.slotId}`);
   if (new Set(resourceKeys).size !== resourceKeys.length) throw new Error('초안 안에 면접관 시간 충돌이 있습니다.');
@@ -132,17 +145,19 @@ export async function applyInterviewAssignmentProposals(
   await runTransaction(db, async transaction => {
     const applicantRefs = proposals.map(proposal => doc(db, 'interviewApplicants', proposal.applicantId));
     const applicantSnapshots = await Promise.all(applicantRefs.map(ref => transaction.get(ref)));
-    const roundSnapshot = await transaction.get(doc(db, 'interviewRounds', roundId));
-    if (!roundSnapshot.exists()) throw new Error('면접 회차를 찾을 수 없습니다.');
-    const round = roundSnapshot.data() as InterviewRound;
+    const configRef = scheduleId ? doc(db, 'interviewSchedules', scheduleId) : doc(db, 'interviewRounds', roundId);
+    const configSnapshot = await transaction.get(configRef);
+    if (!configSnapshot.exists()) throw new Error(scheduleId ? '면접 일정을 찾을 수 없습니다.' : '면접 회차를 찾을 수 없습니다.');
+    const scheduleConfig = configSnapshot.data() as InterviewRound | InterviewSchedule;
     const accessSnapshots = await Promise.all(applicantSnapshots.map(snapshot => {
       const applicant = snapshot.data() as InterviewApplicant | undefined;
       return applicant?.accessToken ? transaction.get(doc(db, 'interviewAccess', applicant.accessToken)) : Promise.resolve(null);
     }));
     const participantIds = [...new Set(proposals.map(proposal => proposal.interviewerId))];
-    const participantSnapshots = await Promise.all(participantIds.map(interviewerId => transaction.get(doc(db, 'interviewRoundInterviewers', `${roundId}__${interviewerId}`))));
+    const participantCollection = scheduleId ? 'interviewScheduleInterviewers' : 'interviewRoundInterviewers';
+    const participantSnapshots = await Promise.all(participantIds.map(interviewerId => transaction.get(doc(db, participantCollection, `${scheduleId ?? roundId}__${interviewerId}`))));
     const participantByInterviewer = new Map(participantSnapshots.filter(snapshot => snapshot.exists()).map(snapshot => {
-      const data = snapshot.data() as InterviewRoundInterviewer;
+      const data = snapshot.data() as InterviewRoundInterviewer | InterviewScheduleInterviewer;
       return [data.interviewerId, data] as const;
     }));
     const nextLockRefs = proposals.map(proposal => doc(db, 'interviewAssignmentLocks', getAssignmentLockId(roundId, proposal)));
@@ -172,6 +187,7 @@ export async function applyInterviewAssignmentProposals(
       if (!applicantSnapshot?.exists()) throw new Error('지원자를 찾을 수 없습니다.');
       const applicant = applicantSnapshot.data() as InterviewApplicant;
       if (applicant.roundId !== roundId) throw new Error('다른 회차의 지원자가 포함되어 있습니다.');
+      if ((applicant.scheduleId ?? null) !== scheduleId) throw new Error(`${applicant.name} 지원자가 현재 면접 일정에 속하지 않습니다.`);
       if (!isActiveApplicant(applicant)) throw new Error(`${applicant.name} 지원자는 지원 철회 또는 보관 상태입니다.`);
       const current = applicant.assignment;
       const previousRevision = currentAssignmentRevision(applicant);
@@ -191,12 +207,12 @@ export async function applyInterviewAssignmentProposals(
         throw new Error(`${applicant.name} 지원자는 일정 변경 요청을 처리한 뒤 자동 배정할 수 있습니다.`);
       }
       const participant = participantByInterviewer.get(proposal.interviewerId);
-      const applicantCandidates = availabilityToAssignmentCandidates(access?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes);
-      const interviewerCandidates = availabilityToAssignmentCandidates(participant?.availability ?? [], round.availabilitySlotMinutes, round.assignmentSlotMinutes);
+      const applicantCandidates = availabilityToAssignmentCandidates(access?.availability ?? [], scheduleConfig.availabilitySlotMinutes, scheduleConfig.assignmentSlotMinutes);
+      const interviewerCandidates = availabilityToAssignmentCandidates(participant?.availability ?? [], scheduleConfig.availabilitySlotMinutes, scheduleConfig.assignmentSlotMinutes);
       if (!participant?.active || !applicantCandidates.includes(proposal.slotId) || !interviewerCandidates.includes(proposal.slotId)) {
         throw new Error(`${applicant.name} 지원자의 초안 후보가 최신 가능시간과 다릅니다. 자동 배정을 다시 실행해주세요.`);
       }
-      if (proposal.durationMinutes !== round.assignmentSlotMinutes) throw new Error('면접 배정 단위가 변경되었습니다. 자동 배정을 다시 실행해주세요.');
+      if (proposal.durationMinutes !== scheduleConfig.assignmentSlotMinutes) throw new Error('면접 배정 단위가 변경되었습니다. 자동 배정을 다시 실행해주세요.');
       if (current?.locked && (current.slotId !== proposal.slotId || current.interviewerId !== proposal.interviewerId)) {
         throw new Error(`${applicant.name} 지원자의 잠긴 배정이 변경되었습니다.`);
       }
@@ -208,6 +224,8 @@ export async function applyInterviewAssignmentProposals(
       }
       const revision = previousRevision + 1;
       const next: InterviewAssignment = {
+        scheduleId,
+        scheduleName: scheduleId && 'name' in scheduleConfig ? scheduleConfig.name : null,
         slotId: proposal.slotId,
         startsAt: proposal.startsAt,
         durationMinutes: proposal.durationMinutes,
@@ -220,6 +238,7 @@ export async function applyInterviewAssignmentProposals(
       };
       transaction.set(nextLockRefs[index]!, {
         roundId,
+        scheduleId,
         applicantId: proposal.applicantId,
         interviewerId: proposal.interviewerId,
         slotId: proposal.slotId,
@@ -240,6 +259,8 @@ export async function applyInterviewAssignmentProposals(
       });
       transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
         roundId,
+        scheduleId,
+        scheduleName: next.scheduleName ?? null,
         applicantId: proposal.applicantId,
         type: current ? 'changed' : 'assigned',
         previousAssignment: current ?? null,
@@ -528,5 +549,3 @@ export async function setInterviewApplicantWithdrawn(applicantId: string, withdr
     }
   });
 }
-
-
