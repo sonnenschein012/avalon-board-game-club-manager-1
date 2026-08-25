@@ -1,9 +1,9 @@
 {
-  "projectId": "avalon-manager-stg-260813",
-  "appId": "1:979096517990:web:e37d65122323d918c05ca7",
-  "apiKey": "AIzaSyBaJsyJgVrmhjmzcPXyjn3_iWFDeuYvgfM",
-  "authDomain": "avalon-manager-stg-260813.firebaseapp.com",
+  "projectId": "avalon-manager-staging",
+  "appId": "1:547997059939:web:aaa02a4fe8524677bca156",
+  "apiKey": "AIzaSyDD__TEgn5GTncyROLtZGPOo6UuwWFkotM",
+  "authDomain": "avalon-manager-staging.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "avalon-manager-stg-260813.firebasestorage.app",
-  "messagingSenderId": "979096517990"
+  "storageBucket": "avalon-manager-staging.firebasestorage.app",
+  "messagingSenderId": "547997059939"
 }
