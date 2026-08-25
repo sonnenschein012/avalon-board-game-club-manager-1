@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
@@ -32,18 +33,19 @@ export async function addRoundInterviewer(
   const profileRef = doc(collection(db, 'interviewerProfiles'));
   const participantRef = doc(db, 'interviewRoundInterviewers', `${roundId}__${profileRef.id}`);
   const normalizedEmail = draft.email?.trim().toLowerCase() || null;
+  const normalizedPhone = draft.phone?.trim() || null;
   const batch = writeBatch(db);
-  const profile: Omit<InterviewerProfile, 'id' | 'createdAt' | 'updatedAt'> = { name: draft.name.trim(), email: normalizedEmail, active: true };
+  const profile: Omit<InterviewerProfile, 'id' | 'createdAt' | 'updatedAt'> = { name: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, active: true };
   batch.set(profileRef, { ...profile, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   batch.set(participantRef, {
-    roundId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, availability: [], active: true,
+    roundId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, availability: [], active: true,
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
   if (scheduleId) {
     // Existing schedules own a separate availability roster. Add the new
     // interviewer to the currently managed one with an empty availability.
     batch.set(doc(db, 'interviewScheduleInterviewers', `${scheduleId}__${profileRef.id}`), {
-      roundId, scheduleId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, availability: [], active: true,
+      roundId, scheduleId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, availability: [], active: true,
       createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
   }
@@ -57,6 +59,17 @@ export async function updateRoundInterviewerAvailability(participantId: string, 
 
 export async function updateScheduleInterviewerAvailability(participantId: string, availability: string[]): Promise<void> {
   await updateDoc(doc(db, 'interviewScheduleInterviewers', participantId), { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+}
+
+export async function updateInterviewerPhone(participant: InterviewRoundInterviewer, phone: string): Promise<void> {
+  const normalizedPhone = phone.trim() || null;
+  const scheduleParticipants = await getDocs(query(collection(db, 'interviewScheduleInterviewers'), where('interviewerId', '==', participant.interviewerId)));
+  if (scheduleParticipants.size > 490) throw new Error('연락처를 한 번에 반영할 수 있는 일정 수를 초과했습니다.');
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewerProfiles', participant.interviewerId), { phone: normalizedPhone, updatedAt: serverTimestamp() });
+  batch.update(doc(db, 'interviewRoundInterviewers', `${participant.roundId}__${participant.interviewerId}`), { phone: normalizedPhone, updatedAt: serverTimestamp() });
+  scheduleParticipants.docs.forEach(snapshot => batch.update(snapshot.ref, { phone: normalizedPhone, updatedAt: serverTimestamp() }));
+  await batch.commit();
 }
 
 export async function removeRoundInterviewer(participant: InterviewRoundInterviewer): Promise<void> {

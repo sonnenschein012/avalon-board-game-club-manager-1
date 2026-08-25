@@ -184,8 +184,11 @@ export async function restoreScheduledInterview(applicantId: string): Promise<vo
 }
 
 export async function completeInterviewAtomically(input: CompleteInterviewInput): Promise<void> {
-  const applicantRef = doc(db, 'interviewApplicants', input.applicantId);
-  const noteRef = doc(db, 'interviewNotes', `${input.roundId}__${input.applicantId}`);
+  const applicantId = input.applicantId?.trim();
+  const roundId = input.roundId?.trim();
+  if (!applicantId || !roundId) throw new Error('지원자 정보를 확인하지 못했습니다. 화면을 새로고침한 뒤 다시 시도해주세요.');
+  const applicantRef = doc(db, 'interviewApplicants', applicantId);
+  const noteRef = doc(db, 'interviewNotes', `${roundId}__${applicantId}`);
   await runTransaction(db, async transaction => {
     const [applicantSnapshot, noteSnapshot] = await Promise.all([
       transaction.get(applicantRef),
@@ -194,11 +197,11 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
     if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = applicantSnapshot.data() as InterviewApplicant;
     const existingNote = noteSnapshot.data() as InterviewNote | undefined;
-    const completion = prepareInterviewCompletion(applicant, existingNote ?? null, input);
+    const completion = prepareInterviewCompletion(applicant, existingNote ?? null, { ...input, roundId });
 
     transaction.set(noteRef, {
-      roundId: input.roundId,
-      applicantId: input.applicantId,
+      roundId,
+      applicantId,
       interviewerId: completion.interviewerId,
       interviewerName: completion.interviewerName,
       generalNotes: completion.generalNotes,
@@ -223,7 +226,7 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
     });
     transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
       roundId: applicant.roundId,
-      applicantId: input.applicantId,
+      applicantId,
       type: 'status_changed',
       previousAssignment: applicant.assignment,
       nextAssignment: completion.completedAssignment,
@@ -249,7 +252,7 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
     } as InterviewNote;
     transaction.set(doc(collection(db, 'interviewRecordEvents')), {
       roundId: applicant.roundId,
-      applicantId: input.applicantId,
+      applicantId,
       type: 'completed',
       ...interviewRecordSnapshot(completedApplicant, completedNote),
       reason: '면접 완료 시점 기록',

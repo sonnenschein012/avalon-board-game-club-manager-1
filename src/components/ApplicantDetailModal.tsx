@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Copy, ExternalLink, MessageSquare, Phone, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { InterviewRound } from '../types';
+import type { InterviewRound, InterviewRoundInterviewer, InterviewSchedule } from '../types';
 import type { InterviewApplicantWithAccess } from '../types';
 import { renderInterviewMessage } from '../domain/interviews/messages';
 import { parseSlotId } from '../domain/interviews/scheduling';
@@ -10,6 +10,8 @@ import { summarizeAvailabilitySlots } from '../domain/interviews/availabilitySum
 interface ApplicantDetailModalProps {
   applicant: InterviewApplicantWithAccess | null;
   round: InterviewRound;
+  schedule?: InterviewSchedule | null;
+  interviewers: InterviewRoundInterviewer[];
   onClose: () => void;
   onMarkSent: (
     kind: 'availabilityMessage' | 'reminderMessage' | 'confirmationMessage',
@@ -55,19 +57,26 @@ function getStoredAssignmentParts(assignment: InterviewApplicantWithAccess['assi
   };
 }
 
-export default function ApplicantDetailModal({ applicant, round, onClose, onMarkSent }: ApplicantDetailModalProps) {
+export default function ApplicantDetailModal({ applicant, round, schedule, interviewers, onClose, onMarkSent }: ApplicantDetailModalProps) {
   const [pendingMessageKind, setPendingMessageKind] = useState<'availability' | 'reminder' | 'confirmation' | null>(null);
   const messages = useMemo(() => {
     if (!applicant) return { availability: '', reminder: '', confirmation: '' };
     const assignmentParts = getAssignmentParts(applicant);
     const previousParts = getStoredAssignmentParts(applicant.previousAssignment ?? null);
-    const placeholders = { name: applicant.name, link: applicant.link, deadline: round.surveyClosesAt.toDate().toLocaleString('ko-KR'), interviewDate: assignmentParts.date, interviewTime: assignmentParts.time, oldInterviewDate: previousParts.date, oldInterviewTime: previousParts.time, roundName: round.name };
+    const assignedInterviewer = interviewers.find(item => item.interviewerId === applicant.assignment?.interviewerId);
+    const interviewerName = applicant.assignment?.interviewerName ?? assignedInterviewer?.displayName ?? '';
+    const interviewerPhone = assignedInterviewer?.phone?.trim() || '';
+    const placeholders = { name: applicant.name, link: applicant.link, ...(schedule ? { deadline: schedule.surveyClosesAt.toDate().toLocaleString('ko-KR') } : {}), interviewDate: assignmentParts.date, interviewTime: assignmentParts.time, oldInterviewDate: previousParts.date, oldInterviewTime: previousParts.time, interviewerName, interviewerPhone, roundName: round.name };
+    const confirmationTemplate = applicant.previousAssignment ? round.messageTemplates.reschedule : round.messageTemplates.confirmation;
+    const renderedConfirmation = renderInterviewMessage(confirmationTemplate, placeholders);
     return {
       availability: renderInterviewMessage(round.messageTemplates.availability, placeholders),
       reminder: renderInterviewMessage(round.messageTemplates.reminder, placeholders),
-      confirmation: renderInterviewMessage(applicant.previousAssignment ? round.messageTemplates.reschedule : round.messageTemplates.confirmation, placeholders),
+      confirmation: confirmationTemplate.includes('{interviewerPhone}')
+        ? renderedConfirmation
+        : `${renderedConfirmation}\n\n☎️ 담당 면접관 ${interviewerName} · ${interviewerPhone}`,
     };
-  }, [applicant, round]);
+  }, [applicant, interviewers, round, schedule]);
   if (!applicant) return null;
   const assignmentParts = getAssignmentParts(applicant);
   const launchSms = (message: string) => { window.location.href = `sms:${encodeURIComponent(applicant.phone)}?body=${encodeURIComponent(message)}`; };
@@ -79,8 +88,9 @@ export default function ApplicantDetailModal({ applicant, round, onClose, onMark
       toast.error(`${label}을(를) 복사하지 못했습니다.`);
     }
   };
-  const selectedAvailability = summarizeAvailabilitySlots(applicant.access?.availability ?? [], round.availabilitySlotMinutes);
+  const selectedAvailability = summarizeAvailabilitySlots(applicant.access?.availability ?? [], schedule?.availabilitySlotMinutes ?? round.availabilitySlotMinutes);
   const withdrawn = (applicant.applicationStatus ?? 'active') === 'withdrawn';
+  const assignedInterviewerPhone = interviewers.find(item => item.interviewerId === applicant.assignment?.interviewerId)?.phone?.trim() ?? '';
 
   const toggleSentStatus = async (
     kind: 'availability' | 'reminder' | 'confirmation',
@@ -118,7 +128,9 @@ export default function ApplicantDetailModal({ applicant, round, onClose, onMark
           ? applicant.reminderMessage
           : applicant.confirmationMessage;
       const isMarkedSent = Boolean(status?.firstMarkedSentAt);
-      const disabled = (isConfirmation && !applicant.assignment) || pendingMessageKind !== null;
+      const surveyMessageUnavailable = !isConfirmation && !schedule;
+      const confirmationContactUnavailable = Boolean(isConfirmation && applicant.assignment && !assignedInterviewerPhone);
+      const disabled = (isConfirmation && !applicant.assignment) || confirmationContactUnavailable || surveyMessageUnavailable || pendingMessageKind !== null;
       const confirmationNeedsResend = isConfirmation
         && isMarkedSent
         && (applicant.assignmentRevision ?? applicant.assignment?.confirmationRevision ?? 0) !== (status?.assignmentRevision ?? 0);
@@ -138,12 +150,16 @@ export default function ApplicantDetailModal({ applicant, round, onClose, onMark
         <p className="mb-2 text-[10px] text-slate-400">
           최초 {formatTimestamp(status?.firstMarkedSentAt)} · 최근 {formatTimestamp(status?.lastMarkedSentAt)}
         </p>
-        {isConfirmation && !applicant.assignment
+        {surveyMessageUnavailable
+          ? <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-700">면접 일정을 먼저 지정하면 해당 조사의 마감일이 포함된 문구가 생성됩니다.</p>
+          : confirmationContactUnavailable
+          ? <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-700">담당 면접관의 연락용 전화번호를 먼저 등록하면 최종 안내 문구가 생성됩니다.</p>
+          : isConfirmation && !applicant.assignment
           ? <p className="rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-700">면접시간을 먼저 배정하면 날짜와 시간이 포함된 문구가 생성됩니다.</p>
           : <p className="whitespace-pre-wrap rounded-xl bg-white p-3 text-xs leading-relaxed text-slate-600">{message}</p>}
         <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={isConfirmation && !applicant.assignment} onClick={() => copyWithFeedback(message, '메시지 문구')} className="rounded-lg bg-white px-3 py-2 text-[11px] font-bold text-navy disabled:opacity-40"><Copy size={13} className="mr-1 inline" />문구 복사</button>
-          <button disabled={isConfirmation && !applicant.assignment} onClick={() => launchSms(message)} className="rounded-lg bg-navy px-3 py-2 text-[11px] font-bold text-white disabled:opacity-40"><MessageSquare size={13} className="mr-1 inline" />문자 앱 열기</button>
+          <button disabled={(isConfirmation && !applicant.assignment) || confirmationContactUnavailable || surveyMessageUnavailable} onClick={() => copyWithFeedback(message, '메시지 문구')} className="rounded-lg bg-white px-3 py-2 text-[11px] font-bold text-navy disabled:opacity-40"><Copy size={13} className="mr-1 inline" />문구 복사</button>
+          <button disabled={(isConfirmation && !applicant.assignment) || confirmationContactUnavailable || surveyMessageUnavailable} onClick={() => launchSms(message)} className="rounded-lg bg-navy px-3 py-2 text-[11px] font-bold text-white disabled:opacity-40"><MessageSquare size={13} className="mr-1 inline" />문자 앱 열기</button>
           <button
             disabled={disabled}
             onClick={() => toggleSentStatus(kind, title, markAsSent, confirmationNeedsResend)}

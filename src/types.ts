@@ -288,6 +288,7 @@ export interface InterviewerProfile {
   id: string;
   name: string;
   email: string | null;
+  phone?: string | null;
   active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -299,6 +300,7 @@ export interface InterviewRoundInterviewer {
   interviewerId: string;
   displayName: string;
   email: string | null;
+  phone?: string | null;
   availability: string[];
   active: boolean;
   createdAt: Timestamp;

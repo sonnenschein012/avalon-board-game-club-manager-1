@@ -4,18 +4,20 @@ import { renderInterviewMessage } from './messages';
 describe('renderInterviewMessage', () => {
   it('renders every supported placeholder wherever it appears', () => {
     expect(renderInterviewMessage(
-      '{roundName}: {name} / {name}\n{deadline}\n{interviewDate} {interviewTime}\n{link}',
+      '{roundName}: {name} / {name}\n{deadline}\n{interviewDate} {interviewTime}\n{interviewerName} {interviewerPhone}\n{link}',
       {
         roundName: '2026-2 Avalon recruitment',
         name: 'Kim Applicant',
         deadline: 'August 20, 18:00',
         interviewDate: 'August 27',
         interviewTime: '19:15',
+        interviewerName: 'Park Interviewer',
+        interviewerPhone: '010-1234-5678',
         link: 'https://example.test/interview/token',
       },
     )).toBe(
       '2026-2 Avalon recruitment: Kim Applicant / Kim Applicant\n' +
-      'August 20, 18:00\nAugust 27 19:15\nhttps://example.test/interview/token',
+      'August 20, 18:00\nAugust 27 19:15\nPark Interviewer 010-1234-5678\nhttps://example.test/interview/token',
     );
   });
 

@@ -31,8 +31,8 @@ export function roundToDraft(round?: InterviewRound | null): InterviewRoundDraft
     messageTemplates: round?.messageTemplates ?? {
       availability: '안녕하세요! 동국대학교 보드게임 동아리 아발론입니다🎲\n\n{name} 님, 아발론에 지원해 주셔서 감사합니다!\n전화 면접 일정 조율을 위해 {deadline}까지 아래 링크에서 가능한 시간을 선택 후 저장해 주세요.\n\n{link}\n\n선택해 주신 시간을 바탕으로 면접 일정을 확정해 다시 안내드리겠습니다.',
       reminder: '{name} 님, 아직 면접 가능 시간이 선택되지 않아 다시 한번 안내드립니다.\n\n{deadline}까지 아래 링크에서 가능한 시간을 모두 선택해 주세요!\n\n{link}\n\n선택해 주신 시간을 바탕으로 면접 일정을 확정해 안내드리겠습니다.',
-      confirmation: '안녕하세요! 동국대학교 보드게임 동아리 아발론입니다🎲\n\n{name} 님, 예정된 면접 일정을 다시 한번 안내드립니다.\n\n📅 {interviewDate} {interviewTime}\n\n해당 시간에 전화드릴 예정이니 편하게 받아주세요. 곧 뵙겠습니다!',
-      reschedule: '안녕하세요! 동국대학교 보드게임 동아리 아발론입니다🎲\n\n{name} 님, 요청하신 일정 조정에 따라 면접 일정이 변경되어 안내드립니다.\n\n기존: {oldInterviewDate} {oldInterviewTime}\n변경: {interviewDate} {interviewTime}\n\n변경된 시간에 전화드리겠습니다. 확인 부탁드립니다!',
+      confirmation: '안녕하세요! 동국대학교 보드게임 동아리 아발론입니다🎲\n\n{name} 님, 예정된 면접 일정을 다시 한번 안내드립니다.\n\n📅 {interviewDate} {interviewTime}\n☎️ 담당 면접관 {interviewerName} · {interviewerPhone}\n\n위 번호로 전화드릴 예정이니 편하게 받아주세요. 곧 뵙겠습니다!',
+      reschedule: '안녕하세요! 동국대학교 보드게임 동아리 아발론입니다🎲\n\n{name} 님, 요청하신 일정 조정에 따라 면접 일정이 변경되어 안내드립니다.\n\n기존: {oldInterviewDate} {oldInterviewTime}\n변경: {interviewDate} {interviewTime}\n☎️ 담당 면접관 {interviewerName} · {interviewerPhone}\n\n위 번호로 전화드릴 예정입니다. 확인 부탁드립니다!',
     },
     interviewQuestions: round?.interviewQuestions ?? [],
     allowedSlots: round?.allowedSlots ?? [],
@@ -245,6 +245,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
 
   const validationError = useMemo(() => {
     if (!draft.name.trim()) return '회차명을 입력해주세요.';
+    if (!round) return null;
     if (!Number.isFinite(draft.surveyOpensAt.getTime()) || !Number.isFinite(draft.surveyClosesAt.getTime())) return '조사 시작과 마감 일시를 입력해주세요.';
     if (draft.surveyClosesAt <= draft.surveyOpensAt) return '조사 마감은 시작보다 뒤여야 합니다.';
     if (daySchedules.length === 0) return '면접 날짜를 하나 이상 추가해주세요.';
@@ -259,7 +260,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
     }
     if (generatedSlots.length === 0) return '날짜별 시간 범위를 확인해주세요.';
     return null;
-  }, [daySchedules, draft, generatedSlots.length]);
+  }, [daySchedules, draft, generatedSlots.length, round]);
 
   const addedDateSet = useMemo(() => new Set(daySchedules.map(schedule => schedule.date)), [daySchedules]);
   const pendingDateSet = useMemo(() => new Set(pendingDates), [pendingDates]);
@@ -328,6 +329,30 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
   };
 
   const busy = saving || internalSaving;
+
+  if (!round) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm">
+        <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="rounded-xl bg-navy p-2 text-white"><CalendarDays size={18} /></span>
+              <div><h2 className="font-black text-navy">새 면접 회차</h2><p className="text-[10px] uppercase text-slate-400">Interview round</p></div>
+            </div>
+            <button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+          </div>
+          <div className="space-y-4 p-5">
+            <label className="block text-xs font-bold text-slate-500">회차명<input autoFocus value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="2026-2 아발론 신입부원 면접" /></label>
+            <p className="rounded-2xl bg-indigo-50 px-4 py-3 text-xs font-bold leading-5 text-indigo-800">회차를 만든 뒤 지원자 화면에서 면접 일정을 추가하고, 그 일정마다 조사 기간과 면접 가능일을 설정할 수 있습니다.</p>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-4">
+            <p role={validationError ? 'alert' : undefined} className={`text-xs font-bold ${validationError ? 'text-red-600' : 'text-emerald-600'}`}>{validationError ?? '회차명만 입력하면 생성할 수 있습니다.'}</p>
+            <div className="flex gap-2"><button type="button" onClick={onClose} disabled={busy} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 disabled:opacity-40">취소</button><button type="button" disabled={busy || Boolean(validationError)} onClick={() => void submit()} className="inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-xs font-black text-white disabled:opacity-40"><Save size={15} />{busy ? '생성 중...' : '회차 생성'}</button></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm md:p-8">
@@ -411,7 +436,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
 
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">메시지 템플릿</h3>
-            <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {roundName}'}</p>
+            <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {interviewerName} {interviewerPhone} {roundName}'}</p>
             {(['availability', 'reminder', 'confirmation', 'reschedule'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : '일정 변경 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
           </section>
         </div>

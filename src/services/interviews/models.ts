@@ -71,6 +71,7 @@ export interface ApplicantMergeCommitItem extends ApplicantImportRow {
 export interface RoundInterviewerDraft {
   name: string;
   email?: string | null;
+  phone?: string | null;
 }
 
 export interface AssignmentProposalWrite {

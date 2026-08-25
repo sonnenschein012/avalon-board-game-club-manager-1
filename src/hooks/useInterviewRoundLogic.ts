@@ -58,6 +58,7 @@ import {
   updateInterviewAssignmentState,
   updateCompletedInterviewOverallRating,
   updateInterviewSelectionStatus,
+  updateInterviewerPhone,
   updateRoundInterviewerAvailability,
   updateScheduleInterviewerAvailability,
   type ApplicantDraft,
@@ -512,8 +513,8 @@ export function useInterviewRoundLogic(roundId: string) {
     catch (error) { console.error(error); toast.error('지원자 상태를 바꾸지 못했습니다.'); return false; }
   };
 
-  const addInterviewer = async (name: string, email?: string) => {
-    try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}) }, activeScheduleId); toast.success(activeScheduleId ? '면접관을 추가하고 현재 일정에도 포함했습니다.' : '면접관을 추가했습니다.'); return true; }
+  const addInterviewer = async (name: string, email?: string, phone?: string) => {
+    try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }, activeScheduleId); toast.success(activeScheduleId ? '면접관을 추가하고 현재 일정에도 포함했습니다.' : '면접관을 추가했습니다.'); return true; }
     catch (error) { console.error(error); toast.error('면접관을 추가하지 못했습니다.'); return false; }
   };
 
@@ -524,6 +525,11 @@ export function useInterviewRoundLogic(roundId: string) {
       toast.success('면접관 가능시간을 저장했습니다.'); return true;
     }
     catch (error) { console.error(error); toast.error('면접관 가능시간을 저장하지 못했습니다.'); return false; }
+  };
+
+  const saveInterviewerPhone = async (participant: InterviewRoundInterviewer, phone: string) => {
+    try { await updateInterviewerPhone(participant, phone); toast.success('면접관 연락처를 저장했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error('면접관 연락처를 저장하지 못했습니다.'); return false; }
   };
 
   const removeInterviewer = async (participant: InterviewRoundInterviewer) => {
@@ -652,6 +658,10 @@ export function useInterviewRoundLogic(roundId: string) {
     answers?: Record<string, string>;
     overallRating: InterviewOverallRating | null;
   }) => {
+    if (!applicantId?.trim()) {
+      toast.error('지원자 정보를 확인하지 못했습니다. 화면을 새로고침한 뒤 다시 시도해주세요.');
+      return false;
+    }
     const applicant = joinedApplicants.find(item => item.id === applicantId);
     if (!applicant?.assignment) {
       toast.error('현재 면접 배정이 없습니다.');
@@ -762,6 +772,7 @@ export function useInterviewRoundLogic(roundId: string) {
     applySchedule,
     addInterviewer,
     saveInterviewerAvailability,
+    saveInterviewerPhone,
     removeInterviewer,
     runAutoAssignment,
     applyAutoDraft,

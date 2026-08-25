@@ -60,6 +60,7 @@ export async function createInterviewSchedule(roundId: string, draft: InterviewS
       interviewerId: interviewer.interviewerId,
       displayName: interviewer.displayName,
       email: interviewer.email,
+      phone: interviewer.phone ?? null,
       availability: interviewer.availability,
       active: interviewer.active,
       createdAt: serverTimestamp(),
