@@ -73,6 +73,22 @@ export async function updateInterviewerPhone(participant: InterviewRoundIntervie
   await batch.commit();
 }
 
+export async function updateInterviewerProfile(
+  participant: InterviewRoundInterviewer,
+  draft: RoundInterviewerDraft,
+): Promise<void> {
+  const displayName = draft.name.trim();
+  const email = draft.email?.trim().toLowerCase() || null;
+  const phone = draft.phone ? formatMemberPhone(draft.phone) || null : null;
+  const scheduleParticipants = await getDocs(query(collection(db, 'interviewScheduleInterviewers'), where('interviewerId', '==', participant.interviewerId)));
+  if (scheduleParticipants.size > 490) throw new Error('면접관 정보를 한 번에 반영할 수 있는 일정 수를 초과했습니다.');
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewerProfiles', participant.interviewerId), { name: displayName, email, phone, updatedAt: serverTimestamp() });
+  batch.update(doc(db, 'interviewRoundInterviewers', `${participant.roundId}__${participant.interviewerId}`), { displayName, email, phone, updatedAt: serverTimestamp() });
+  scheduleParticipants.docs.forEach(snapshot => batch.update(snapshot.ref, { displayName, email, phone, updatedAt: serverTimestamp() }));
+  await batch.commit();
+}
+
 export async function removeRoundInterviewer(participant: InterviewRoundInterviewer): Promise<void> {
   await updateDoc(doc(db, 'interviewRoundInterviewers', participant.id), { active: false, updatedAt: serverTimestamp() });
 }

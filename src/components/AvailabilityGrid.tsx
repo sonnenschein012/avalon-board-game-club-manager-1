@@ -145,7 +145,7 @@ export default function AvailabilityGrid({
                     count !== undefined
                       ? 'bg-white text-navy hover:bg-gold/15'
                       : isSelected
-                        ? 'bg-navy text-white'
+                        ? 'border border-navy/30 bg-navy/10 text-navy shadow-[inset_0_0_0_1px_rgba(15,35,64,0.04)]'
                         : 'bg-white text-slate-300 hover:bg-gold/10',
                     disabled && count === undefined && 'cursor-not-allowed opacity-70',
                   )}

@@ -59,6 +59,7 @@ import {
   updateCompletedInterviewOverallRating,
   updateInterviewSelectionStatus,
   updateInterviewerPhone,
+  updateInterviewerProfile,
   updateRoundInterviewerAvailability,
   updateScheduleInterviewerAvailability,
   type ApplicantDraft,
@@ -514,8 +515,20 @@ export function useInterviewRoundLogic(roundId: string) {
   };
 
   const addInterviewer = async (name: string, email?: string, phone?: string) => {
-    try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }, activeScheduleId); toast.success(activeScheduleId ? '면접관을 추가하고 현재 일정에도 포함했습니다.' : '면접관을 추가했습니다.'); return true; }
+    const normalizedName = name.trim().replace(/\s+/g, '').toLowerCase();
+    const sameName = interviewers.find(item => item.active && item.displayName.trim().replace(/\s+/g, '').toLowerCase() === normalizedName);
+    if (sameName) {
+      const sameContact = (!email || sameName.email?.toLowerCase() === email.trim().toLowerCase()) && (!phone || sameName.phone === phone);
+      if (sameContact) { toast.error('같은 이름과 연락처의 면접관이 이미 명부에 있습니다.'); return false; }
+      if (!window.confirm(`명부에 같은 이름의 “${sameName.displayName}” 면접관이 있습니다.\n동명이인으로 새로 추가할까요?`)) return false;
+    }
+    try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }); toast.success('면접관 명부에 추가했습니다.'); return true; }
     catch (error) { console.error(error); toast.error('면접관을 추가하지 못했습니다.'); return false; }
+  };
+
+  const editInterviewer = async (participant: InterviewRoundInterviewer, name: string, email?: string, phone?: string) => {
+    try { await updateInterviewerProfile(participant, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }); toast.success('면접관 정보를 수정했습니다.'); return true; }
+    catch (error) { console.error(error); toast.error('면접관 정보를 수정하지 못했습니다.'); return false; }
   };
 
   const saveInterviewerAvailability = async (participantId: string, availability: string[]) => {
@@ -540,6 +553,7 @@ export function useInterviewRoundLogic(roundId: string) {
     else await removeRoundInterviewer(participant);
     toast.success(activeScheduleId ? '현재 면접 일정에서 면접관을 제외했습니다.' : '회차에서 면접관을 제외했습니다.'); return true;
   };
+
 
   const runAutoAssignment = (mode: AutoAssignmentMode, applicantId?: string) => {
     if (!activeSchedulingConfig) return null;
@@ -771,6 +785,7 @@ export function useInterviewRoundLogic(roundId: string) {
     previewScheduleImpact,
     applySchedule,
     addInterviewer,
+    editInterviewer,
     saveInterviewerAvailability,
     saveInterviewerPhone,
     removeInterviewer,

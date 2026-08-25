@@ -11,13 +11,16 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { AlertTriangle, Bot, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Lock, RotateCcw, Trash2, Unlock } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Lock, RotateCcw, Trash2, Unlock } from 'lucide-react';
 import type { AutoAssignmentProposal, AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { availabilityToAssignmentCandidates, parseSlotId } from '../domain/interviews/scheduling';
 import { canAppearInSchedule, getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
 import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewAssignment, InterviewChangeRequest, InterviewRound, InterviewRoundInterviewer } from '../types';
 import AutoAssignmentPanel from './AutoAssignmentPanel';
+
+// 자동배정은 아이콘 대신 버튼 자체의 짧은 상태 변화로 클릭을 알린다.
+const Bot = (props: { size?: number; className?: string }) => { void props; return null; };
 
 interface Props {
   round: InterviewRound;
