@@ -559,16 +559,16 @@ export function useInterviewRoundLogic(roundId: string) {
 
   const assignInterviewer = async (participant: InterviewRoundInterviewer) => {
     if (!activeScheduleId) {
-      toast.error('면접관을 배정할 일정을 먼저 선택해주세요.');
+      toast.error('면접관을 추가할 일정을 먼저 선택해주세요.');
       return false;
     }
     try {
       await assignRoundInterviewerToSchedule(roundId, activeScheduleId, participant.interviewerId);
-      toast.success(`${participant.displayName} 면접관을 현재 일정에 배정했습니다.`);
+      toast.success(`${participant.displayName} 면접관을 현재 일정에 추가했습니다.`);
       return true;
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : '면접관을 배정하지 못했습니다.');
+      toast.error(error instanceof Error ? error.message : '면접관을 일정에 추가하지 못했습니다.');
       return false;
     }
   };

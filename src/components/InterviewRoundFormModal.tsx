@@ -85,9 +85,10 @@ interface InterviewRoundFormModalProps {
   saving?: boolean;
   onClose: () => void;
   onSave: (draft: InterviewRoundDraft) => Promise<boolean | void>;
+  onDelete?: () => void;
 }
 
-export default function InterviewRoundFormModal({ open, round, saving = false, onClose, onSave }: InterviewRoundFormModalProps) {
+export default function InterviewRoundFormModal({ open, round, saving = false, onClose, onSave, onDelete }: InterviewRoundFormModalProps) {
   const [draft, setDraft] = useState<InterviewRoundDraft>(() => roundToDraft(round));
   const [daySchedules, setDaySchedules] = useState<InterviewDaySchedule[]>(() => schedulesFromDraft(roundToDraft(round)));
   const [internalSaving, setInternalSaving] = useState(false);
@@ -195,6 +196,8 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
             <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {interviewerName} {interviewerPhone} {roundName}'}</p>
             {(['availability', 'reminder', 'confirmation', 'reschedule'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : '일정 변경 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
           </section>
+
+          {onDelete && <section className="flex flex-col gap-4 rounded-2xl border border-red-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between md:col-span-2"><div><h3 className="text-xs font-black uppercase tracking-wider text-red-700">회차 삭제</h3><p className="mt-1 text-xs leading-5 text-slate-500">지원자, 개인 링크, 일정, 면접관, 평가와 이력을 영구 삭제합니다. 등록된 동아리원은 유지됩니다.</p></div><button type="button" onClick={onDelete} disabled={busy} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-40"><Trash2 size={15} />회차 삭제</button></section>}
         </div>
 
         <div className="flex flex-col gap-3 border-t border-slate-100 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

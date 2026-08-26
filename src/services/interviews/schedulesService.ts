@@ -62,7 +62,7 @@ export async function assignRoundInterviewerToSchedule(
     }
     if (!rosterSnapshot.exists()) throw new Error('면접관 명부에서 대상을 찾을 수 없습니다.');
     const interviewer = rosterSnapshot.data() as InterviewRoundInterviewer;
-    if (!interviewer.active) throw new Error('명부에서 제외된 면접관은 배정할 수 없습니다.');
+    if (!interviewer.active) throw new Error('명부에서 제외된 면접관은 일정에 추가할 수 없습니다.');
     const shared = {
       roundId,
       scheduleId,
@@ -86,31 +86,12 @@ export async function assignRoundInterviewerToSchedule(
 }
 
 export async function createInterviewSchedule(roundId: string, draft: InterviewScheduleDraft): Promise<string> {
-  const [existing, interviewerSnapshots] = await Promise.all([
-    getDocs(query(collection(db, 'interviewSchedules'), where('roundId', '==', roundId))),
-    getDocs(query(collection(db, 'interviewRoundInterviewers'), where('roundId', '==', roundId))),
-  ]);
-  if (interviewerSnapshots.size > 450) throw new Error('면접관 수가 너무 많아 일정을 한 번에 만들 수 없습니다.');
+  const existing = await getDocs(query(collection(db, 'interviewSchedules'), where('roundId', '==', roundId)));
   const order = existing.docs.reduce((max, snapshot) => Math.max(max, Number(snapshot.data().order) || 0), 0) + 1;
   const scheduleRef = doc(collection(db, 'interviewSchedules'));
   const batch = writeBatch(db);
   batch.set(scheduleRef, { ...adminScheduleData(roundId, draft, order, 1), createdAt: serverTimestamp() });
   batch.set(doc(db, 'interviewPublicSchedules', scheduleRef.id), publicScheduleData(roundId, draft, 1));
-  interviewerSnapshots.docs.forEach(snapshot => {
-    const interviewer = snapshot.data() as InterviewRoundInterviewer;
-    batch.set(doc(db, 'interviewScheduleInterviewers', `${scheduleRef.id}__${interviewer.interviewerId}`), {
-      roundId,
-      scheduleId: scheduleRef.id,
-      interviewerId: interviewer.interviewerId,
-      displayName: interviewer.displayName,
-      email: interviewer.email,
-      phone: interviewer.phone ?? null,
-      availability: [],
-      active: interviewer.active,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  });
   await batch.commit();
   return scheduleRef.id;
 }

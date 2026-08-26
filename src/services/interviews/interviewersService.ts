@@ -29,7 +29,6 @@ export function subscribeRoundInterviewers(
 export async function addRoundInterviewer(
   roundId: string,
   draft: RoundInterviewerDraft,
-  scheduleId: string | null = null,
 ): Promise<string> {
   const profileRef = doc(collection(db, 'interviewerProfiles'));
   const participantRef = doc(db, 'interviewRoundInterviewers', `${roundId}__${profileRef.id}`);
@@ -42,14 +41,6 @@ export async function addRoundInterviewer(
     roundId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, availability: [], active: true,
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
-  if (scheduleId) {
-    // Existing schedules own a separate availability roster. Add the new
-    // interviewer to the currently managed one with an empty availability.
-    batch.set(doc(db, 'interviewScheduleInterviewers', `${scheduleId}__${profileRef.id}`), {
-      roundId, scheduleId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, availability: [], active: true,
-      createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    });
-  }
   await batch.commit();
   return profileRef.id;
 }
@@ -94,7 +85,11 @@ export async function removeRoundInterviewer(participant: InterviewRoundIntervie
 }
 
 export async function removeScheduleInterviewer(participantId: string): Promise<void> {
-  await updateDoc(doc(db, 'interviewScheduleInterviewers', participantId), { active: false, updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, 'interviewScheduleInterviewers', participantId), {
+    active: false,
+    availability: [],
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export function subscribeInterviewChangeRequests(

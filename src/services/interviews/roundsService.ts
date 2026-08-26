@@ -128,16 +128,10 @@ export async function deleteInterviewRound(roundId: string): Promise<InterviewRo
       if (typeof interviewerId === 'string' && interviewerId) interviewerIds.add(interviewerId);
     });
   });
-  const profileUsage = await Promise.all([...interviewerIds].map(async interviewerId => ({
-    interviewerId,
-    participants: await getDocs(query(
-      collection(db, 'interviewRoundInterviewers'),
-      where('interviewerId', '==', interviewerId),
-    )),
-  })));
-  const profileRefs = profileUsage
-    .filter(item => item.participants.docs.every(participant => participant.data().roundId === roundId))
-    .map(item => doc(db, 'interviewerProfiles', item.interviewerId));
+  // Interviewers are created inside a round. Names and contact details are
+  // not reliable cross-round identity, so their generated profiles belong to
+  // this round and are removed with it.
+  const profileRefs = [...interviewerIds].map(interviewerId => doc(db, 'interviewerProfiles', interviewerId));
 
   const publicRefs: DocumentReference<DocumentData>[] = [
     doc(db, 'interviewPublicRounds', roundId),
