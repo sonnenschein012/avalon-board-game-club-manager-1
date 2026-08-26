@@ -42,6 +42,7 @@ import {
   reopenCompletedInterview,
   removeRoundInterviewer,
   removeScheduleInterviewer,
+  reactivateRoundInterviewer,
   resolveInterviewChangeRequest,
   resetInterviewApplicantSchedule,
   restoreScheduledInterview,
@@ -56,6 +57,7 @@ import {
   subscribeInterviewSchedules,
   subscribeScheduleInterviewers,
   subscribeRoundInterviewers,
+  subscribeRoundScheduleInterviewers,
   updateInterviewApplicant,
   updateInterviewAssignmentState,
   updateCompletedInterviewOverallRating,
@@ -102,6 +104,7 @@ export function useInterviewRoundLogic(roundId: string) {
   const [schedules, setSchedules] = useState<InterviewSchedule[]>([]);
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
   const [scheduleInterviewers, setScheduleInterviewers] = useState<InterviewScheduleInterviewer[]>([]);
+  const [roundScheduleInterviewers, setRoundScheduleInterviewers] = useState<InterviewScheduleInterviewer[]>([]);
   const [changeRequests, setChangeRequests] = useState<InterviewChangeRequest[]>([]);
   const [autoDraft, setAutoDraft] = useState<AutoAssignmentResult | null>(null);
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
@@ -118,6 +121,7 @@ export function useInterviewRoundLogic(roundId: string) {
       setSchedules([]);
       setActiveScheduleId(null);
       setScheduleInterviewers([]);
+      setRoundScheduleInterviewers([]);
       setChangeRequests([]);
       setAutoDraft(null);
       setLoading(false);
@@ -130,9 +134,10 @@ export function useInterviewRoundLogic(roundId: string) {
     const stopApplicants = subscribeInterviewApplicants(normalizedRoundId, setApplicants, console.error);
     const stopAccess = subscribeInterviewAccess(normalizedRoundId, setAccess, console.error);
     const stopInterviewers = subscribeRoundInterviewers(normalizedRoundId, setInterviewers, console.error);
+    const stopRoundScheduleInterviewers = subscribeRoundScheduleInterviewers(normalizedRoundId, setRoundScheduleInterviewers, console.error);
     const stopSchedules = subscribeInterviewSchedules(normalizedRoundId, setSchedules, console.error);
     const stopRequests = subscribeInterviewChangeRequests(normalizedRoundId, setChangeRequests, console.error);
-    return () => { stopRound(); stopApplicants(); stopAccess(); stopInterviewers(); stopSchedules(); stopRequests(); };
+    return () => { stopRound(); stopApplicants(); stopAccess(); stopInterviewers(); stopRoundScheduleInterviewers(); stopSchedules(); stopRequests(); };
   }, [normalizedRoundId]);
 
   useEffect(() => {
@@ -519,11 +524,20 @@ export function useInterviewRoundLogic(roundId: string) {
 
   const addInterviewer = async (name: string, email?: string, phone?: string) => {
     const normalizedName = name.trim().replace(/\s+/g, '').toLowerCase();
+    const normalizedEmail = email?.trim().toLowerCase();
     const sameName = interviewers.find(item => item.active && item.displayName.trim().replace(/\s+/g, '').toLowerCase() === normalizedName);
     if (sameName) {
       const sameContact = (!email || sameName.email?.toLowerCase() === email.trim().toLowerCase()) && (!phone || sameName.phone === phone);
       if (sameContact) { toast.error('같은 이름과 연락처의 면접관이 이미 명부에 있습니다.'); return false; }
       if (!window.confirm(`명부에 같은 이름의 “${sameName.displayName}” 면접관이 있습니다.\n동명이인으로 새로 추가할까요?`)) return false;
+    }
+    const inactiveMatch = interviewers.find(item => !item.active
+      && item.displayName.trim().replace(/\s+/g, '').toLowerCase() === normalizedName
+      && (!normalizedEmail || item.email?.toLowerCase() === normalizedEmail)
+      && (!phone || item.phone === phone));
+    if (inactiveMatch) {
+      try { await reactivateRoundInterviewer(inactiveMatch); toast.success('기존 면접관을 명부에 다시 추가했습니다.'); return true; }
+      catch (error) { console.error(error); toast.error('면접관을 다시 추가하지 못했습니다.'); return false; }
     }
     try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }); toast.success('면접관 명부에 추가했습니다.'); return true; }
     catch (error) { console.error(error); toast.error('면접관을 추가하지 못했습니다.'); return false; }
@@ -792,6 +806,7 @@ export function useInterviewRoundLogic(roundId: string) {
     activeScheduleId,
     setActiveScheduleId,
     scheduleInterviewers,
+    roundScheduleInterviewers,
     activeInterviewers,
     changeRequests,
     autoDraft,

@@ -1,44 +1,263 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Plus, Save, Trash2, UserRound, X } from 'lucide-react';
-import type { InterviewApplicant, InterviewRound, InterviewRoundInterviewer, InterviewSchedule } from '../types';
+import type { InterviewApplicant, InterviewRound, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../types';
 import { formatMemberPhone } from '../domain/interviews/memberRegistration';
+import { countActiveInterviewerSchedules } from '../domain/interviews/interviewerParticipation';
 import AvailabilityGrid from './AvailabilityGrid';
 
-interface Props { round: InterviewRound; interviewers: InterviewRoundInterviewer[]; roster: InterviewRoundInterviewer[]; schedules: InterviewSchedule[]; applicants: InterviewApplicant[]; isRoster: boolean; onAdd: (name: string, email?: string, phone?: string) => Promise<boolean>; onEdit: (item: InterviewRoundInterviewer, name: string, email?: string, phone?: string) => Promise<boolean>; onSaveAvailability: (id: string, slots: string[]) => Promise<boolean>; onRemove: (item: InterviewRoundInterviewer) => Promise<boolean>; onAssign: (item: InterviewRoundInterviewer) => Promise<boolean>; }
+interface Props {
+  round: InterviewRound;
+  interviewers: InterviewRoundInterviewer[];
+  roster: InterviewRoundInterviewer[];
+  scheduleParticipants: InterviewScheduleInterviewer[];
+  schedules: InterviewSchedule[];
+  applicants: InterviewApplicant[];
+  isRoster: boolean;
+  onAdd: (name: string, email?: string, phone?: string) => Promise<boolean>;
+  onEdit: (item: InterviewRoundInterviewer, name: string, email?: string, phone?: string) => Promise<boolean>;
+  onSaveAvailability: (id: string, slots: string[]) => Promise<boolean>;
+  onRemove: (item: InterviewRoundInterviewer) => Promise<boolean>;
+  onAssign: (item: InterviewRoundInterviewer) => Promise<boolean>;
+}
 
-export default function InterviewersPanel({ round, interviewers, roster, schedules, applicants, isRoster, onAdd, onEdit, onSaveAvailability, onRemove, onAssign }: Props) {
-  const active = useMemo(() => interviewers.filter(item => item.active), [interviewers]);
+export default function InterviewersPanel({ round, interviewers, roster, scheduleParticipants, schedules, applicants, isRoster, onAdd, onEdit, onSaveAvailability, onRemove, onAssign }: Props) {
+  const active = useMemo(() => interviewers.filter((item) => item.active), [interviewers]);
   const assignable = useMemo(() => {
-    const assignedIds = new Set(active.map(item => item.interviewerId));
-    return roster.filter(item => item.active && !assignedIds.has(item.interviewerId));
+    const assignedIds = new Set(active.map((item) => item.interviewerId));
+    return roster.filter((item) => item.active && !assignedIds.has(item.interviewerId));
   }, [active, roster]);
   const [selectedId, setSelectedId] = useState(active[0]?.id ?? '');
-  const selected = active.find(item => item.id === selectedId) ?? active[0] ?? null;
+  const selected = active.find((item) => item.id === selectedId) ?? active[0] ?? null;
   const [draft, setDraft] = useState<Set<string> | null>(null);
   const [editingSlots, setEditingSlots] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [phone, setPhone] = useState('');
-  useEffect(() => { if (selectedId && !active.some(item => item.id === selectedId)) setSelectedId(active[0]?.id ?? ''); }, [active, selectedId]);
-  const assigned = useMemo(() => applicants.filter(item => item.assignment?.interviewerId === selected?.interviewerId).sort((a, b) => (a.assignment?.slotId ?? '').localeCompare(b.assignment?.slotId ?? '')), [applicants, selected]);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  useEffect(() => {
+    if (selectedId && !active.some((item) => item.id === selectedId)) setSelectedId(active[0]?.id ?? '');
+  }, [active, selectedId]);
+  const assigned = useMemo(() => applicants.filter((item) => item.assignment?.interviewerId === selected?.interviewerId).sort((a, b) => (a.assignment?.slotId ?? '').localeCompare(b.assignment?.slotId ?? '')), [applicants, selected]);
   const selectedSlots = draft ?? new Set(selected?.availability ?? []);
-  const clearForm = () => { setEditingId(null); setName(''); setEmail(''); setPhone(''); };
-  const startEdit = (item: InterviewRoundInterviewer) => { setEditingId(item.id); setName(item.displayName); setEmail(item.email ?? ''); setPhone(formatMemberPhone(item.phone ?? '')); };
-  const submit = async () => { const target = roster.find(item => item.id === editingId); const ok = target ? await onEdit(target, name, email || undefined, phone || undefined) : await onAdd(name, email || undefined, phone || undefined); if (ok) clearForm(); };
-  const choose = (id: string) => { if (draft && !window.confirm('저장하지 않은 가능시간 변경을 취소할까요?')) return; setSelectedId(id); setDraft(null); setEditingSlots(false); };
-  return <div className="grid min-w-0 gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-    <aside className="space-y-4 rounded-3xl bg-white p-4 shadow-sm sm:p-5"><div><h3 className="font-black text-navy">{isRoster ? '면접관 명부' : '참여 면접관'}</h3><p className="mt-1 text-xs text-slate-400">{isRoster ? '기본 정보는 모든 일정에 함께 반영됩니다.' : '선택한 일정의 가능시간을 관리합니다.'}</p></div>
-      <div className="space-y-2">{active.map(item => <div key={item.id} className={`flex items-center rounded-xl border ${selected?.id === item.id ? 'border-navy/30 bg-navy/10' : 'border-transparent bg-slate-50'}`}><button onClick={() => choose(item.id)} className="min-w-0 flex-1 px-3 py-2.5 text-left"><strong className="block truncate text-xs text-navy">{item.displayName}</strong><small className="block truncate text-slate-500">{item.phone ?? '연락처 미등록'}</small></button>{isRoster && <button onClick={() => startEdit(item)} aria-label="수정" className="p-2 text-slate-500"><Pencil size={13} /></button>}<button onClick={() => { if (window.confirm(`${item.displayName} 면접관을 ${isRoster ? '명부에서 삭제' : '이 일정에서 제외'}할까요?`)) void onRemove(item); }} aria-label="삭제" className="mr-2 p-2 text-slate-400 hover:text-red-600"><Trash2 size={13} /></button></div>)}</div>
-      {!isRoster && <div className="border-t border-slate-100 pt-4"><p className="text-xs font-black text-navy">면접관 배정</p><p className="mt-1 text-[10px] leading-4 text-slate-400">명부에서 이 일정에 참여할 면접관을 추가합니다.</p><div className="mt-2 space-y-2">{assignable.map(item => <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2"><span className="min-w-0 flex-1"><strong className="block truncate text-xs text-navy">{item.displayName}</strong><small className="block truncate text-slate-400">{item.phone ?? item.email ?? '연락처 미등록'}</small></span><button type="button" disabled={Boolean(assigningId)} onClick={() => { setAssigningId(item.id); void onAssign(item).finally(() => setAssigningId(null)); }} className="flex shrink-0 items-center gap-1 rounded-lg bg-white px-2.5 py-2 text-[10px] font-black text-navy shadow-sm hover:bg-amber-50 disabled:opacity-40"><Plus size={12} />{assigningId === item.id ? '배정 중' : '배정'}</button></div>)}{assignable.length === 0 && <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-[10px] font-bold text-slate-400">명부의 모든 활성 면접관이 참여 중입니다.</p>}</div></div>}
-      {isRoster && <div className="grid gap-2 border-t border-slate-100 pt-4"><p className="text-xs font-black text-navy">{editingId ? '면접관 정보 수정' : '면접관 추가'}</p><input value={name} onChange={e => setName(e.target.value)} placeholder="면접관 이름" className="rounded-xl border border-slate-200 px-3 py-2 text-xs" /><input value={phone} onChange={e => setPhone(formatMemberPhone(e.target.value))} onBlur={() => setPhone(formatMemberPhone(phone))} placeholder="연락용 전화번호" className="rounded-xl border border-slate-200 px-3 py-2 text-xs" /><input value={email} onChange={e => setEmail(e.target.value)} placeholder="로그인 이메일 (선택)" className="rounded-xl border border-slate-200 px-3 py-2 text-xs" /><div className="flex gap-2"><button disabled={!name.trim()} onClick={() => void submit()} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-gold px-3 py-2.5 text-xs font-black text-navy disabled:opacity-40">{editingId ? <Save size={14} /> : <Plus size={14} />}{editingId ? '수정 완료' : '면접관 추가'}</button>{editingId && <button onClick={clearForm} aria-label="수정 취소" className="rounded-xl border border-slate-200 px-3 text-slate-500"><X size={15} /></button>}</div></div>}
-    </aside>
-    <section className="min-w-0 overflow-hidden rounded-3xl bg-white p-4 shadow-sm sm:p-5">{selected ? isRoster ? <RosterInfo interviewer={selected} applicants={assigned} schedules={schedules} onEdit={() => startEdit(selected)} /> : <><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><UserRound size={18} className="text-gold" /><div><h3 className="font-black text-navy">{selected.displayName} 가능시간</h3><p className="text-xs text-slate-400">{editingSlots ? '칸을 누르거나 드래그해 수정하세요.' : `저장됨 · ${selected.availability.length}개 시간`}</p></div></div>{editingSlots ? <div className="flex gap-2"><button onClick={() => { setDraft(null); setEditingSlots(false); }} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-500">취소</button><button onClick={async () => { if (await onSaveAvailability(selected.id, [...selectedSlots])) { setDraft(null); setEditingSlots(false); } }} className="flex items-center gap-1 rounded-xl bg-navy px-4 py-2 text-xs font-black text-white"><Save size={14} />저장</button></div> : <button onClick={() => setEditingSlots(true)} className="flex items-center gap-1 rounded-xl border border-navy/30 bg-navy/5 px-4 py-2 text-xs font-black text-navy"><Pencil size={14} />수정하기</button>}</div><div className={editingSlots ? '' : 'pointer-events-none opacity-80'}><AvailabilityGrid slots={round.allowedSlots} selected={selectedSlots} slotMinutes={round.availabilitySlotMinutes} onToggle={(slotId, force) => setDraft(current => { const next = new Set(current ?? selected.availability); const shouldSelect = force ?? !next.has(slotId); shouldSelect ? next.add(slotId) : next.delete(slotId); return next; })} /></div></> : <p className="py-20 text-center text-sm text-slate-400">면접관을 먼저 추가해주세요.</p>}</section>
-  </div>;
+  const clearForm = () => {
+    setEditingId(null);
+    setName('');
+    setEmail('');
+    setPhone('');
+  };
+  const startEdit = (item: InterviewRoundInterviewer) => {
+    setEditingId(item.id);
+    setName(item.displayName);
+    setEmail(item.email ?? '');
+    setPhone(formatMemberPhone(item.phone ?? ''));
+  };
+  const submit = async () => {
+    const target = roster.find((item) => item.id === editingId);
+    const ok = target ? await onEdit(target, name, email || undefined, phone || undefined) : await onAdd(name, email || undefined, phone || undefined);
+    if (ok) clearForm();
+  };
+  const choose = (id: string) => {
+    if (draft && !window.confirm('저장하지 않은 가능시간 변경을 취소할까요?')) return;
+    setSelectedId(id);
+    setDraft(null);
+    setEditingSlots(false);
+  };
+  return (
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <aside className="space-y-4 rounded-3xl bg-white p-4 shadow-sm sm:p-5">
+        <div>
+          <h3 className="font-black text-navy">{isRoster ? '면접관 명부' : '참여 면접관'}</h3>
+          <p className="mt-1 text-xs text-slate-400">{isRoster ? '기본 정보는 모든 일정에 함께 반영됩니다.' : '선택한 일정의 가능시간을 관리합니다.'}</p>
+        </div>
+        <div className="space-y-2">
+          {active.map((item) => (
+            <div key={item.id} className={`flex items-center rounded-xl border ${selected?.id === item.id ? 'border-navy/30 bg-navy/10' : 'border-transparent bg-slate-50'}`}>
+              <button onClick={() => choose(item.id)} className="min-w-0 flex-1 px-3 py-2.5 text-left">
+                <strong className="block truncate text-xs text-navy">{item.displayName}</strong>
+                <small className="block truncate text-slate-500">{item.phone ?? '연락처 미등록'}</small>
+              </button>
+              {isRoster && (
+                <button onClick={() => startEdit(item)} aria-label="수정" className="p-2 text-slate-500">
+                  <Pencil size={13} />
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (window.confirm(`${item.displayName} 면접관을 ${isRoster ? '명부에서 삭제' : '이 일정에서 제외'}할까요?`)) void onRemove(item);
+                }}
+                aria-label="삭제"
+                className="mr-2 p-2 text-slate-400 hover:text-red-600"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+        {!isRoster && (
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-xs font-black text-navy">면접관 배정</p>
+            <p className="mt-1 text-[10px] leading-4 text-slate-400">명부에서 이 일정에 참여할 면접관을 추가합니다.</p>
+            <div className="mt-2 space-y-2">
+              {assignable.map((item) => (
+                <div key={item.id} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-xs text-navy">{item.displayName}</strong>
+                    <small className="block truncate text-slate-400">{item.phone ?? item.email ?? '연락처 미등록'}</small>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={Boolean(assigningId)}
+                    onClick={() => {
+                      setAssigningId(item.id);
+                      void onAssign(item).finally(() => setAssigningId(null));
+                    }}
+                    className="flex shrink-0 items-center gap-1 rounded-lg bg-white px-2.5 py-2 text-[10px] font-black text-navy shadow-sm hover:bg-amber-50 disabled:opacity-40"
+                  >
+                    <Plus size={12} />
+                    {assigningId === item.id ? '배정 중' : '배정'}
+                  </button>
+                </div>
+              ))}
+              {assignable.length === 0 && <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-[10px] font-bold text-slate-400">명부의 모든 활성 면접관이 참여 중입니다.</p>}
+            </div>
+          </div>
+        )}
+        {isRoster && (
+          <div className="grid gap-2 border-t border-slate-100 pt-4">
+            <p className="text-xs font-black text-navy">{editingId ? '면접관 정보 수정' : '면접관 추가'}</p>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="면접관 이름" className="rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            <input value={phone} onChange={(e) => setPhone(formatMemberPhone(e.target.value))} onBlur={() => setPhone(formatMemberPhone(phone))} placeholder="연락용 전화번호" className="rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="로그인 이메일 (선택)" className="rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            <div className="flex gap-2">
+              <button disabled={!name.trim()} onClick={() => void submit()} className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-gold px-3 py-2.5 text-xs font-black text-navy disabled:opacity-40">
+                {editingId ? <Save size={14} /> : <Plus size={14} />}
+                {editingId ? '수정 완료' : '면접관 추가'}
+              </button>
+              {editingId && (
+                <button onClick={clearForm} aria-label="수정 취소" className="rounded-xl border border-slate-200 px-3 text-slate-500">
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </aside>
+      <section className="min-w-0 overflow-hidden rounded-3xl bg-white p-4 shadow-sm sm:p-5">
+        {selected ? (
+          isRoster ? (
+            <RosterInfo interviewer={selected} participants={scheduleParticipants} applicants={assigned} schedules={schedules} onEdit={() => startEdit(selected)} />
+          ) : (
+            <>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <UserRound size={18} className="text-gold" />
+                  <div>
+                    <h3 className="font-black text-navy">{selected.displayName} 가능시간</h3>
+                    <p className="text-xs text-slate-400">{editingSlots ? '칸을 누르거나 드래그해 수정하세요.' : `저장됨 · ${selected.availability.length}개 시간`}</p>
+                  </div>
+                </div>
+                {editingSlots ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setDraft(null);
+                        setEditingSlots(false);
+                      }}
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-black text-slate-500"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (await onSaveAvailability(selected.id, [...selectedSlots])) {
+                          setDraft(null);
+                          setEditingSlots(false);
+                        }
+                      }}
+                      className="flex items-center gap-1 rounded-xl bg-navy px-4 py-2 text-xs font-black text-white"
+                    >
+                      <Save size={14} />
+                      저장
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditingSlots(true)} className="flex items-center gap-1 rounded-xl border border-navy/30 bg-navy/5 px-4 py-2 text-xs font-black text-navy">
+                    <Pencil size={14} />
+                    수정하기
+                  </button>
+                )}
+              </div>
+              <div className={editingSlots ? '' : 'pointer-events-none opacity-80'}>
+                <AvailabilityGrid
+                  slots={round.allowedSlots}
+                  selected={selectedSlots}
+                  slotMinutes={round.availabilitySlotMinutes}
+                  onToggle={(slotId, force) =>
+                    setDraft((current) => {
+                      const next = new Set(current ?? selected.availability);
+                      const shouldSelect = force ?? !next.has(slotId);
+                      shouldSelect ? next.add(slotId) : next.delete(slotId);
+                      return next;
+                    })
+                  }
+                />
+              </div>
+            </>
+          )
+        ) : (
+          <p className="py-20 text-center text-sm text-slate-400">면접관을 먼저 추가해주세요.</p>
+        )}
+      </section>
+    </div>
+  );
 }
 
-function RosterInfo({ interviewer, applicants, schedules, onEdit }: { interviewer: InterviewRoundInterviewer; applicants: InterviewApplicant[]; schedules: InterviewSchedule[]; onEdit: () => void }) {
-  const scheduleCount = new Set(applicants.map(item => item.scheduleId).filter(Boolean)).size;
-  return <div className="space-y-5"><div className="flex justify-between gap-3"><div><p className="text-xs font-bold text-gold">INTERVIEWER</p><h3 className="mt-1 text-xl font-black text-navy">{interviewer.displayName}</h3><p className="mt-2 text-sm text-slate-500">{interviewer.phone ?? '연락처 미등록'} · {interviewer.email ?? '로그인 연결 없음'}</p></div><button onClick={onEdit} className="flex h-fit items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-navy"><Pencil size={14} />정보 수정</button></div><div className="grid grid-cols-3 gap-2"><Info label="참여 일정" value={`${scheduleCount}개`} /><Info label="배정 면접" value={`${applicants.length}건`} /><Info label="완료" value={`${applicants.filter(item => item.interviewStatus === 'completed' || item.assignment?.status === 'completed').length}건`} /></div><div><h4 className="text-sm font-black text-navy">배정된 면접</h4><div className="mt-2 space-y-2">{applicants.map(item => <div key={item.id} className="flex justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs"><strong>{item.name}</strong><span className="text-slate-500">{schedules.find(schedule => schedule.id === item.scheduleId)?.name ?? '일정'} · {item.assignment?.slotId?.replace('|', ' ')}</span></div>)}{!applicants.length && <p className="rounded-xl bg-slate-50 p-6 text-center text-xs text-slate-400">배정된 면접이 없습니다.</p>}</div></div></div>;
+function RosterInfo({ interviewer, participants, applicants, schedules, onEdit }: { interviewer: InterviewRoundInterviewer; participants: InterviewScheduleInterviewer[]; applicants: InterviewApplicant[]; schedules: InterviewSchedule[]; onEdit: () => void }) {
+  const scheduleCount = countActiveInterviewerSchedules(interviewer.interviewerId, participants, schedules);
+  return (
+    <div className="space-y-5">
+      <div className="flex justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-gold">INTERVIEWER</p>
+          <h3 className="mt-1 text-xl font-black text-navy">{interviewer.displayName}</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            {interviewer.phone ?? '연락처 미등록'} · {interviewer.email ?? '로그인 연결 없음'}
+          </p>
+        </div>
+        <button onClick={onEdit} className="flex h-fit items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-black text-navy">
+          <Pencil size={14} />
+          정보 수정
+        </button>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Info label="참여 일정" value={`${scheduleCount}개`} />
+        <Info label="배정 면접" value={`${applicants.length}건`} />
+        <Info label="완료" value={`${applicants.filter((item) => item.interviewStatus === 'completed' || item.assignment?.status === 'completed').length}건`} />
+      </div>
+      <div>
+        <h4 className="text-sm font-black text-navy">배정된 면접</h4>
+        <div className="mt-2 space-y-2">
+          {applicants.map((item) => (
+            <div key={item.id} className="flex justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs">
+              <strong>{item.name}</strong>
+              <span className="text-slate-500">
+                {schedules.find((schedule) => schedule.id === item.scheduleId)?.name ?? '일정'} · {item.assignment?.slotId?.replace('|', ' ')}
+              </span>
+            </div>
+          ))}
+          {!applicants.length && <p className="rounded-xl bg-slate-50 p-6 text-center text-xs text-slate-400">배정된 면접이 없습니다.</p>}
+        </div>
+      </div>
+    </div>
+  );
 }
-function Info({ label, value }: { label: string; value: string }) { return <div className="rounded-2xl bg-slate-50 p-4"><p className="text-[10px] font-bold text-slate-400">{label}</p><p className="mt-1 text-lg font-black text-navy">{value}</p></div>; }
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <p className="text-[10px] font-bold text-slate-400">{label}</p>
+      <p className="mt-1 text-lg font-black text-navy">{value}</p>
+    </div>
+  );
+}
