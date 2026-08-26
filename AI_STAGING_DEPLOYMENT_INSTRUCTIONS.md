@@ -1,9 +1,9 @@
 # Staging deployment
 
 ```yaml
-project: avalon-manager-stg-260813
-hosting_site: avalon-manager-stg-260813
-url: https://avalon-manager-stg-260813.web.app
+project: avalon-manager-staging
+hosting_site: avalon-manager-staging
+url: https://avalon-manager-staging.web.app
 firebase_config: firebase.staging.json
 app_config: firebase-applet-config.staging.json
 vite_mode: staging
