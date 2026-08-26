@@ -288,7 +288,7 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(setDoc(assignmentEventRef, { roundId, applicantId, type: 'assigned' }));
     await assertSucceeds(getDoc(assignmentEventRef));
     await assertFails(updateDoc(assignmentEventRef, { type: 'changed' }));
-    await assertFails(deleteDoc(assignmentEventRef));
+    await assertSucceeds(deleteDoc(assignmentEventRef));
     const noteRef = doc(adminDb, 'interviewNotes', `${roundId}__${applicantId}`);
     await assertSucceeds(setDoc(noteRef, {
       roundId,
@@ -305,7 +305,7 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(setDoc(recordEventRef, { roundId, applicantId, type: 'completed' }));
     await assertSucceeds(getDoc(recordEventRef));
     await assertFails(updateDoc(recordEventRef, { type: 'rating_changed' }));
-    await assertFails(deleteDoc(recordEventRef));
+    await assertSucceeds(deleteDoc(recordEventRef));
     const changeRequestRef = doc(adminDb, 'interviewChangeRequests', token);
     await assertSucceeds(setDoc(changeRequestRef, { roundId, applicantId, status: 'open' }));
     await assertSucceeds(getDoc(changeRequestRef));

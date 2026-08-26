@@ -24,11 +24,13 @@ import {
 } from '../domain/interviews/scheduling';
 import {
   addRoundInterviewer,
+  assignRoundInterviewerToSchedule,
   applyInterviewAssignmentProposals,
   applyInterviewScheduleChange,
   completeInterviewAtomically,
   createInterviewApplicant,
   createInterviewSchedule,
+  deleteInterviewRound,
   applyConcreteInterviewScheduleChange,
   migrateLegacyApplicantsToInterviewSchedule,
   assignApplicantsToInterviewSchedule,
@@ -104,6 +106,7 @@ export function useInterviewRoundLogic(roundId: string) {
   const [autoDraft, setAutoDraft] = useState<AutoAssignmentResult | null>(null);
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
   const [search, setSearch] = useState('');
+  const [deletingRound, setDeletingRound] = useState(false);
   const normalizedRoundId = roundId.trim();
 
   useEffect(() => {
@@ -554,6 +557,38 @@ export function useInterviewRoundLogic(roundId: string) {
     toast.success(activeScheduleId ? '현재 면접 일정에서 면접관을 제외했습니다.' : '회차에서 면접관을 제외했습니다.'); return true;
   };
 
+  const assignInterviewer = async (participant: InterviewRoundInterviewer) => {
+    if (!activeScheduleId) {
+      toast.error('면접관을 배정할 일정을 먼저 선택해주세요.');
+      return false;
+    }
+    try {
+      await assignRoundInterviewerToSchedule(roundId, activeScheduleId, participant.interviewerId);
+      toast.success(`${participant.displayName} 면접관을 현재 일정에 배정했습니다.`);
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접관을 배정하지 못했습니다.');
+      return false;
+    }
+  };
+
+  const removeRound = async () => {
+    if (deletingRound || !round) return false;
+    setDeletingRound(true);
+    try {
+      const result = await deleteInterviewRound(round.id);
+      toast.success(`${round.name} 회차와 관련 데이터 ${result.deletedDocuments}건을 삭제했습니다.`);
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접 회차를 삭제하지 못했습니다.');
+      return false;
+    } finally {
+      setDeletingRound(false);
+    }
+  };
+
 
   const runAutoAssignment = (mode: AutoAssignmentMode, applicantId?: string) => {
     if (!activeSchedulingConfig) return null;
@@ -789,6 +824,7 @@ export function useInterviewRoundLogic(roundId: string) {
     saveInterviewerAvailability,
     saveInterviewerPhone,
     removeInterviewer,
+    assignInterviewer,
     runAutoAssignment,
     applyAutoDraft,
     changeAssignmentState,
@@ -802,5 +838,7 @@ export function useInterviewRoundLogic(roundId: string) {
     updateCompletedRating,
     updateSelectionStatus,
     getApplicantExport,
+    deletingRound,
+    removeRound,
   };
 }
