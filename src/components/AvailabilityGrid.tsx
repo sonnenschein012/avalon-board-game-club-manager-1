@@ -109,7 +109,7 @@ export default function AvailabilityGrid({
             {formatDate(date)}
           </div>
         ))}
-        {times.map((time, timeIndex) => (
+        {times.map((time) => (
           <div key={time} className="contents">
             <div className={`sticky left-0 z-10 flex items-center justify-center whitespace-nowrap border-b border-r border-slate-100 bg-white font-bold text-slate-500 ${compact ? 'min-h-8 px-1 text-[9px]' : 'min-h-11 px-2 text-xs'}`}>
               {slotMinutes && !compact ? `${time}~${getEndTime(time, slotMinutes)}` : time}
@@ -118,12 +118,6 @@ export default function AvailabilityGrid({
               const slotId = `${date}|${time}`;
               const exists = slotLookup.has(slotId);
               const isSelected = selected.has(slotId);
-              const hasSelectedSlotAbove = isSelected
-                && timeIndex > 0
-                && selected.has(`${date}|${times[timeIndex - 1]}`);
-              const hasSelectedSlotBelow = isSelected
-                && timeIndex < times.length - 1
-                && selected.has(`${date}|${times[timeIndex + 1]}`);
               const count = counts?.get(slotId);
               return exists ? (
                 <button
@@ -151,11 +145,7 @@ export default function AvailabilityGrid({
                     count !== undefined
                       ? 'bg-white text-navy hover:bg-gold/15'
                       : isSelected
-                        ? cn(
-                            'border-b-[#F2DF9F] border-r-[#F2DF9F] bg-[#F2DF9F] text-navy',
-                            !hasSelectedSlotAbove && 'rounded-t-md',
-                            !hasSelectedSlotBelow && 'rounded-b-md',
-                          )
+                        ? 'border-b-[#FFD166] border-r-[#FFD166] bg-[#FFD166] text-navy'
                         : 'bg-white text-slate-300 hover:bg-gold/10',
                     disabled && count === undefined && 'cursor-not-allowed opacity-70',
                   )}
