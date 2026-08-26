@@ -22,6 +22,20 @@ export interface AvailabilityValidationResult {
 
 export type AvailabilityResponse = Pick<InterviewAccess, 'applicantId' | 'availability'>;
 
+export function isAssignmentOutsideAvailability(
+  availability: readonly string[],
+  assignmentSlotId: string | undefined,
+  availabilitySlotMinutes: number,
+  assignmentSlotMinutes: number,
+): boolean {
+  if (!assignmentSlotId) return false;
+  return !availabilityToAssignmentCandidates(
+    [...availability],
+    availabilitySlotMinutes,
+    assignmentSlotMinutes,
+  ).includes(assignmentSlotId);
+}
+
 export interface AvailabilityAggregate {
   slotId: string;
   count: number;

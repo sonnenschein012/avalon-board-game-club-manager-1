@@ -1,5 +1,5 @@
 import React from 'react';
-import { Save, Plus, Trash2, X } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Member, Game, SessionGroup } from '../types';
 import { cn } from '../lib/utils';
@@ -11,6 +11,7 @@ export interface ModalControl {
   editingSessionId: string | null;
   handleClose: () => void;
   handleSave: () => void;
+  saving?: boolean;
 }
 
 export interface SessionData {
@@ -77,7 +78,7 @@ interface SessionFormModalProps {
 }
 
 export default function SessionFormModal({
-  modalControl: { isAdding, handleClose, handleSave, editingSessionId },
+  modalControl: { isAdding, handleClose, handleSave, editingSessionId, saving = false },
   sessionData: { sessionName, setSessionName, sessionDate, setSessionDate },
   coreData: { members, games, groups, setGroups, unassignedIds },
   groupActions: { assignToGroup, updateGroupName, toggleGameInGroup, removeFromGroup, handleCreateGroup },
@@ -117,8 +118,8 @@ export default function SessionFormModal({
               </div>
               <div className="flex gap-2 w-full md:w-auto justify-end mt-4 md:mt-0">
                 <button onClick={handleClose} className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-600 uppercase">닫기</button>
-                <button onClick={handleSave} className="flex flex-1 md:flex-none justify-center items-center gap-2 px-6 py-2 bg-navy hover:bg-gold text-white rounded-xl font-black shadow-lg shadow-sm text-xs uppercase">
-                  <Save size={16} className="shrink-0" /> {editingSessionId ? '수정' : '저장'}
+                <button onClick={handleSave} disabled={saving} className="flex flex-1 md:flex-none justify-center items-center gap-2 px-6 py-2 bg-navy hover:bg-gold text-white rounded-xl font-black shadow-lg shadow-sm text-xs uppercase disabled:opacity-50">
+                  {saving ? <Loader2 size={16} className="shrink-0 animate-spin" /> : <Save size={16} className="shrink-0" />} {saving ? (editingSessionId ? '수정 중…' : '저장 중…') : editingSessionId ? '수정' : '저장'}
                 </button>
               </div>
             </div>

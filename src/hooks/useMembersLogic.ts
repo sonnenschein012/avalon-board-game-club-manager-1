@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { defaultMemberNickname, formatMemberPhone, normalizeMemberName, normalizeStudentYear } from '../domain/interviews/memberRegistration';
+import { useAsyncActionState } from './useAsyncActionState';
 
 export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
 
@@ -59,6 +60,7 @@ export function useMembersLogic() {
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [currentTab, setCurrentTab] = useState<'활동' | '휴면'>('활동');
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const { runExclusive, isPending, anyPending } = useAsyncActionState();
 
   useEffect(() => {
     setSelectedDocs(new Set());
@@ -70,6 +72,8 @@ export function useMembersLogic() {
       toast.error('휴면 지정 학기를 입력해주세요.');
       return;
     }
+    if (isPending('member-bulk')) return;
+    await runExclusive('member-bulk', async () => {
     try {
       const promises = Array.from(selectedDocs).map((id: string) => {
         return updateDoc(doc(db, 'members', id), {
@@ -84,6 +88,7 @@ export function useMembersLogic() {
       console.error(error);
       toast.error('휴면 전환 중 오류가 발생했습니다.');
     }
+    });
   };
 
   const handleBulkDormantSemesterChange = async (dormantSemester: string) => {
@@ -92,6 +97,8 @@ export function useMembersLogic() {
       toast.error('휴면 학기를 입력해주세요.');
       return;
     }
+    if (isPending('member-bulk')) return;
+    await runExclusive('member-bulk', async () => {
     try {
       await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
         dormantSemester,
@@ -102,10 +109,13 @@ export function useMembersLogic() {
       console.error(error);
       toast.error('휴면 학기 변경 중 오류가 발생했습니다.');
     }
+    });
   };
 
   const handleBulkRestoreActive = async () => {
     if (selectedDocs.size === 0) return;
+    if (isPending('member-bulk')) return;
+    await runExclusive('member-bulk', async () => {
     try {
       await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
         status: '활동',
@@ -117,6 +127,7 @@ export function useMembersLogic() {
       console.error(error);
       toast.error('활동 명부 복원 중 오류가 발생했습니다.');
     }
+    });
   };
 
   const [formData, setFormData] = useState<MemberFormData>({ 
@@ -233,7 +244,8 @@ export function useMembersLogic() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (isPending('member-save')) return;
+    await runExclusive('member-save', async () => {
     const studentId = normalizeStudentYear(formData.studentId);
     const nickname = formData.nickname.trim() || defaultMemberNickname(formData.name, studentId);
     const isDuplicate = members.some(member =>
@@ -269,10 +281,13 @@ export function useMembersLogic() {
       handleFirestoreError(error, editingId ? OperationType.UPDATE : OperationType.CREATE, `members/${editingId || ''}`);
       toast.error('오류가 발생했습니다.');
     }
+    });
   };
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
+    if (isPending('member-delete')) return;
+    await runExclusive('member-delete', async () => {
     try {
       const linkedApplicants = await getDocs(query(collection(db, 'interviewApplicants'), where('memberId', '==', itemToDelete.id)));
       const batch = writeBatch(db);
@@ -291,6 +306,7 @@ export function useMembersLogic() {
     } finally {
       setItemToDelete(null);
     }
+    });
   };
 
   const resetForm = () => {
@@ -344,6 +360,10 @@ export function useMembersLogic() {
     handleBulkDormant,
     handleBulkDormantSemesterChange,
     handleBulkRestoreActive,
+    memberSaving: isPending('member-save'),
+    memberDeleting: isPending('member-delete'),
+    memberActionPending: anyPending,
+    memberBulkPending: isPending('member-bulk'),
     resetForm,
     filteredMembers,
     semesters,

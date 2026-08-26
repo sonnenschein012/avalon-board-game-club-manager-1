@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { parseSlotId } from '../domain/interviews/scheduling';
 import { cn } from '../lib/utils';
+import { useEdgeAutoScroll } from '../hooks/useEdgeAutoScroll';
 
 interface AvailabilityGridProps {
   slots: string[];
@@ -40,6 +41,7 @@ export default function AvailabilityGrid({
   const paintMode = useRef<boolean | null>(null);
   const paintedSlots = useRef(new Set<string>());
   const activePointerId = useRef<number | null>(null);
+  const { updateEdgeAutoScroll, stopEdgeAutoScroll } = useEdgeAutoScroll();
 
   const { dates, times, slotLookup } = useMemo(() => {
     const dateSet = new Set<string>();
@@ -79,6 +81,7 @@ export default function AvailabilityGrid({
     paintMode.current = null;
     activePointerId.current = null;
     paintedSlots.current.clear();
+    stopEdgeAutoScroll();
   };
 
   if (dates.length === 0 || times.length === 0) {
@@ -90,6 +93,7 @@ export default function AvailabilityGrid({
       className="relative z-0 isolate max-w-full overflow-auto rounded-2xl border border-slate-100 bg-white"
       onPointerMove={(event) => {
         if (paintMode.current === null) return;
+        updateEdgeAutoScroll(event.clientY);
         const element = document.elementFromPoint(event.clientX, event.clientY);
         const button = element?.closest<HTMLButtonElement>('[data-slot-id]');
         const slotId = button?.dataset.slotId;
@@ -136,6 +140,7 @@ export default function AvailabilityGrid({
                   }}
                   onPointerDown={onToggle ? (event) => {
                     event.preventDefault();
+                    updateEdgeAutoScroll(event.clientY);
                     beginPaint(slotId, isSelected, event.pointerId, event.currentTarget);
                   } : undefined}
                   onPointerEnter={onToggle ? (event) => continuePaint(slotId, event.buttons) : undefined}

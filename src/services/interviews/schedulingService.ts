@@ -49,6 +49,13 @@ export async function saveInterviewAssignment(
       throw new Error('지원 철회 또는 보관된 지원자는 배정할 수 없습니다.');
     }
     const currentAssignment = applicant.assignment;
+    const assignmentChanges = currentAssignment?.slotId !== assignment?.slotId
+      || currentAssignment?.interviewerId !== assignment?.interviewerId;
+    const changeGateOpen = currentAssignment?.status === 'change_requested'
+      || currentAssignment?.status === 'needs_reschedule';
+    if (assignmentChanges && isCurrentConfirmationSent(applicant) && !changeGateOpen) {
+      throw new Error('확정 배정은 바로 변경할 수 없습니다. 먼저 변경 필요 상태로 전환해주세요.');
+    }
     const previousRevision = currentAssignmentRevision(applicant);
     const nextRevision = previousRevision + 1;
     const scheduleId = applicant.scheduleId ?? null;
@@ -190,6 +197,13 @@ export async function applyInterviewAssignmentProposals(
       if ((applicant.scheduleId ?? null) !== scheduleId) throw new Error(`${applicant.name} 지원자가 현재 면접 일정에 속하지 않습니다.`);
       if (!isActiveApplicant(applicant)) throw new Error(`${applicant.name} 지원자는 지원 철회 또는 보관 상태입니다.`);
       const current = applicant.assignment;
+      const proposalChangesAssignment = current?.slotId !== proposal.slotId
+        || current?.interviewerId !== proposal.interviewerId;
+      const changeGateOpen = current?.status === 'change_requested'
+        || current?.status === 'needs_reschedule';
+      if (proposalChangesAssignment && isCurrentConfirmationSent(applicant) && !changeGateOpen) {
+        throw new Error(`${applicant.name} 지원자의 확정 배정은 변경 필요 전환 없이 수정할 수 없습니다.`);
+      }
       const previousRevision = currentAssignmentRevision(applicant);
       if (proposal.expectedAssignmentRevision !== previousRevision) {
         throw new Error(`${applicant.name} 지원자의 일정이 초안 작성 후 변경되었습니다. 자동 배정을 다시 실행해주세요.`);

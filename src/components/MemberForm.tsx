@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
+import { Loader2 } from 'lucide-react';
 import { AVAILABLE_GENRES, defaultSemester, defaultDormantSemester, MemberFormData } from '../hooks/useMembersLogic';
 
 export interface MemberFormProps {
@@ -9,6 +10,7 @@ export interface MemberFormProps {
   setIsAdding: (val: boolean) => void;
   resetForm: () => void;
   editingId: string | null;
+  saving?: boolean;
 }
 
 export default function MemberForm({
@@ -17,7 +19,8 @@ export default function MemberForm({
   handleSubmit,
   setIsAdding,
   resetForm,
-  editingId
+  editingId,
+  saving = false,
 }: MemberFormProps) {
   return (
     <motion.div 
@@ -102,8 +105,8 @@ export default function MemberForm({
         </div>
         <div className="flex justify-end gap-3">
           <button type="button" onClick={() => { setIsAdding(false); resetForm(); }} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 uppercase">취소</button>
-          <button type="submit" className="px-6 py-2 bg-navy hover:bg-gold text-white rounded-lg text-xs font-bold shadow-lg uppercase">
-            {editingId ? '정보 수정' : '멤버 등록'}
+          <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-6 py-2 bg-navy hover:bg-gold text-white rounded-lg text-xs font-bold shadow-lg uppercase disabled:opacity-50">
+            {saving && <Loader2 size={14} className="animate-spin" />}{saving ? (editingId ? '수정 중…' : '등록 중…') : editingId ? '정보 수정' : '멤버 등록'}
           </button>
         </div>
       </form>

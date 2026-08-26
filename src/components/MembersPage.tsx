@@ -30,6 +30,9 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
     handleBulkDormant,
     handleBulkDormantSemesterChange,
     handleBulkRestoreActive,
+    memberSaving,
+    memberDeleting,
+    memberBulkPending,
     resetForm,
     filteredMembers,
     semesters,
@@ -99,6 +102,7 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
             setIsAdding={setIsAdding}
             resetForm={resetForm}
             editingId={editingId}
+            saving={memberSaving}
           />
         )}
       </AnimatePresence>
@@ -121,6 +125,8 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
         handleBulkDormantSemesterChange={handleBulkDormantSemesterChange}
         handleBulkRestoreActive={handleBulkRestoreActive}
         currentTab={currentTab}
+        saving={memberSaving}
+        bulkPending={memberBulkPending}
       />
 
       <ConfirmDeleteModal 
@@ -129,6 +135,7 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
         message={`'${itemToDelete?.name}' 멤버를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`}
         onConfirm={handleDelete}
         onCancel={() => setItemToDelete(null)}
+        busy={memberDeleting}
       />
 
       <MemberProfileModal 

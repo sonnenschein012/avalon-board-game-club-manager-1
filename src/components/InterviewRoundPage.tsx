@@ -24,7 +24,9 @@ import type { InterviewRoundDraft, InterviewScheduleDraft } from '../services/in
 import type { InterviewApplicantWithAccess } from '../types';
 import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interviews/applicantSort';
 import { getApplicantJourney } from '../domain/interviews/applicantJourney';
+import { isActiveInterviewApplicant } from '../domain/interviews/interviewV3Policy';
 import ApplicantJourney from './ApplicantJourney';
+import { useEdgeAutoScroll } from '../hooks/useEdgeAutoScroll';
 
 type Tab = 'overview' | 'applicants' | 'schedule' | 'interviewers' | 'progress' | 'selection' | 'member-registration' | 'settings';
 const TABS: Array<{ id: Tab; label: string }> = [
@@ -100,11 +102,13 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     visited: Set<string>;
   }>({ active: false, selected: false, visited: new Set() });
   const lastApplicantTap = useRef<{ id: string; at: number } | null>(null);
+  const { updateEdgeAutoScroll, stopEdgeAutoScroll } = useEdgeAutoScroll();
 
   useEffect(() => {
     const stopSelectionPaint = () => {
       selectionPaint.current.active = false;
       selectionPaint.current.visited.clear();
+      stopEdgeAutoScroll();
     };
     window.addEventListener('pointerup', stopSelectionPaint);
     window.addEventListener('pointercancel', stopSelectionPaint);
@@ -112,13 +116,13 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
       window.removeEventListener('pointerup', stopSelectionPaint);
       window.removeEventListener('pointercancel', stopSelectionPaint);
     };
-  }, []);
+  }, [stopEdgeAutoScroll]);
 
   const counts = useMemo(
     () => ({
-      total: logic.applicants.filter((item) => (item.lifecycle ?? 'active') === 'active' && (item.applicationStatus ?? 'active') === 'active').length,
-      responded: logic.applicants.filter((item) => (item.lifecycle ?? 'active') === 'active' && (item.applicationStatus ?? 'active') === 'active' && item.access?.submittedAt).length,
-      assigned: logic.applicants.filter((item) => (item.lifecycle ?? 'active') === 'active' && (item.applicationStatus ?? 'active') === 'active' && item.assignment).length,
+      total: logic.applicants.filter(isActiveInterviewApplicant).length,
+      responded: logic.applicants.filter((item) => isActiveInterviewApplicant(item) && item.access?.submittedAt).length,
+      assigned: logic.applicants.filter((item) => isActiveInterviewApplicant(item) && item.assignment).length,
     }),
     [logic.applicants],
   );
@@ -126,7 +130,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   const scheduleApplicantCounts = useMemo(
     () =>
       logic.applicants.reduce<Record<string, number>>((countsBySchedule, applicant) => {
-        if (applicant.scheduleId) countsBySchedule[applicant.scheduleId] = (countsBySchedule[applicant.scheduleId] ?? 0) + 1;
+        if (applicant.scheduleId && isActiveInterviewApplicant(applicant)) countsBySchedule[applicant.scheduleId] = (countsBySchedule[applicant.scheduleId] ?? 0) + 1;
         return countsBySchedule;
       }, {}),
     [logic.applicants],
@@ -143,7 +147,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   if (!logic.round) return <div className="rounded-2xl bg-white p-12 text-center text-sm font-bold text-slate-500">면접 회차를 찾을 수 없습니다.</div>;
   const round = logic.round;
   const activeSchedule = logic.activeSchedule;
-  const scheduleApplicants = activeSchedule ? logic.applicants.filter((applicant) => applicant.scheduleId === activeSchedule.id) : [];
+  const scheduleApplicants = activeSchedule ? logic.applicants.filter((applicant) => applicant.scheduleId === activeSchedule.id && isActiveInterviewApplicant(applicant)) : [];
   const scheduleViewRound: typeof round = activeSchedule
     ? {
         ...round,
@@ -319,11 +323,11 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
         <InterviewSchedulesOverview
           applicants={logic.applicants}
           schedules={logic.schedules}
-          legacyApplicantCount={logic.applicants.filter((item) => item.scheduleId === undefined).length}
+          legacyApplicantCount={logic.applicants.filter((item) => item.scheduleId === undefined && isActiveInterviewApplicant(item)).length}
           onAssignUnassigned={() => {
             setTab('applicants');
             logic.setFilter('schedule-unassigned');
-            openScheduleAssignment(logic.applicants.filter((item) => item.scheduleId === null && (item.lifecycle ?? 'active') === 'active' && (item.applicationStatus ?? 'active') === 'active').map((item) => item.id));
+            openScheduleAssignment(logic.applicants.filter((item) => item.scheduleId === null && isActiveInterviewApplicant(item)).map((item) => item.id));
           }}
           onMigrateLegacy={() => {
             if (window.confirm('기존 지원자의 응답과 현재 배정을 그대로 보존한 “기존 면접 일정”을 만들고 가져올까요?')) void logic.migrateLegacyApplicants();
@@ -394,6 +398,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             className="space-y-2"
             onPointerMove={(event) => {
               if (!selectionPaint.current.active) return;
+              updateEdgeAutoScroll(event.clientY);
               const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-applicant-id]');
               if (target?.dataset.applicantId) continueApplicantSelection(target.dataset.applicantId);
             }}
@@ -458,22 +463,31 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             </div>
           </div>
           {activeSchedule ? (
-            <InterviewSchedulePanel
-              round={scheduleViewRound}
-              applicants={scheduleApplicants}
-              interviewers={logic.activeInterviewers}
-              changeRequests={logic.changeRequests.filter((request) => request.scheduleId === activeSchedule.id)}
-              draft={logic.autoDraft}
-              onDraftChange={logic.setAutoDraft}
-              onRunApplicantAutoAssignment={(applicantId) => {
-                logic.runAutoAssignment('applicant', applicantId);
-              }}
-              onApplyDraft={logic.applyAutoDraft}
-              onAssign={logic.assignApplicant}
-              onClearAssignment={logic.clearAssignment}
-              onChangeAssignmentState={logic.changeAssignmentState}
-              onResetSchedule={logic.resetApplicantSchedule}
-            />
+            <div className="space-y-3">
+              {!logic.autoDraft && (
+                <div className="flex justify-end rounded-2xl bg-emerald-50 p-3">
+                  <button type="button" onClick={() => logic.runAutoAssignment('unassigned')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white">
+                    미배정자 전체 자동배정
+                  </button>
+                </div>
+              )}
+              <InterviewSchedulePanel
+                round={scheduleViewRound}
+                applicants={scheduleApplicants}
+                interviewers={logic.activeInterviewers}
+                changeRequests={logic.changeRequests.filter((request) => request.scheduleId === activeSchedule.id)}
+                draft={logic.autoDraft}
+                onDraftChange={logic.setAutoDraft}
+                onRunApplicantAutoAssignment={(applicantId) => {
+                  logic.runAutoAssignment('applicant', applicantId);
+                }}
+                onApplyDraft={logic.applyAutoDraft}
+                onAssign={logic.assignApplicant}
+                onClearAssignment={logic.clearAssignment}
+                onChangeAssignmentState={logic.changeAssignmentState}
+                onResetSchedule={logic.resetApplicantSchedule}
+              />
+            </div>
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-4 py-16 text-center">
               <CalendarClock className="mx-auto text-slate-300" size={30} />

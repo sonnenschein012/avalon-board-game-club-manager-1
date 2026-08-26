@@ -10,11 +10,17 @@ import {
   getAssignmentScheduleImpact,
   getScheduleChangeImpact,
   getSurveyPhase,
+  isAssignmentOutsideAvailability,
   parseSlotId,
   validateAvailability,
 } from './scheduling';
 
 describe('interview scheduling domain', () => {
+  it('detects when a revised response no longer contains the assigned time', () => {
+    expect(isAssignmentOutsideAvailability(['2026-08-27|19:00'], '2026-08-27|19:00', 30, 10)).toBe(false);
+    expect(isAssignmentOutsideAvailability(['2026-08-27|19:30'], '2026-08-27|19:00', 30, 10)).toBe(true);
+  });
+
   it('creates and parses canonical local slot IDs', () => {
     const slotId = createSlotId('2026-08-27', '19:15');
 

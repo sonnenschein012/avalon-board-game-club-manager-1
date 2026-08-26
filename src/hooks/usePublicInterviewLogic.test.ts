@@ -1,7 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 import { describe, expect, it } from 'vitest';
 import type { InterviewAccess, InterviewPublicRound } from '../types';
-import { getPublicInterviewState } from './usePublicInterviewLogic';
+import { getPublicInterviewState, resolvePublicInitializationState } from './usePublicInterviewLogic';
 
 function access(active = true): InterviewAccess {
   return { active } as InterviewAccess;
@@ -60,5 +60,16 @@ describe('getPublicInterviewState', () => {
       round('collecting', new Date('2026-08-13T05:00:00.000Z'), new Date('2026-09-13T06:00:00.000Z')),
       now,
     )).toBe('unassigned');
+  });
+});
+
+describe('resolvePublicInitializationState', () => {
+  it('고정 일정 링크는 최초 접속 기록 중에도 응답 화면을 연다', () => {
+    expect(resolvePublicInitializationState('collecting', true, 'schedule-1', null)).toBe('collecting');
+  });
+
+  it('구형 이동 범위 링크는 최초 접속 기록 전까지 차단하고 지연 오류를 표시한다', () => {
+    expect(resolvePublicInitializationState('collecting', true, undefined, null)).toBe('loading');
+    expect(resolvePublicInitializationState('collecting', true, undefined, '지연')).toBe('error');
   });
 });

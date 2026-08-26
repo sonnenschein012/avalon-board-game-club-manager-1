@@ -10,6 +10,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Attendee, Member, SessionGroup, StoredSessionGroup, Session, MemberId } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
+import { useAsyncActionState } from './useAsyncActionState';
 
 import { getMemberFromAttendee } from '../domain/matching/getMemberFromAttendee';
 import {
@@ -53,6 +54,7 @@ interface UseAttendanceLogicProps {
 }
 
 export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) {
+  const { runExclusive, isPending } = useAsyncActionState();
   const { data: attendees } = useFirestore<Attendee>('attendees', orderBy('importDate', 'desc'));
   const { data: members } = useFirestore<Member>('members');
   const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
@@ -410,6 +412,8 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   };
 
   const handleMoveToRecord = async () => {
+    if (isPending('attendance-save')) return;
+    await runExclusive('attendance-save', async () => {
     if (groups.length === 0) {
       toast.error('최소 1개 이상의 조가 편성되어야 합니다.');
       return;
@@ -453,6 +457,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
       handleFirestoreError(e, OperationType.WRITE, `DailyPlannings/${sessionDate}`);
       toast.error('오류가 발생했습니다.');
     }
+    });
   };
 
   return {
@@ -512,5 +517,6 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     handleDropToGroup,
     handleDropToUnassigned,
     handleMoveToRecord,
+    attendanceSaving: isPending('attendance-save'),
   };
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AVAILABLE_GENRES } from '../hooks/useGamesLogic';
+import { Loader2 } from 'lucide-react';
 
 interface GameFormProps {
   formData: { title: string, minPlayers: number, maxPlayers: number, bestMinPlayers: number, bestMaxPlayers: number, complexity: number, memo: string, genres: string[] };
@@ -9,6 +10,7 @@ interface GameFormProps {
   isAdding: boolean;
   setIsAdding: (val: boolean) => void;
   editingId: string | null;
+  saving?: boolean;
 }
 
 export default function GameForm({
@@ -17,7 +19,8 @@ export default function GameForm({
   handleSubmit,
   isAdding,
   setIsAdding,
-  editingId
+  editingId,
+  saving = false,
 }: GameFormProps) {
   return (
     <AnimatePresence>
@@ -85,8 +88,8 @@ export default function GameForm({
               </div>
             </div>
             <div className="flex gap-2 md:col-span-6">
-              <button type="submit" className="flex-1 px-4 py-2 bg-navy hover:bg-gold text-white rounded-lg text-xs font-bold uppercase shadow-lg">
-                {editingId ? '수정 완료' : '등록 완료'}
+              <button type="submit" disabled={saving} className="flex flex-1 items-center justify-center gap-2 px-4 py-2 bg-navy hover:bg-gold text-white rounded-lg text-xs font-bold uppercase shadow-lg disabled:opacity-50">
+                {saving && <Loader2 size={14} className="animate-spin" />}{saving ? (editingId ? '수정 중…' : '등록 중…') : editingId ? '수정 완료' : '등록 완료'}
               </button>
               <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">취소</button>
             </div>

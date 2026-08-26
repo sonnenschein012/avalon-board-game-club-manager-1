@@ -74,10 +74,17 @@ function interviewerTheme(interviewerId: string) {
 function CompactStatus({ applicant, actionNeeded }: { applicant: InterviewApplicantWithAccess; actionNeeded: boolean }) {
   const confirmed = confirmationCurrent(applicant);
   const progressStatus = getInterviewProgressStatus(applicant);
+  const changeNeeded = applicant.assignment?.status === 'change_requested'
+    || applicant.assignment?.status === 'needs_reschedule'
+    || actionNeeded;
   return <span className="ml-auto flex shrink-0 items-center gap-1">
-    {confirmed ? <CheckCircle2 aria-label="안내 완료" size={11} className="text-emerald-600" /> : <span aria-label="안내 전" title="안내 전" className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
+    {changeNeeded
+      ? <span className="text-[8px] font-black text-red-600">변경 필요</span>
+      : confirmed
+        ? <span className="inline-flex items-center gap-0.5 text-[8px] font-black text-emerald-700"><CheckCircle2 aria-label="확정 배정" size={10} />확정</span>
+        : <span className="text-[8px] font-black text-amber-600">가배정</span>}
     {progressStatus === 'completed' && <span className="text-[8px] font-black text-slate-500">완료</span>}
-    {actionNeeded && <AlertTriangle aria-label="조치 필요" size={11} className="text-red-500" />}
+    {changeNeeded && <AlertTriangle aria-label="변경 필요" size={11} className="text-red-500" />}
   </span>;
 }
 
@@ -262,7 +269,12 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
   const entryDraggable = (entry: ScheduleEntry) => {
     if (entry.kind === 'draft') return !entry.proposal.locked && !entry.proposal.protected;
     const progressStatus = getInterviewProgressStatus(entry.applicant);
-    return !entry.applicant.assignment?.locked && progressStatus === 'scheduled' && !actionNeededIds.has(entry.applicant.id);
+    const changeGateOpen = entry.applicant.assignment?.status === 'change_requested'
+      || entry.applicant.assignment?.status === 'needs_reschedule';
+    if (confirmationCurrent(entry.applicant) && !changeGateOpen) return false;
+    return !entry.applicant.assignment?.locked
+      && (progressStatus === 'scheduled' || changeGateOpen)
+      && (!actionNeededIds.has(entry.applicant.id) || changeGateOpen);
   };
   const handleDragStart = (event: DragStartEvent) => {
     setSelectedApplicantId(null);
@@ -280,14 +292,16 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
     }
     const assignment = entry.applicant.assignment;
     if (!assignment) return;
-    if (confirmationCurrent(entry.applicant) && !window.confirm(`${entry.applicant.name} 지원자에게 현재 일정 안내가 이미 발송되었습니다. 시간을 변경할까요? 변경 후 다시 안내해야 합니다.`)) return;
+    if (confirmationCurrent(entry.applicant)
+      && assignment.status !== 'change_requested'
+      && assignment.status !== 'needs_reschedule') return;
     void onAssign(entry.applicant, targetSlot, assignment.interviewerId, false).then(success => {
       if (!success || !draft?.proposals.some(proposal => proposal.applicantId === entry.applicant.id)) return;
       onDraftChange({ ...draft, proposals: draft.proposals.map(proposal => proposal.applicantId === entry.applicant.id ? { ...proposal, slotId: targetSlot, preserved: true, protected: false, expectedAssignmentRevision: (entry.applicant.assignmentRevision ?? 0) + 1 } : proposal) });
     });
   };
 
-  return <DndContext sensors={sensors} collisionDetection={pointerWithin} autoScroll onDragStart={handleDragStart} onDragCancel={() => setActiveDragId(null)} onDragEnd={handleDragEnd}><div className="hidden lg:block">
+  return <><div className="mb-3 flex flex-wrap gap-2">{assigned.filter(applicant => confirmationCurrent(applicant) && applicant.assignment?.status !== 'change_requested' && applicant.assignment?.status !== 'needs_reschedule').map(applicant => <button key={applicant.id} type="button" onClick={() => { if (window.confirm(`${applicant.name} 지원자에게 이미 확정 안내된 일정입니다. 변경하면 기존 안내가 유효하지 않으며 새 일정을 다시 안내해야 합니다. 변경 필요 상태로 전환할까요?`)) void onChangeAssignmentState(applicant.id, { status: 'needs_reschedule' }); }} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black text-emerald-800"><CheckCircle2 size={12} />{applicant.name} · 확정 배정</button>)}</div><DndContext sensors={sensors} collisionDetection={pointerWithin} autoScroll onDragStart={handleDragStart} onDragCancel={() => setActiveDragId(null)} onDragEnd={handleDragEnd}><div className="hidden lg:block">
     <div className="flex items-center justify-between gap-3">
       <div><h3 className="font-black text-navy">면접 시간표</h3><p className="mt-1 text-xs text-slate-400">면접 일정이 있는 날짜만 5개씩, 30분 단위로 표시합니다. 칸 안의 카드는 실제 배정 시간순이며 반투명 카드는 검토안입니다.</p></div>
       <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">확정 {visibleAssignmentCount} · 검토 {visibleDraftCount}</span>
@@ -322,7 +336,7 @@ function WeeklySchedule({ round, applicants, assigned, interviewers, draft, acti
         {displayTimes.length === 0 && <div className="p-12 text-center text-sm text-slate-400">설정된 면접 일정이 없습니다.</div>}
       </div>
     </div>
-  </div><DragOverlay dropAnimation={null}>{activeEntry ? <ScheduleCard entry={activeEntry} actionNeeded={activeEntry.kind === 'assigned' && actionNeededIds.has(activeEntry.applicant.id)} overlay /> : null}</DragOverlay></DndContext>;
+  </div><DragOverlay dropAnimation={null}>{activeEntry ? <ScheduleCard entry={activeEntry} actionNeeded={activeEntry.kind === 'assigned' && actionNeededIds.has(activeEntry.applicant.id)} overlay /> : null}</DragOverlay></DndContext></>;
 }
 
 export default function InterviewSchedulePanel({ round, applicants, interviewers, changeRequests, draft, onDraftChange, onRunApplicantAutoAssignment, onApplyDraft, onAssign, onClearAssignment, onChangeAssignmentState, onResetSchedule }: Props) {

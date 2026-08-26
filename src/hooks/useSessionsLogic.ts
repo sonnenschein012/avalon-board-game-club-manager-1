@@ -18,6 +18,7 @@ import { getSemester } from '../domain/semester/getSemester';
 import { DragEndEvent } from '@dnd-kit/core';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { getDefaultSessionName, getLocalDateKey } from '../domain/attendance/sessionMetadata';
+import { useAsyncActionState } from './useAsyncActionState';
 
 const initialSessionMetadata = () => {
   const date = getLocalDateKey(new Date());
@@ -43,6 +44,7 @@ export function useSessionsLogic(
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<string>('전체');
   const [isImporting, setIsImporting] = useState(false);
+  const { runExclusive, isPending } = useAsyncActionState();
 
   const cleanString = (str?: string) => (str || '').replace(/[\s\u200B-\u200D\uFEFF]/g, '').toLowerCase();
 
@@ -283,6 +285,8 @@ export function useSessionsLogic(
   };
 
   const handleSave = async () => {
+    if (isPending('session-save')) return;
+    await runExclusive('session-save', async () => {
     try {
       if (groups.length === 0) {
         toast.error('최소 한 개의 조를 생성해야 합니다.');
@@ -373,6 +377,7 @@ export function useSessionsLogic(
       handleFirestoreError(error, editingSessionId ? OperationType.UPDATE : OperationType.CREATE, `sessions/${editingSessionId || ''}`);
       toast.error('저장 중 오류가 발생했습니다.');
     }
+    });
   };
 
   const handleEdit = (session: Session) => {
@@ -403,6 +408,8 @@ export function useSessionsLogic(
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
+    if (isPending('session-delete')) return;
+    await runExclusive('session-delete', async () => {
     try {
       await deleteDoc(doc(db, 'sessions', itemToDelete.id));
       toast.success('세션 기록이 삭제되었습니다.');
@@ -412,6 +419,7 @@ export function useSessionsLogic(
     } finally {
       setItemToDelete(null);
     }
+    });
   };
 
   const handleClose = () => {
@@ -447,6 +455,8 @@ export function useSessionsLogic(
     handleSave,
     handleEdit,
     handleDelete,
-    handleClose
+    handleClose,
+    sessionSaving: isPending('session-save'),
+    sessionDeleting: isPending('session-delete'),
   };
 }

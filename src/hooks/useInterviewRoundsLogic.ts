@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { InterviewAccess, InterviewApplicant, InterviewRound } from '../types';
+import { isActiveInterviewApplicant } from '../domain/interviews/interviewV3Policy';
 import {
   createInterviewRound,
   deleteInterviewRound,
@@ -42,7 +43,10 @@ export function useInterviewRoundsLogic() {
   const countsByRound = useMemo(() => {
     const result: Record<string, InterviewRoundCounts> = {};
     rounds.forEach(round => {
-      const roundApplicants = applicants.filter(item => item.roundId === round.id);
+      // All user-facing round counts use the same active-applicant population.
+      // Archived and withdrawn records remain queryable as history but must not
+      // inflate the operational response totals.
+      const roundApplicants = applicants.filter(item => item.roundId === round.id && isActiveInterviewApplicant(item));
       const submittedApplicantIds = new Set(
         access.filter(item => item.roundId === round.id && item.submittedAt).map(item => item.applicantId),
       );

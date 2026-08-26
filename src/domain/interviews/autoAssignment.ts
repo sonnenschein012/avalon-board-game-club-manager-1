@@ -192,29 +192,52 @@ function hasAnyInterviewerOverlap(
   return [...interviewerSlots.values()].some(interviewer => slots.some(slot => interviewer.has(slot)));
 }
 
-/** Matches as many applicants as possible, then changes as few existing slots as possible. */
-function match(applicants: readonly AutoAssignmentApplicant[], candidatesByApplicant: ReadonlyMap<string, Candidate[]>): Map<string, Candidate> {
+/**
+ * Matches as many applicants as possible, then minimizes interviewer utilization
+ * variance before considering tentative-assignment movement.  Convex load costs
+ * make the next assignment increasingly expensive as an interviewer's effective
+ * capacity is consumed.
+ */
+function match(
+  applicants: readonly AutoAssignmentApplicant[],
+  candidatesByApplicant: ReadonlyMap<string, Candidate[]>,
+  baselineLoads: ReadonlyMap<string, number> = new Map(),
+): Map<string, Candidate> {
   const resources = [...new Map([...candidatesByApplicant.values()].flat().map(candidate => [candidate.resourceKey, candidate])).values()]
     .sort((left, right) => left.resourceKey.localeCompare(right.resourceKey));
   const source = 0;
   const applicantOffset = 1;
   const resourceOffset = applicantOffset + applicants.length;
-  const sink = resourceOffset + resources.length;
+  const interviewerIds = [...new Set(resources.map(resource => resource.interviewerId))].sort();
+  const interviewerOffset = resourceOffset + resources.length;
+  const sink = interviewerOffset + interviewerIds.length;
   const graph: Edge[][] = Array.from({ length: sink + 1 }, () => []);
   const resourceIndex = new Map(resources.map((resource, index) => [resource.resourceKey, resourceOffset + index]));
+  const interviewerIndex = new Map(interviewerIds.map((id, index) => [id, interviewerOffset + index]));
 
   applicants.forEach((applicant, applicantIndex) => {
     const node = applicantOffset + applicantIndex;
     addEdge(graph, source, node, 1, 0);
     const currentKey = applicant.existingAssignment ? resourceKey(applicant.existingAssignment) : null;
     (candidatesByApplicant.get(applicant.id) ?? []).forEach((candidate, candidateIndex) => {
-      // One move outweighs all tie-breaking costs, so a valid rearrangement
-      // changes the fewest tentative assignments possible.
-      const moveCost = currentKey && currentKey !== candidate.resourceKey ? 1_000_000 : 0;
+      // Load balance has higher priority than preserving a tentative assignment.
+      const moveCost = currentKey && currentKey !== candidate.resourceKey ? 1_000 : 0;
       addEdge(graph, node, resourceIndex.get(candidate.resourceKey)!, 1, moveCost + candidateIndex);
     });
   });
-  resources.forEach((_, index) => addEdge(graph, resourceOffset + index, sink, 1, 0));
+  resources.forEach((resource, index) => {
+    addEdge(graph, resourceOffset + index, interviewerIndex.get(resource.interviewerId)!, 1, 0);
+  });
+  interviewerIds.forEach(interviewerId => {
+    const node = interviewerIndex.get(interviewerId)!;
+    const capacity = Math.max(1, resources.filter(resource => resource.interviewerId === interviewerId).length);
+    const baseline = baselineLoads.get(interviewerId) ?? 0;
+    for (let loadIndex = 1; loadIndex <= capacity; loadIndex += 1) {
+      // Marginal cost of squared utilization: ((b+k)/capacity)^2.
+      const marginal = Math.round((((baseline + loadIndex) ** 2 - (baseline + loadIndex - 1) ** 2) * 1_000_000) / (capacity ** 2));
+      addEdge(graph, node, sink, 1, marginal);
+    }
+  });
   minCostMaxFlow(graph, source, sink);
 
   const assignments = new Map<string, Candidate>();
@@ -290,7 +313,12 @@ function generateForApplicant(input: AutoAssignmentInput, activeInterviewers: Au
       applicant, activeInterviewers, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes,
     ).filter(candidate => !reserved.has(candidate.resourceKey)));
   });
-  const assignments = match(participants, candidatesByApplicant);
+  const fixedLoads = new Map<string, number>();
+  [...fixed, ...excludedReservations].forEach(applicant => {
+    const interviewerId = applicant.existingAssignment?.interviewerId;
+    if (interviewerId) fixedLoads.set(interviewerId, (fixedLoads.get(interviewerId) ?? 0) + 1);
+  });
+  const assignments = match(participants, candidatesByApplicant, fixedLoads);
   if (!assignments.has(target.id) || assignments.size !== participants.length) {
     return resultFromProposals(existingProposals, [failureFor(target, overlap)], input.applicants);
   }
@@ -326,7 +354,12 @@ function generateBulk(input: AutoAssignmentInput, activeInterviewers: AutoAssign
     ).filter(candidate => !reserved.has(candidate.resourceKey)));
     overlaps.set(applicant.id, hasAnyInterviewerOverlap(applicant, interviewerSlots, input.availabilitySlotMinutes, input.assignmentSlotMinutes));
   });
-  const assignments = match(candidates, candidatesByApplicant);
+  const fixedLoads = new Map<string, number>();
+  [...fixed, ...excludedReservations].forEach(applicant => {
+    const interviewerId = applicant.existingAssignment?.interviewerId;
+    if (interviewerId) fixedLoads.set(interviewerId, (fixedLoads.get(interviewerId) ?? 0) + 1);
+  });
+  const assignments = match(candidates, candidatesByApplicant, fixedLoads);
   const proposals = fixed.flatMap(applicant => proposalFromExisting(applicant) ?? []);
   candidates.forEach(applicant => {
     const candidate = assignments.get(applicant.id);

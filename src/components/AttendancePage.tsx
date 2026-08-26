@@ -69,6 +69,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
     handleDropToGroup,
     handleDropToUnassigned,
     handleMoveToRecord,
+    attendanceSaving,
   } = useAttendanceLogic(onMoveToRecord ? { onMoveToRecord } : {});
 
   return (
@@ -135,6 +136,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
           onCostModalOpen={() => setIsCostModalOpen(true)}
           onExportSimulation={exportSimulationData}
           onMoveToRecord={handleMoveToRecord}
+          saving={attendanceSaving}
           editingGroupId={editingGroupId}
           setEditingGroupId={setEditingGroupId}
           editingGroupName={editingGroupName}

@@ -73,8 +73,9 @@ import {
 } from '../services/interviewsService';
 import { previewApplicantMerge } from '../domain/interviews/applicantMerge';
 import { generateAutoAssignment, type AutoAssignmentMode, type AutoAssignmentResult } from '../domain/interviews/autoAssignment';
-import { getInterviewProgressStatus, isAssignmentConfirmationCurrent } from '../domain/interviews/interviewV3Policy';
+import { getInterviewProgressStatus, isActiveInterviewApplicant, isAssignmentConfirmationCurrent } from '../domain/interviews/interviewV3Policy';
 import { buildInterviewCsvRows } from '../domain/interviews/interviewCsvExport';
+import { useAsyncActionState } from './useAsyncActionState';
 
 export type InterviewApplicantFilter =
   | 'all'
@@ -110,6 +111,7 @@ export function useInterviewRoundLogic(roundId: string) {
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
   const [search, setSearch] = useState('');
   const [deletingRound, setDeletingRound] = useState(false);
+  const { runExclusive, isPending } = useAsyncActionState();
   const normalizedRoundId = roundId.trim();
 
   useEffect(() => {
@@ -200,9 +202,10 @@ export function useInterviewRoundLogic(roundId: string) {
 
   const aggregateAvailability = useMemo(() => {
     const applicantsById = new Map(joinedApplicants.map(applicant => [applicant.id, applicant]));
+    const activeApplicantIds = new Set(joinedApplicants.filter(isActiveInterviewApplicant).map(applicant => applicant.id));
     const result: Record<string, InterviewApplicantWithAccess[]> = {};
     activeSchedulingConfig?.allowedSlots.forEach(slot => { result[slot] = []; });
-    aggregateAvailabilityResponses(access).forEach(cell => {
+    aggregateAvailabilityResponses(access.filter(item => activeApplicantIds.has(item.applicantId))).forEach(cell => {
       if (!result[cell.slotId]) return;
       result[cell.slotId] = cell.applicantIds
         .map(applicantId => applicantsById.get(applicantId))
@@ -639,7 +642,9 @@ export function useInterviewRoundLogic(roundId: string) {
 
   const applyAutoDraft = async () => {
     if (!activeSchedulingConfig || !autoDraft) return false;
-    try {
+    if (isPending('auto-draft-apply')) return false;
+    const result = await runExclusive('auto-draft-apply', async () => {
+      try {
       await applyInterviewAssignmentProposals(roundId, autoDraft.proposals.filter(proposal => !proposal.preserved).map(proposal => {
         const parsed = parseSlotId(proposal.slotId)!;
         const current = joinedApplicants.find(item => item.id === proposal.applicantId)?.assignment;
@@ -654,12 +659,19 @@ export function useInterviewRoundLogic(roundId: string) {
         };
       }), activeSchedule?.id ?? null);
       toast.success('검토한 자동 배정 초안을 반영했습니다.'); setAutoDraft(null); return true;
-    } catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '자동 배정을 반영하지 못했습니다.'); return false; }
+      } catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '자동 배정을 반영하지 못했습니다.'); return false; }
+    });
+    return result.value ?? false;
   };
 
   const changeAssignmentState = async (applicantId: string, patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>) => {
-    try { await updateInterviewAssignmentState(applicantId, patch); toast.success('면접 상태를 변경했습니다.'); return true; }
-    catch (error) { console.error(error); toast.error('면접 상태를 변경하지 못했습니다.'); return false; }
+    const key = `assignment-state:${applicantId}`;
+    if (isPending(key)) return false;
+    const result = await runExclusive(key, async () => {
+      try { await updateInterviewAssignmentState(applicantId, patch); toast.success('면접 상태를 변경했습니다.'); return true; }
+      catch (error) { console.error(error); toast.error('면접 상태를 변경하지 못했습니다.'); return false; }
+    });
+    return result.value ?? false;
   };
 
   const resolveChangeRequest = async (requestId: string, status: 'resolved' | 'dismissed') => {
@@ -842,6 +854,7 @@ export function useInterviewRoundLogic(roundId: string) {
     assignInterviewer,
     runAutoAssignment,
     applyAutoDraft,
+    autoDraftApplying: isPending('auto-draft-apply'),
     changeAssignmentState,
     resolveChangeRequest,
     resetApplicantSchedule,

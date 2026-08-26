@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -8,9 +8,11 @@ interface ConfirmDeleteModalProps {
   message?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  busy?: boolean;
+  busyLabel?: string;
 }
 
-export default function ConfirmDeleteModal({ isOpen, title, message, onConfirm, onCancel }: ConfirmDeleteModalProps) {
+export default function ConfirmDeleteModal({ isOpen, title, message, onConfirm, onCancel, busy = false, busyLabel = '삭제 중…' }: ConfirmDeleteModalProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -32,15 +34,17 @@ export default function ConfirmDeleteModal({ isOpen, title, message, onConfirm, 
               <div className="flex gap-3">
                 <button
                   onClick={onCancel}
+                  disabled={busy}
                   className="flex-1 px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors"
                 >
                   취소
                 </button>
                 <button
                   onClick={onConfirm}
-                  className="flex-1 px-4 py-2 bg-crimson text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-sm shadow-red-200"
+                  disabled={busy}
+                  className="flex flex-1 items-center justify-center gap-2 px-4 py-2 bg-crimson text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-sm shadow-red-200 disabled:opacity-50"
                 >
-                  삭제
+                  {busy && <Loader2 size={14} className="animate-spin" />}{busy ? busyLabel : '삭제'}
                 </button>
               </div>
             </div>

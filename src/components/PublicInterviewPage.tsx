@@ -56,7 +56,7 @@ function SlotSummary({
 
 export default function PublicInterviewPage() {
   const { token } = useParams<{ token: string }>();
-  const { access, round, visibleSlots, availability, state, error, saving, saved, replaceAvailability, submit, retryInitialization } = usePublicInterviewLogic(token);
+  const { access, round, visibleSlots, availability, state, error, saving, saved, initializingAccess, initializationError, replaceAvailability, submit, retryInitialization } = usePublicInterviewLogic(token);
   const [editing, setEditing] = useState<boolean | null>(null);
   const isEditing = editing ?? !access?.submittedAt;
   const hasUnsavedChanges = (() => {
@@ -133,7 +133,7 @@ export default function PublicInterviewPage() {
             <LockKeyhole className="mx-auto text-gold" size={34} />
             <h2 className="mt-3 text-lg font-black text-slate-800">{stateMessage[0]}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">{stateMessage[1]}</p>
-            {state === 'error' && access && round && <button type="button" onClick={retryInitialization} className="mt-4 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white">다시 시도</button>}
+            {state === 'error' && <button type="button" onClick={retryInitialization} className="mt-4 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white">다시 시도</button>}
           </section>
         )}
 
@@ -174,7 +174,7 @@ export default function PublicInterviewPage() {
               slotMinutes={round.availabilitySlotMinutes}
               compact
             />
-            {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error}</p>}
+            {error && <div role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600"><p>{error}</p>{initializationError && <button type="button" onClick={retryInitialization} className="mt-2 rounded-lg bg-white px-3 py-2 text-xs font-black text-red-700 shadow-sm">연결 다시 시도</button>}</div>}
             {saved && (
               <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
                 <CheckCircle2 size={17} /> 응답을 저장했습니다. 마감 전에는 같은 링크에서 다시 수정할 수 있습니다.
@@ -185,11 +185,11 @@ export default function PublicInterviewPage() {
                 {access.submittedAt && !isEditing ? <button type="button" onClick={() => setEditing(true)} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-navy/20 bg-white px-6 py-4 text-sm font-black text-navy shadow-xl sm:w-auto"><Pencil size={18} />수정하기</button> : <button
                     type="button"
                     onClick={confirmAndSubmit}
-                    disabled={saving}
+                    disabled={saving || initializingAccess}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-navy px-6 py-4 text-sm font-black text-white shadow-xl transition-colors hover:bg-gold disabled:opacity-50 sm:w-auto"
                   >
-                    {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {saving ? '저장 중...' : access.submittedAt ? '변경사항 저장' : `${availability.size}개 시간 저장`}
+                    {saving || initializingAccess ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    {saving ? '저장 중...' : initializingAccess ? '응답 준비 중...' : access.submittedAt ? '변경사항 저장' : `${availability.size}개 시간 저장`}
                   </button>}
               </div>
             )}

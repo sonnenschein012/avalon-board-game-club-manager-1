@@ -14,6 +14,7 @@ import { Game, Session } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
+import { useAsyncActionState } from './useAsyncActionState';
 
 export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
 
@@ -33,6 +34,7 @@ export function useGamesLogic() {
   const [playerCountType, setPlayerCountType] = useState<'best' | 'possible'>('best');
   const [sortOrder, setSortOrder] = useState<'이름순' | '인기순'>('이름순');
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
+  const { runExclusive, isPending } = useAsyncActionState();
 
   const gamePlayCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -201,6 +203,8 @@ export function useGamesLogic() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPending('game-save')) return;
+    await runExclusive('game-save', async () => {
     try {
       if (editingId) {
         await updateDoc(doc(db, 'games', editingId), formData);
@@ -216,10 +220,13 @@ export function useGamesLogic() {
       handleFirestoreError(error, editingId ? OperationType.UPDATE : OperationType.CREATE, `games/${editingId || ''}`);
       toast.error('오류가 발생했습니다.');
     }
+    });
   };
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
+    if (isPending('game-delete')) return;
+    await runExclusive('game-delete', async () => {
     try {
       await deleteDoc(doc(db, 'games', itemToDelete.id));
       toast.success('게임이 삭제되었습니다.');
@@ -229,9 +236,12 @@ export function useGamesLogic() {
     } finally {
       setItemToDelete(null);
     }
+    });
   };
 
   const handleDeleteAll = async () => {
+    if (isPending('game-delete-all')) return;
+    await runExclusive('game-delete-all', async () => {
     try {
       const chunkSize = 500;
       for (let i = 0; i < games.length; i += chunkSize) {
@@ -249,6 +259,7 @@ export function useGamesLogic() {
     } finally {
       setIsDeleteAllModalOpen(false);
     }
+    });
   };
 
   return {
@@ -270,6 +281,9 @@ export function useGamesLogic() {
     handleFileUpload,
     handleSubmit,
     handleDelete,
-    handleDeleteAll
+    handleDeleteAll,
+    gameSaving: isPending('game-save'),
+    gameDeleting: isPending('game-delete'),
+    gamesDeletingAll: isPending('game-delete-all'),
   };
 }
