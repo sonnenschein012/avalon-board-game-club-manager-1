@@ -109,7 +109,7 @@ export default function AvailabilityGrid({
             {formatDate(date)}
           </div>
         ))}
-        {times.map((time) => (
+        {times.map((time, timeIndex) => (
           <div key={time} className="contents">
             <div className={`sticky left-0 z-10 flex items-center justify-center whitespace-nowrap border-b border-r border-slate-100 bg-white font-bold text-slate-500 ${compact ? 'min-h-8 px-1 text-[9px]' : 'min-h-11 px-2 text-xs'}`}>
               {slotMinutes && !compact ? `${time}~${getEndTime(time, slotMinutes)}` : time}
@@ -118,6 +118,12 @@ export default function AvailabilityGrid({
               const slotId = `${date}|${time}`;
               const exists = slotLookup.has(slotId);
               const isSelected = selected.has(slotId);
+              const hasSelectedSlotAbove = isSelected
+                && timeIndex > 0
+                && selected.has(`${date}|${times[timeIndex - 1]}`);
+              const hasSelectedSlotBelow = isSelected
+                && timeIndex < times.length - 1
+                && selected.has(`${date}|${times[timeIndex + 1]}`);
               const count = counts?.get(slotId);
               return exists ? (
                 <button
@@ -145,12 +151,16 @@ export default function AvailabilityGrid({
                     count !== undefined
                       ? 'bg-white text-navy hover:bg-gold/15'
                       : isSelected
-                        ? 'border border-navy/30 bg-navy/10 text-navy shadow-[inset_0_0_0_1px_rgba(15,35,64,0.04)]'
+                        ? cn(
+                            'border-b-[#F2DF9F] border-r-[#F2DF9F] bg-[#F2DF9F] text-navy',
+                            !hasSelectedSlotAbove && 'rounded-t-md',
+                            !hasSelectedSlotBelow && 'rounded-b-md',
+                          )
                         : 'bg-white text-slate-300 hover:bg-gold/10',
                     disabled && count === undefined && 'cursor-not-allowed opacity-70',
                   )}
                 >
-                  {count !== undefined ? count : isSelected ? '✓' : ''}
+                  {count !== undefined ? count : ''}
                 </button>
               ) : <div key={slotId} className={`${compact ? 'min-h-8' : 'min-h-11'} border-b border-r border-slate-100 bg-slate-50/60`} />;
             })}
