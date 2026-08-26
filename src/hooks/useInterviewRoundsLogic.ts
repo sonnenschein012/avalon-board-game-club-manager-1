@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import type { InterviewAccess, InterviewApplicant, InterviewRound } from '../types';
 import {
   createInterviewRound,
+  deleteInterviewRound,
   subscribeAllInterviewAccess,
   subscribeAllInterviewApplicants,
   subscribeInterviewRounds,
@@ -21,6 +22,7 @@ export function useInterviewRoundsLogic() {
   const [access, setAccess] = useState<InterviewAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingRoundId, setDeletingRoundId] = useState<string | null>(null);
 
   useEffect(() => {
     const stopRounds = subscribeInterviewRounds(
@@ -68,5 +70,21 @@ export function useInterviewRoundsLogic() {
     }
   };
 
-  return { rounds, countsByRound, loading, saving, saveRound };
+  const removeRound = async (round: InterviewRound) => {
+    if (deletingRoundId) return false;
+    setDeletingRoundId(round.id);
+    try {
+      const result = await deleteInterviewRound(round.id);
+      toast.success(`${round.name} 회차와 관련 데이터 ${result.deletedDocuments}건을 삭제했습니다.`);
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '면접 회차를 삭제하지 못했습니다.');
+      return false;
+    } finally {
+      setDeletingRoundId(null);
+    }
+  };
+
+  return { rounds, countsByRound, loading, saving, saveRound, deletingRoundId, removeRound };
 }

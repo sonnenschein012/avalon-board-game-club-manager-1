@@ -225,6 +225,7 @@ service cloud.firestore {
 
     match /interviewAssignmentEvents/{eventId} {
       allow read, create: if canManageInterviews();
+      allow delete: if canManageInterviews();
     }
 
     // Interview notes can contain sensitive application answers and internal
@@ -237,6 +238,7 @@ service cloud.firestore {
     // attempts extractable for V4 without exposing them to applicant links.
     match /interviewRecordEvents/{eventId} {
       allow read, create: if canManageInterviews();
+      allow delete: if canManageInterviews();
     }
 
     match /interviewChangeRequests/{token} {

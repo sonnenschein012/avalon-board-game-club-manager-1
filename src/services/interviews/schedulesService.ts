@@ -41,6 +41,50 @@ export function subscribeScheduleInterviewers(
   }, onError);
 }
 
+export async function assignRoundInterviewerToSchedule(
+  roundId: string,
+  scheduleId: string,
+  interviewerId: string,
+): Promise<void> {
+  const scheduleRef = doc(db, 'interviewSchedules', scheduleId);
+  const rosterRef = doc(db, 'interviewRoundInterviewers', `${roundId}__${interviewerId}`);
+  const participantRef = doc(db, 'interviewScheduleInterviewers', `${scheduleId}__${interviewerId}`);
+  await runTransaction(db, async transaction => {
+    const [scheduleSnapshot, rosterSnapshot, participantSnapshot] = await Promise.all([
+      transaction.get(scheduleRef),
+      transaction.get(rosterRef),
+      transaction.get(participantRef),
+    ]);
+    if (!scheduleSnapshot.exists()) throw new Error('면접 일정을 찾을 수 없습니다.');
+    const schedule = scheduleSnapshot.data() as InterviewSchedule;
+    if (schedule.roundId !== roundId || schedule.status === 'archived') {
+      throw new Error('현재 회차에서 사용할 수 없는 면접 일정입니다.');
+    }
+    if (!rosterSnapshot.exists()) throw new Error('면접관 명부에서 대상을 찾을 수 없습니다.');
+    const interviewer = rosterSnapshot.data() as InterviewRoundInterviewer;
+    if (!interviewer.active) throw new Error('명부에서 제외된 면접관은 배정할 수 없습니다.');
+    const shared = {
+      roundId,
+      scheduleId,
+      interviewerId,
+      displayName: interviewer.displayName,
+      email: interviewer.email,
+      phone: interviewer.phone ?? null,
+      active: true,
+      updatedAt: serverTimestamp(),
+    };
+    if (participantSnapshot.exists()) {
+      transaction.update(participantRef, shared);
+    } else {
+      transaction.set(participantRef, {
+        ...shared,
+        availability: [],
+        createdAt: serverTimestamp(),
+      });
+    }
+  });
+}
+
 export async function createInterviewSchedule(roundId: string, draft: InterviewScheduleDraft): Promise<string> {
   const [existing, interviewerSnapshots] = await Promise.all([
     getDocs(query(collection(db, 'interviewSchedules'), where('roundId', '==', roundId))),
