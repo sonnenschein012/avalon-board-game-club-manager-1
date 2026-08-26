@@ -112,7 +112,6 @@ export async function saveInterviewAssignment(
     transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
       assignmentSummary: nextAssignment?.slotId ? {
         slotId: nextAssignment.slotId,
-        interviewerName: nextAssignment.interviewerName,
         status: nextAssignment.status,
         revision: nextRevision,
       } : null,
@@ -255,7 +254,7 @@ export async function applyInterviewAssignmentProposals(
         updatedAt: serverTimestamp(),
       });
       transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
-        assignmentSummary: { slotId: next.slotId, interviewerName: next.interviewerName, status: next.status, revision },
+        assignmentSummary: { slotId: next.slotId, status: next.status, revision },
       });
       transaction.set(doc(collection(db, 'interviewAssignmentEvents')), {
         roundId,
