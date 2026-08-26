@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "dev:staging": "vite --mode staging --port=3000 --host=0.0.0.0",
+    "dev:demo": "vite --mode demo --port=3000 --host=127.0.0.1",
+    "demo": "node scripts/run-demo.mjs",
+    "demo:setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-demo-java.ps1",
+    "demo:serve": "npm run demo:seed && npm run dev:demo",
+    "demo:seed": "node scripts/seed-demo.mjs",
     "build": "vite build",
     "build:staging": "vite build --mode staging",
     "deploy:staging": "npm run build:staging && firebase deploy --project avalon-manager-stg-260813 --config firebase.staging.json --only firestore,hosting --non-interactive",

@@ -9,3 +9,4 @@ coverage/
 # Auto-generated build artifacts / caches (do not commit)
 stats.html
 .firebase/
+.demo-runtime/
