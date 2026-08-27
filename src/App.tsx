@@ -1,5 +1,5 @@
 import React, { Component, useState, useEffect } from 'react';
-import { auth, signInWithGoogle, logout, testConnection, checkAdminStatus } from './lib/firebase';
+import { auth, signInWithGoogle, logout, testConnection, checkAdminStatus, initializeDemoSession, isDemoMode } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart, CalendarClock, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -79,13 +79,14 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isMasterAdmin, setIsMasterAdmin] = useState<boolean>(false);
-  const [isAdminModeActive, setIsAdminModeActive] = useState<boolean>(false);
+  const [isAdminModeActive, setIsAdminModeActive] = useState<boolean>(isDemoMode);
   const [loading, setLoading] = useState(true);
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const location = useLocation();
   const navigate = useNavigate();
+  const isPublicInterviewRoute = location.pathname.startsWith('/interview/');
 
   const handleLogin = async () => {
     if (loggingIn) return;
@@ -112,7 +113,7 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!window.location.pathname.startsWith('/interview/')) {
+    if (!isDemoMode && !isPublicInterviewRoute) {
       testConnection();
     }
     
@@ -129,27 +130,52 @@ export default function App() {
     };
     window.addEventListener('avalon-admin-mode-toggle', handleAdminModeToggle);
 
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u && u.email) {
-        setLoading(true);
-        const { isAdmin: adminStatus, isMaster: masterStatus } = await checkAdminStatus(u.email);
-        setIsAdmin(adminStatus);
-        setIsMasterAdmin(masterStatus);
-      } else {
-        setIsAdmin(false);
-        setIsMasterAdmin(false);
+    let cancelled = false;
+    let unsubscribe: () => void = () => undefined;
+    const startAuth = async () => {
+      try {
+        // Public applicant links must remain unauthenticated in Design Lab so
+        // they exercise the same Firestore rule path as the production UI.
+        if (isDemoMode && isPublicInterviewRoute) {
+          await logout();
+        } else {
+          await initializeDemoSession();
+        }
+        if (cancelled) return;
+        if (isDemoMode && !isPublicInterviewRoute) {
+          await testConnection();
+        }
+      } catch (error) {
+        console.error('Local demo sign-in failed.', error);
+        if (!cancelled) {
+          setLoginError('로컬 데모 인증을 시작하지 못했습니다. Emulator 상태를 확인해주세요.');
+          setLoading(false);
+        }
+        return;
       }
-      setLoading(false);
-    });
+      if (cancelled) return;
+      unsubscribe = onAuthStateChanged(auth, async (u) => {
+        setUser(u);
+        if (u && u.email) {
+          setLoading(true);
+          const { isAdmin: adminStatus, isMaster: masterStatus } = await checkAdminStatus(u.email);
+          setIsAdmin(adminStatus);
+          setIsMasterAdmin(masterStatus);
+        } else {
+          setIsAdmin(false);
+          setIsMasterAdmin(false);
+        }
+        setLoading(false);
+      });
+    };
+    void startAuth();
 
     return () => {
+      cancelled = true;
       window.removeEventListener('avalon-admin-mode-toggle', handleAdminModeToggle);
       unsubscribe();
     };
-  }, []);
-
-  const isPublicInterviewRoute = location.pathname.startsWith('/interview/');
+  }, [isPublicInterviewRoute]);
 
   if (loading && !isPublicInterviewRoute) {
     return (
@@ -196,8 +222,9 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="hidden text-[11px] font-mono text-slate-400 md:block">
-              System Status: <span className="text-emerald-500 font-bold">CONNECTED</span>
+              System Status: <span className={`font-bold ${isDemoMode ? 'text-amber-600' : 'text-emerald-500'}`}>{isDemoMode ? 'LOCAL DEMO' : 'CONNECTED'}</span>
             </div>
+            {isDemoMode && <span className="rounded-lg bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700 md:hidden">LOCAL DEMO</span>}
             {isAdminModeActive && (
               <div aria-label="관리자 편집 모드 활성" className="flex h-8 items-center gap-2 rounded-lg bg-amber-50 px-2 text-navy sm:h-9 sm:px-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-gold text-white sm:h-6 sm:w-6"><ShieldCheck size={14} /></span>

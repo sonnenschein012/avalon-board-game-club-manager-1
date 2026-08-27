@@ -2,6 +2,8 @@ node_modules/
 build/
 dist/
 coverage/
+playwright-report/
+test-results/
 .DS_Store
 *.log
 .env*
@@ -9,3 +11,5 @@ coverage/
 # Auto-generated build artifacts / caches (do not commit)
 stats.html
 .firebase/
+.demo-runtime/
+.codex-deploy-audit-*

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Copy, ExternalLink, MessageSquare, Phone, X } from 'lucide-react';
+import { AlertTriangle, Copy, ExternalLink, MessageSquare, Phone, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { InterviewRound, InterviewRoundInterviewer, InterviewSchedule } from '../types';
 import type { InterviewApplicantWithAccess } from '../types';
 import { renderInterviewMessage } from '../domain/interviews/messages';
-import { parseSlotId } from '../domain/interviews/scheduling';
+import { isAssignmentOutsideAvailability, parseSlotId } from '../domain/interviews/scheduling';
 import { summarizeAvailabilitySlots } from '../domain/interviews/availabilitySummary';
 
 interface ApplicantDetailModalProps {
@@ -89,6 +89,12 @@ export default function ApplicantDetailModal({ applicant, round, schedule, inter
     }
   };
   const selectedAvailability = summarizeAvailabilitySlots(applicant.access?.availability ?? [], schedule?.availabilitySlotMinutes ?? round.availabilitySlotMinutes);
+  const responseConflictsWithAssignment = isAssignmentOutsideAvailability(
+    applicant.access?.availability ?? [],
+    applicant.assignment?.slotId,
+    schedule?.availabilitySlotMinutes ?? round.availabilitySlotMinutes,
+    schedule?.assignmentSlotMinutes ?? round.assignmentSlotMinutes,
+  );
   const withdrawn = (applicant.applicationStatus ?? 'active') === 'withdrawn';
   const assignedInterviewerPhone = interviewers.find(item => item.interviewerId === applicant.assignment?.interviewerId)?.phone?.trim() ?? '';
 
@@ -118,6 +124,7 @@ export default function ApplicantDetailModal({ applicant, round, schedule, inter
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><div><h2 className="text-lg font-black text-navy">{applicant.name}</h2><p className="text-xs text-slate-400">{applicant.applicantNumber} · {applicant.phone}</p></div><button onClick={onClose} className="p-2 text-slate-400"><X size={18} /></button></div><div className="space-y-5 p-5">
     <section className="grid gap-2 sm:grid-cols-3"><button onClick={() => copyWithFeedback(applicant.phone, '전화번호')} className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-navy"><Phone size={14} />전화번호 복사</button><button disabled={withdrawn} onClick={() => copyWithFeedback(applicant.link, '개인 링크')} className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-navy disabled:opacity-35"><Copy size={14} />개인 링크 복사</button>{withdrawn ? <span className="flex items-center justify-center rounded-xl bg-red-50 p-3 text-xs font-bold text-red-700">지원 철회 · 링크 차단</span> : <a href={applicant.link} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-navy"><ExternalLink size={14} />링크 열기</a>}</section>
     <section className="grid gap-3 rounded-2xl bg-indigo-50 p-4 text-xs sm:grid-cols-3"><div><p className="font-bold text-slate-400">최초 유효 접속</p><p className="mt-1 font-black text-navy">{formatTimestamp(applicant.access?.firstAccessedAt)}</p></div><div><p className="font-bold text-slate-400">가능시간 응답</p><p className="mt-1 font-black text-navy">{applicant.access?.submittedAt ? '응답 완료' : '미응답'}</p><p className="mt-1 text-slate-500">지원자 최종 수정 {formatTimestamp(applicant.access?.responseUpdatedAt ?? applicant.access?.updatedAt)}</p></div><div><p className="font-bold text-slate-400">최종 면접시간</p><p className="mt-1 font-black text-navy">{applicant.assignment ? `${assignmentParts.date} ${assignmentParts.time} KST` : '미배정'}</p></div><div className="space-y-2 sm:col-span-3"><p className="font-bold text-slate-400">선택한 가능시간</p>{selectedAvailability.length > 0 ? selectedAvailability.map(row => <div key={row.dateKey} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 rounded-xl bg-white/80 px-3 py-2"><span className="font-black text-navy">{row.dateLabel}</span><span className="font-medium leading-5 text-slate-600">{row.ranges.join(', ')}</span></div>) : <p className="rounded-xl bg-white/80 px-3 py-2 text-slate-500">선택한 시간이 없습니다.</p>}</div></section>
+    {responseConflictsWithAssignment && <div className="flex items-start gap-2 rounded-2xl bg-red-50 p-4 text-xs font-bold text-red-700"><AlertTriangle size={16} className="mt-0.5 shrink-0" /><span>지원자가 응답을 수정하여 현재 배정 시간이 최신 가능시간에 포함되지 않습니다. 변경 필요 여부를 확인해주세요.</span></div>}
     <section className="rounded-2xl border border-slate-100 p-4"><h3 className="mb-3 text-xs font-black text-navy">지원서 원본 정보</h3><dl className="grid gap-3 sm:grid-cols-2">{applicant.applicationData.map((field, index) => <div key={`${field.header}-${index}`}><dt className="text-[10px] font-bold text-slate-400">{field.header || `(열 ${index + 1})`}</dt><dd className="whitespace-pre-wrap text-sm text-slate-700">{field.value || '-'}</dd></div>)}</dl></section>
     {(['availability', 'reminder', 'confirmation'] as const).map(kind => {
       const message = messages[kind];

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { Search, Edit2, Trash2, Info, UserCheck, UserMinus } from 'lucide-react';
+import { Search, Edit2, Trash2, Info, Loader2, UserCheck, UserMinus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Member } from '../types';
 import MemberForm from './MemberForm';
-import { MemberFormData, defaultSemester, defaultDormantSemester } from '../hooks/useMembersLogic';
+import { defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
 
 interface MemberListProps {
   filteredMembers: Member[];
@@ -24,6 +24,8 @@ interface MemberListProps {
   handleBulkDormantSemesterChange: (semester: string) => Promise<void>;
   handleBulkRestoreActive: () => Promise<void>;
   currentTab: '활동' | '휴면';
+  saving?: boolean;
+  bulkPending?: boolean;
 }
 
 export default function MemberList({
@@ -43,7 +45,9 @@ export default function MemberList({
   handleBulkDormant,
   handleBulkDormantSemesterChange,
   handleBulkRestoreActive,
-  currentTab
+  currentTab,
+  saving = false,
+  bulkPending = false,
 }: MemberListProps) {
   const [bulkDormantSemester, setBulkDormantSemester] = useState(defaultDormantSemester);
 
@@ -81,26 +85,29 @@ export default function MemberList({
                 />
                 {currentTab === '활동' ? (
                   <button
+                    disabled={bulkPending}
                     onClick={() => handleBulkDormant(bulkDormantSemester)}
-                    className="flex items-center gap-1.5 bg-gold hover:bg-gold-light text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                    className="flex items-center gap-1.5 bg-gold hover:brightness-110 text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition"
                   >
-                    <UserMinus size={14} />
-                    선택 인원 휴면 전환
+                    {bulkPending ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
+                    {bulkPending ? '전환 중…' : '선택 인원 휴면 전환'}
                   </button>
                 ) : (
                   <>
                     <button
+                      disabled={bulkPending}
                       onClick={() => handleBulkDormantSemesterChange(bulkDormantSemester)}
-                      className="flex items-center gap-1.5 bg-gold hover:bg-gold-light text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                      className="flex items-center gap-1.5 bg-gold hover:brightness-110 text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition"
                     >
-                      휴면 학기 변경
+                      {bulkPending ? '변경 중…' : '휴면 학기 변경'}
                     </button>
                     <button
+                      disabled={bulkPending}
                       onClick={() => handleBulkRestoreActive()}
                       className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                     >
-                      <UserCheck size={14} />
-                      활동으로 복원
+                      {bulkPending ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                      {bulkPending ? '복원 중…' : '활동으로 복원'}
                     </button>
                   </>
                 )}
@@ -294,6 +301,7 @@ export default function MemberList({
                           setIsAdding={setIsAdding}
                           resetForm={resetForm}
                           editingId={editingId}
+                          saving={saving}
                         />
                       </div>
                     </div>

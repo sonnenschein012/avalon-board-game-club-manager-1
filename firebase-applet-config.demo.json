@@ -1,0 +1,9 @@
+{
+  "projectId": "demo-avalon-manager",
+  "appId": "1:1234567890:web:demoavalonmanager",
+  "apiKey": "demo-api-key",
+  "authDomain": "demo-avalon-manager.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "demo-avalon-manager.appspot.com",
+  "messagingSenderId": "1234567890"
+}

@@ -103,6 +103,7 @@ export interface CompleteInterviewInput {
   generalNotes?: string;
   answers?: Record<string, string>;
   overallRating?: InterviewOverallRating | null;
+  expectedNoteRevision?: number;
 }
 
 export function generateInterviewToken(): string {

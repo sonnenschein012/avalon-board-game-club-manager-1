@@ -43,7 +43,9 @@ export default function SessionsPage({ draftSession, onClearDraft, isAdminModeAc
     handleSave,
     handleEdit,
     handleDelete,
-    handleClose
+    handleClose,
+    sessionSaving,
+    sessionDeleting,
   } = useSessionsLogic(draftSession, onClearDraft);
 
   return (
@@ -85,7 +87,8 @@ export default function SessionsPage({ draftSession, onClearDraft, isAdminModeAc
           isAdding,
           editingSessionId,
           handleClose,
-          handleSave
+          handleSave,
+          saving: sessionSaving,
         }}
         sessionData={{
           sessionName,
@@ -137,6 +140,7 @@ export default function SessionsPage({ draftSession, onClearDraft, isAdminModeAc
         message={`'${itemToDelete?.name}' 세션 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`}
         onConfirm={handleDelete}
         onCancel={() => setItemToDelete(null)}
+        busy={sessionDeleting}
       />
 
       <MemberProfileModal 

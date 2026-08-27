@@ -360,6 +360,8 @@ export interface InterviewNote {
   generalNotes: string;
   answers: Record<string, string>;
   overallRating?: InterviewOverallRating | null;
+  /** Monotonic revision used to reject stale multi-operator autosaves. */
+  revision?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   updatedBy: string | null;

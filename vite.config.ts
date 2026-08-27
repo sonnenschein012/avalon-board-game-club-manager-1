@@ -5,14 +5,19 @@ import path from 'path';
 import {defineConfig, type PluginOption} from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
-export default defineConfig(({mode}) => {
-  const supportedModes = ['development', 'production', 'test', 'staging'];
+export default defineConfig(({mode, command}) => {
+  const supportedModes = ['development', 'production', 'test', 'staging', 'demo', 'scenario'];
   if (!supportedModes.includes(mode)) {
     throw new Error(`Unsupported Vite mode "${mode}". Refusing to fall back to production Firebase.`);
   }
-  const firebaseConfigPath = mode === 'staging'
-    ? path.resolve(__dirname, 'firebase-applet-config.staging.json')
-    : path.resolve(__dirname, 'firebase-applet-config.json');
+  if ((mode === 'demo' || mode === 'scenario') && command === 'build') {
+    throw new Error(`${mode === 'demo' ? 'Demo' : 'Scenario Lab'} mode is local-only and cannot be built for deployment.`);
+  }
+  const firebaseConfigPath = mode === 'demo'
+    ? path.resolve(__dirname, 'firebase-applet-config.demo.json')
+    : mode === 'staging'
+      ? path.resolve(__dirname, 'firebase-applet-config.staging.json')
+      : path.resolve(__dirname, 'firebase-applet-config.json');
   return {
     base: '/',
     plugins: [

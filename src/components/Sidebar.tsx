@@ -1,5 +1,4 @@
 import React from 'react';
-import { User } from 'firebase/auth';
 import { ChevronLeft, ChevronRight, LogOut, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import AvalonLogo from './AvalonLogo';
@@ -7,7 +6,7 @@ import AvalonLogo from './AvalonLogo';
 interface SidebarProps {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (c: boolean) => void;
-  user: User;
+  user: { displayName: string | null; email: string | null; photoURL: string | null };
   logout: () => Promise<void>;
   tabs: { id: string, label: string, icon: React.ElementType, category: string, path: string }[];
 }
@@ -136,7 +135,7 @@ export default function Sidebar({
 
       <div className="hidden md:block p-4 bg-slate-100/50 border-t border-transparent">
         <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'gap-3'} mb-4 p-2 bg-white rounded-xl`} title={isSidebarCollapsed ? user.displayName || user.email || '' : ''}>
-          <img src={user.photoURL || ''} alt="" className={`w-8 h-8 rounded-lg shadow-sm shrink-0 ${isSidebarCollapsed ? 'w-8 h-8' : 'w-10 h-10'}`} />
+          {user.photoURL ? <img src={user.photoURL} alt="" className={`w-8 h-8 rounded-lg shadow-sm shrink-0 ${isSidebarCollapsed ? 'w-8 h-8' : 'w-10 h-10'}`} /> : <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-lg bg-navy font-black text-white shadow-sm ${isSidebarCollapsed ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'}`}>{(user.displayName || user.email || 'D').slice(0, 1).toUpperCase()}</span>}
           {!isSidebarCollapsed && (
             <div className="min-w-0">
               <p className="text-xs font-bold text-slate-800 truncate">{user.displayName}</p>

@@ -30,7 +30,10 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
     handleFileUpload,
     handleSubmit,
     handleDelete,
-    handleDeleteAll
+    handleDeleteAll,
+    gameSaving,
+    gameDeleting,
+    gamesDeletingAll,
   } = useGamesLogic();
 
   return (
@@ -90,6 +93,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
         isAdding={isAdding}
         setIsAdding={setIsAdding}
         editingId={editingId}
+        saving={gameSaving}
       />
 
       <GameList
@@ -107,6 +111,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
         message={`'${itemToDelete?.title}' 게임을 삭제하시겠습니까?`}
         onConfirm={handleDelete}
         onCancel={() => setItemToDelete(null)}
+        busy={gameDeleting}
       />
 
       <ConfirmDeleteModal 
@@ -115,6 +120,8 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
         message="정말 모든 게임을 삭제하시겠습니까?"
         onConfirm={handleDeleteAll}
         onCancel={() => setIsDeleteAllModalOpen(false)}
+        busy={gamesDeletingAll}
+        busyLabel="전체 삭제 중…"
       />
     </div>
   );

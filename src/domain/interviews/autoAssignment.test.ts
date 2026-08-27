@@ -125,6 +125,17 @@ describe('V3 per-applicant automatic interview assignment', () => {
 });
 
 describe('legacy bulk modes', () => {
+  it('balances effective utilization before preserving tentative assignments', () => {
+    const slots = ['2026-08-27|19:00', '2026-08-27|19:30', '2026-08-27|20:00', '2026-08-27|20:30'];
+    const result = generateAutoAssignment({
+      applicants: slots.map((slot, index) => ({ id: `a${index}`, name: `지원자${index}`, availability: slots })),
+      interviewers: [interviewer('i1', slots), interviewer('i2', slots)],
+      availabilitySlotMinutes: 30, assignmentSlotMinutes: 30, mode: 'all',
+    });
+    expect(result.assignedCount).toBe(4);
+    expect(result.interviewerLoads).toEqual({ i1: 2, i2: 2 });
+  });
+
   it('maximizes assignments and protects the applicant with fewer candidates', () => {
     const result = generateAutoAssignment({
       applicants: [

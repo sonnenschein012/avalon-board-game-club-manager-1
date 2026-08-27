@@ -4,6 +4,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -11,9 +12,10 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import type { InterviewChangeRequest, InterviewRoundInterviewer, InterviewerProfile } from '../../types';
+import type { InterviewChangeRequest, InterviewRoundInterviewer, InterviewScheduleInterviewer, InterviewerProfile } from '../../types';
 import type { RoundInterviewerDraft } from './models';
 import { formatMemberPhone } from '../../domain/interviews/memberRegistration';
+import { assertExpectedUpdatedAt } from '../../domain/interviews/revisionConflict';
 import { actorEmail, mapSnapshot } from './shared';
 
 export function subscribeRoundInterviewers(
@@ -23,6 +25,16 @@ export function subscribeRoundInterviewers(
 ): Unsubscribe {
   return onSnapshot(query(collection(db, 'interviewRoundInterviewers'), where('roundId', '==', roundId)), snapshot => {
     onData(mapSnapshot<InterviewRoundInterviewer>(snapshot).sort((left, right) => left.displayName.localeCompare(right.displayName)));
+  }, onError);
+}
+
+export function subscribeRoundScheduleInterviewers(
+  roundId: string,
+  onData: (items: InterviewScheduleInterviewer[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(query(collection(db, 'interviewScheduleInterviewers'), where('roundId', '==', roundId)), snapshot => {
+    onData(mapSnapshot<InterviewScheduleInterviewer>(snapshot));
   }, onError);
 }
 
@@ -45,12 +57,22 @@ export async function addRoundInterviewer(
   return profileRef.id;
 }
 
-export async function updateRoundInterviewerAvailability(participantId: string, availability: string[]): Promise<void> {
-  await updateDoc(doc(db, 'interviewRoundInterviewers', participantId), { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+async function updateInterviewerAvailability(collectionName: 'interviewRoundInterviewers' | 'interviewScheduleInterviewers', participantId: string, availability: string[], expectedUpdatedAtMillis?: number) {
+  const participantRef = doc(db, collectionName, participantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(participantRef);
+    if (!snapshot.exists()) throw new Error('면접관 정보를 찾을 수 없습니다.');
+    assertExpectedUpdatedAt(snapshot.data().updatedAt, expectedUpdatedAtMillis, '면접관 가능시간');
+    transaction.update(participantRef, { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+  });
 }
 
-export async function updateScheduleInterviewerAvailability(participantId: string, availability: string[]): Promise<void> {
-  await updateDoc(doc(db, 'interviewScheduleInterviewers', participantId), { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+export async function updateRoundInterviewerAvailability(participantId: string, availability: string[], expectedUpdatedAtMillis?: number): Promise<void> {
+  await updateInterviewerAvailability('interviewRoundInterviewers', participantId, availability, expectedUpdatedAtMillis);
+}
+
+export async function updateScheduleInterviewerAvailability(participantId: string, availability: string[], expectedUpdatedAtMillis?: number): Promise<void> {
+  await updateInterviewerAvailability('interviewScheduleInterviewers', participantId, availability, expectedUpdatedAtMillis);
 }
 
 export async function updateInterviewerPhone(participant: InterviewRoundInterviewer, phone: string): Promise<void> {
@@ -81,7 +103,20 @@ export async function updateInterviewerProfile(
 }
 
 export async function removeRoundInterviewer(participant: InterviewRoundInterviewer): Promise<void> {
-  await updateDoc(doc(db, 'interviewRoundInterviewers', participant.id), { active: false, updatedAt: serverTimestamp() });
+  const scheduleParticipants = await getDocs(query(collection(db, 'interviewScheduleInterviewers'), where('roundId', '==', participant.roundId)));
+  const matchingParticipants = scheduleParticipants.docs.filter(snapshot => snapshot.data().interviewerId === participant.interviewerId);
+  if (matchingParticipants.length > 490) throw new Error('면접관을 한 번에 제외할 수 있는 일정 수를 초과했습니다.');
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewRoundInterviewers', participant.id), { active: false, updatedAt: serverTimestamp() });
+  matchingParticipants.forEach(snapshot => batch.update(snapshot.ref, { active: false, updatedAt: serverTimestamp() }));
+  await batch.commit();
+}
+
+export async function reactivateRoundInterviewer(participant: InterviewRoundInterviewer): Promise<void> {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewerProfiles', participant.interviewerId), { active: true, updatedAt: serverTimestamp() });
+  batch.update(doc(db, 'interviewRoundInterviewers', participant.id), { active: true, updatedAt: serverTimestamp() });
+  await batch.commit();
 }
 
 export async function removeScheduleInterviewer(participantId: string): Promise<void> {

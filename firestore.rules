@@ -134,8 +134,8 @@ service cloud.firestore {
         hasValidSubmissionTimestamps();
     }
 
-    // Fail closed if an administrator accidentally copies private assignment
-    // details into a document readable through an applicant link.
+    // Fail closed if private assignment details are accidentally copied into
+    // a document that is readable through an applicant bearer link.
     function hasPublicSafeAssignmentSummary() {
       return !('assignmentSummary' in resource.data) ||
         resource.data.assignmentSummary == null ||

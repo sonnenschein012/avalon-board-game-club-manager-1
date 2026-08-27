@@ -8,6 +8,7 @@ import {
 import { db } from '../../lib/firebase';
 import { availabilityToAssignmentCandidates, getAssignmentScheduleImpact } from '../../domain/interviews/scheduling';
 import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
+import { assertExpectedRevision, assertExpectedUpdatedAt } from '../../domain/interviews/revisionConflict';
 import {
   prepareScheduleResetTransition,
   prepareWithdrawalTransition,
@@ -39,16 +40,25 @@ import {
 export async function saveInterviewAssignment(
   applicantId: string,
   assignment: InterviewAssignment | null,
+  expectedAssignmentRevision?: number,
 ): Promise<void> {
   const applicantRef = doc(db, 'interviewApplicants', applicantId);
   await runTransaction(db, async transaction => {
     const applicantSnapshot = await transaction.get(applicantRef);
     if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = applicantSnapshot.data() as InterviewApplicant;
+    assertExpectedRevision(currentAssignmentRevision(applicant), expectedAssignmentRevision, '면접 배정');
     if (assignment && !isActiveApplicant(applicant)) {
       throw new Error('지원 철회 또는 보관된 지원자는 배정할 수 없습니다.');
     }
     const currentAssignment = applicant.assignment;
+    const assignmentChanges = currentAssignment?.slotId !== assignment?.slotId
+      || currentAssignment?.interviewerId !== assignment?.interviewerId;
+    const changeGateOpen = currentAssignment?.status === 'change_requested'
+      || currentAssignment?.status === 'needs_reschedule';
+    if (assignmentChanges && isCurrentConfirmationSent(applicant) && !changeGateOpen) {
+      throw new Error('확정 배정은 바로 변경할 수 없습니다. 먼저 변경 필요 상태로 전환해주세요.');
+    }
     const previousRevision = currentAssignmentRevision(applicant);
     const nextRevision = previousRevision + 1;
     const scheduleId = applicant.scheduleId ?? null;
@@ -189,6 +199,13 @@ export async function applyInterviewAssignmentProposals(
       if ((applicant.scheduleId ?? null) !== scheduleId) throw new Error(`${applicant.name} 지원자가 현재 면접 일정에 속하지 않습니다.`);
       if (!isActiveApplicant(applicant)) throw new Error(`${applicant.name} 지원자는 지원 철회 또는 보관 상태입니다.`);
       const current = applicant.assignment;
+      const proposalChangesAssignment = current?.slotId !== proposal.slotId
+        || current?.interviewerId !== proposal.interviewerId;
+      const changeGateOpen = current?.status === 'change_requested'
+        || current?.status === 'needs_reschedule';
+      if (proposalChangesAssignment && isCurrentConfirmationSent(applicant) && !changeGateOpen) {
+        throw new Error(`${applicant.name} 지원자의 확정 배정은 변경 필요 전환 없이 수정할 수 없습니다.`);
+      }
       const previousRevision = currentAssignmentRevision(applicant);
       if (proposal.expectedAssignmentRevision !== previousRevision) {
         throw new Error(`${applicant.name} 지원자의 일정이 초안 작성 후 변경되었습니다. 자동 배정을 다시 실행해주세요.`);
@@ -277,12 +294,16 @@ export async function applyInterviewAssignmentProposals(
 export async function updateInterviewAssignmentState(
   applicantId: string,
   patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>,
+  expectedAssignmentRevision?: number,
+  expectedUpdatedAtMillis?: number,
 ): Promise<void> {
   const applicantRef = doc(db, 'interviewApplicants', applicantId);
   await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(applicantRef);
     if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = snapshot.data() as InterviewApplicant;
+    assertExpectedRevision(currentAssignmentRevision(applicant), expectedAssignmentRevision, '면접 배정');
+    assertExpectedUpdatedAt(applicant.updatedAt, expectedUpdatedAtMillis, '면접 상태');
     if (!applicant.assignment) throw new Error('면접 배정이 없습니다.');
     if (patch.status === 'completed') throw new Error('면접 완료는 종합평가와 함께 완료 기능에서 처리해야 합니다.');
     if (patch.status && getInterviewProgressStatus(applicant) === 'completed') {
@@ -331,6 +352,7 @@ export async function applyInterviewScheduleChange(
   draft: InterviewRoundDraft,
   accessRecordIds: string[],
   applicantRecordIds: string[],
+  expectedScheduleRevision?: number,
 ): Promise<{ cleanedResponseCount: number; clearedAssignmentCount: number }> {
   const allowed = new Set(draft.allowedSlots);
   if (accessRecordIds.length + applicantRecordIds.length > 498) {
@@ -372,7 +394,10 @@ export async function applyInterviewScheduleChange(
 
     const roundRef = doc(db, 'interviewRounds', roundId);
     const currentRoundSnapshot = await transaction.get(roundRef);
-    const nextScheduleRevision = ((currentRoundSnapshot.data()?.scheduleRevision as number | undefined) ?? 0) + 1;
+    if (!currentRoundSnapshot.exists()) throw new Error('면접 회차를 찾을 수 없습니다.');
+    const currentScheduleRevision = (currentRoundSnapshot.data().scheduleRevision as number | undefined) ?? 0;
+    assertExpectedRevision(currentScheduleRevision, expectedScheduleRevision, '회차 일정 설정');
+    const nextScheduleRevision = currentScheduleRevision + 1;
     transaction.update(roundRef, adminRoundData(draft, nextScheduleRevision));
     transaction.set(doc(db, 'interviewPublicRounds', roundId), publicRoundData(draft, nextScheduleRevision));
     affected.forEach(item => transaction.update(item.ref, {

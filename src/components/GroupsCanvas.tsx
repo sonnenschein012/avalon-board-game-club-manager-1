@@ -1,6 +1,6 @@
 import React from 'react';
 import { SessionGroup, Attendee, Member } from '../types';
-import { CheckCircle2, Activity, ArrowRight, Trash2, X, AlertTriangle, Plus } from 'lucide-react';
+import { CheckCircle2, Activity, ArrowRight, Trash2, X, AlertTriangle, Plus, Loader2 } from 'lucide-react';
 import BoardMemberBadge from './BoardMemberBadge';
 
 export interface GroupsCanvasProps {
@@ -16,6 +16,7 @@ export interface GroupsCanvasProps {
   onCostModalOpen: () => void;
   onExportSimulation: () => void;
   onMoveToRecord: () => void;
+  saving?: boolean;
   editingGroupId: string | null;
   setEditingGroupId: (id: string | null) => void;
   editingGroupName: string;
@@ -49,6 +50,7 @@ export default function GroupsCanvas({
   onCostModalOpen,
   onExportSimulation,
   onMoveToRecord,
+  saving = false,
   editingGroupId,
   setEditingGroupId,
   editingGroupName,
@@ -109,9 +111,11 @@ export default function GroupsCanvas({
             )}
             <button 
               onClick={onMoveToRecord}
+              disabled={saving}
               className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-navy hover:bg-gold text-white rounded-lg text-xs font-bold shadow-lg shadow-sm transition whitespace-nowrap"
             >
-              <span className="hidden sm:inline">오늘의 모임 시작</span><span className="sm:hidden">모임 시작</span> <ArrowRight size={14} className="shrink-0" />
+              <span className="hidden sm:inline">{saving ? '저장 중…' : '오늘의 모임 시작'}</span><span className="sm:hidden">{saving ? '저장 중…' : '모임 시작'}</span>
+              {saving ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <ArrowRight size={14} className="shrink-0" />}
             </button>
           </div>
         </div>

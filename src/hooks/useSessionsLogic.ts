@@ -18,6 +18,7 @@ import { getSemester } from '../domain/semester/getSemester';
 import { DragEndEvent } from '@dnd-kit/core';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { getDefaultSessionName, getLocalDateKey } from '../domain/attendance/sessionMetadata';
+import { useAsyncActionState } from './useAsyncActionState';
 
 const initialSessionMetadata = () => {
   const date = getLocalDateKey(new Date());
@@ -43,6 +44,7 @@ export function useSessionsLogic(
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<string>('전체');
   const [isImporting, setIsImporting] = useState(false);
+  const { runAction, isPending } = useAsyncActionState();
 
   const cleanString = (str?: string) => (str || '').replace(/[\s\u200B-\u200D\uFEFF]/g, '').toLowerCase();
 
@@ -283,11 +285,13 @@ export function useSessionsLogic(
   };
 
   const handleSave = async () => {
-    try {
-      if (groups.length === 0) {
-        toast.error('최소 한 개의 조를 생성해야 합니다.');
-        return;
-      }
+    if (isPending('session-save')) return;
+    if (groups.length === 0) {
+      toast.error('최소 한 개의 조를 생성해야 합니다.');
+      return;
+    }
+    const isEditing = Boolean(editingSessionId);
+    await runAction('session-save', async () => {
 
       const sanitizedGroups = groups.map(g => ({
         id: g.id,
@@ -356,7 +360,6 @@ export function useSessionsLogic(
         };
 
         await updateDoc(docRef, sessionData);
-        toast.success('세션 기록이 성공적으로 수정되었습니다.');
       } else {
         const sessionData = {
           name: sessionName,
@@ -365,14 +368,14 @@ export function useSessionsLogic(
           boardMemberIds: members.filter(member => member.isBoardMember).map(member => member.id),
         };
         await addDoc(collection(db, 'sessions'), sessionData);
-        toast.success('신규 세션이 성공적으로 저장되었습니다.');
       }
 
       handleClose();
-    } catch (error) {
-      handleFirestoreError(error, editingSessionId ? OperationType.UPDATE : OperationType.CREATE, `sessions/${editingSessionId || ''}`);
-      toast.error('저장 중 오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: isEditing ? '세션 기록이 성공적으로 수정되었습니다.' : '신규 세션이 성공적으로 저장되었습니다.',
+      errorMessage: '세션 기록을 저장하지 못했습니다.',
+      onError: (error) => handleFirestoreError(error, isEditing ? OperationType.UPDATE : OperationType.CREATE, `sessions/${editingSessionId || ''}`),
+    });
   };
 
   const handleEdit = (session: Session) => {
@@ -403,12 +406,14 @@ export function useSessionsLogic(
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
+    if (isPending('session-delete')) return;
+    const session = itemToDelete;
     try {
-      await deleteDoc(doc(db, 'sessions', itemToDelete.id));
-      toast.success('세션 기록이 삭제되었습니다.');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `sessions/${itemToDelete.id}`);
-      toast.error('삭제 중 오류가 발생했습니다.');
+      await runAction('session-delete', () => deleteDoc(doc(db, 'sessions', session.id)), {
+        successMessage: '세션 기록이 삭제되었습니다.',
+        errorMessage: '세션 기록을 삭제하지 못했습니다.',
+        onError: (error) => handleFirestoreError(error, OperationType.DELETE, `sessions/${session.id}`),
+      });
     } finally {
       setItemToDelete(null);
     }
@@ -447,6 +452,8 @@ export function useSessionsLogic(
     handleSave,
     handleEdit,
     handleDelete,
-    handleClose
+    handleClose,
+    sessionSaving: isPending('session-save'),
+    sessionDeleting: isPending('session-delete'),
   };
 }

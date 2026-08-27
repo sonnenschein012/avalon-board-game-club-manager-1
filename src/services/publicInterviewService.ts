@@ -30,14 +30,23 @@ export function subscribeToPublicInterview(
 ) {
   let roundUnsubscribe: (() => void) | null = null;
   let currentAccess: InterviewAccess | null = null;
+  let currentRound: InterviewPublicRound | InterviewPublicSchedule | null = null;
+  let currentRoundKey: string | null = null;
+  let hasReceivedRoundSnapshot = false;
+
+  const clearRoundSubscription = () => {
+    roundUnsubscribe?.();
+    roundUnsubscribe = null;
+    currentRound = null;
+    currentRoundKey = null;
+    hasReceivedRoundSnapshot = false;
+  };
 
   const accessUnsubscribe = onSnapshot(
     doc(db, 'interviewAccess', token),
     (accessSnapshot) => {
-      roundUnsubscribe?.();
-      roundUnsubscribe = null;
-
       if (!accessSnapshot.exists()) {
+        clearRoundSubscription();
         currentAccess = null;
         onValue({ access: null, round: null });
         return;
@@ -46,6 +55,7 @@ export function subscribeToPublicInterview(
       currentAccess = { id: accessSnapshot.id, ...accessSnapshot.data() } as InterviewAccess;
       const access = currentAccess;
       if (!access.active) {
+        clearRoundSubscription();
         onValue({ access, round: null });
         return;
       }
@@ -53,20 +63,32 @@ export function subscribeToPublicInterview(
       // legacy round document; the public UI can show its waiting state from
       // the access record alone.
       if (access.scheduleId === null) {
+        clearRoundSubscription();
         onValue({ access, round: null });
         return;
       }
 
       const publicCollection = access.scheduleId ? 'interviewPublicSchedules' : 'interviewPublicRounds';
       const publicDocumentId = access.scheduleId ?? access.roundId;
+      const nextRoundKey = `${publicCollection}/${publicDocumentId}`;
+      if (currentRoundKey === nextRoundKey) {
+        // Access updates (first visit, response save) must be visible
+        // immediately without tearing down and recreating the round listener.
+        if (hasReceivedRoundSnapshot) onValue({ access, round: currentRound });
+        return;
+      }
+      clearRoundSubscription();
+      currentRoundKey = nextRoundKey;
       roundUnsubscribe = onSnapshot(
         doc(db, publicCollection, publicDocumentId),
         (roundSnapshot) => {
+          hasReceivedRoundSnapshot = true;
           const latestAccess = currentAccess;
           if (!latestAccess) return;
           const round = roundSnapshot.exists()
             ? ({ id: roundSnapshot.id, ...roundSnapshot.data() } as InterviewPublicRound | InterviewPublicSchedule)
             : null;
+          currentRound = round;
           onValue({ access: latestAccess, round });
         },
         (error) => {
@@ -82,7 +104,7 @@ export function subscribeToPublicInterview(
   );
 
   return () => {
-    roundUnsubscribe?.();
+    clearRoundSubscription();
     accessUnsubscribe();
   };
 }

@@ -18,31 +18,11 @@ import { toast } from 'sonner';
 import Papa from 'papaparse';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { defaultMemberNickname, formatMemberPhone, normalizeMemberName, normalizeStudentYear } from '../domain/interviews/memberRegistration';
+import { useAsyncActionState } from './useAsyncActionState';
+import { AVAILABLE_GENRES, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
 
-export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
-
-const today = new Date();
-const currentYear = today.getFullYear();
-const currentMonth = today.getMonth() + 1;
-export const defaultSemester = (currentMonth >= 3 && currentMonth <= 8) 
-  ? `${currentYear}-1` 
-  : (currentMonth >= 9 ? `${currentYear}-2` : `${currentYear - 1}-2`);
-export const defaultDormantSemester = defaultSemester.endsWith('-1') 
-  ? `${defaultSemester.split('-')[0]}-2` 
-  : `${parseInt(defaultSemester.split('-')[0] || '') + 1}-1`;
-
-export interface MemberFormData {
-  name: string;
-  nickname: string;
-  studentId: string;
-  phone: string;
-  gender: '남' | '여' | '기타';
-  semester: string;
-  preferredGenre: string[];
-  memo: string;
-  isBoardMember: boolean;
-  dormantSemester: string;
-}
+export { AVAILABLE_GENRES, defaultDormantSemester, defaultSemester } from '../domain/members/memberForm';
+export type { MemberFormData } from '../domain/members/memberForm';
 
 export function useMembersLogic() {
   const { data: members } = useFirestore<Member>('members', orderBy('name', 'asc'));
@@ -59,6 +39,7 @@ export function useMembersLogic() {
   const [itemToDelete, setItemToDelete] = useState<{ id: string, name: string } | null>(null);
   const [currentTab, setCurrentTab] = useState<'활동' | '휴면'>('활동');
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const { runAction, isPending, anyPending } = useAsyncActionState();
 
   useEffect(() => {
     setSelectedDocs(new Set());
@@ -70,7 +51,9 @@ export function useMembersLogic() {
       toast.error('휴면 지정 학기를 입력해주세요.');
       return;
     }
-    try {
+    if (isPending('member-bulk')) return;
+    const count = selectedDocs.size;
+    await runAction('member-bulk', async () => {
       const promises = Array.from(selectedDocs).map((id: string) => {
         return updateDoc(doc(db, 'members', id), {
           status: '휴면',
@@ -78,12 +61,12 @@ export function useMembersLogic() {
         });
       });
       await Promise.all(promises);
-      toast.success(`${selectedDocs.size}명의 동아리원이 휴면 명부로 전환되었습니다.`);
       setSelectedDocs(new Set());
-    } catch (error) {
-      console.error(error);
-      toast.error('휴면 전환 중 오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: `${count}명의 동아리원이 휴면 명부로 전환되었습니다.`,
+      errorMessage: '휴면 전환 중 오류가 발생했습니다.',
+      onError: console.error,
+    });
   };
 
   const handleBulkDormantSemesterChange = async (dormantSemester: string) => {
@@ -92,31 +75,35 @@ export function useMembersLogic() {
       toast.error('휴면 학기를 입력해주세요.');
       return;
     }
-    try {
+    if (isPending('member-bulk')) return;
+    const count = selectedDocs.size;
+    await runAction('member-bulk', async () => {
       await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
         dormantSemester,
       })));
-      toast.success(`${selectedDocs.size}명의 휴면 학기가 변경되었습니다.`);
       setSelectedDocs(new Set());
-    } catch (error) {
-      console.error(error);
-      toast.error('휴면 학기 변경 중 오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: `${count}명의 휴면 학기가 변경되었습니다.`,
+      errorMessage: '휴면 학기 변경 중 오류가 발생했습니다.',
+      onError: console.error,
+    });
   };
 
   const handleBulkRestoreActive = async () => {
     if (selectedDocs.size === 0) return;
-    try {
+    if (isPending('member-bulk')) return;
+    const count = selectedDocs.size;
+    await runAction('member-bulk', async () => {
       await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
         status: '활동',
         dormantSemester: '',
       })));
-      toast.success(`${selectedDocs.size}명의 동아리원이 활동 명부로 복원되었습니다.`);
       setSelectedDocs(new Set());
-    } catch (error) {
-      console.error(error);
-      toast.error('활동 명부 복원 중 오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: `${count}명의 동아리원이 활동 명부로 복원되었습니다.`,
+      errorMessage: '활동 명부 복원 중 오류가 발생했습니다.',
+      onError: console.error,
+    });
   };
 
   const [formData, setFormData] = useState<MemberFormData>({ 
@@ -233,7 +220,7 @@ export function useMembersLogic() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    if (isPending('member-save')) return;
     const studentId = normalizeStudentYear(formData.studentId);
     const nickname = formData.nickname.trim() || defaultMemberNickname(formData.name, studentId);
     const isDuplicate = members.some(member =>
@@ -248,35 +235,38 @@ export function useMembersLogic() {
       return;
     }
 
-    try {
+    const isEditing = Boolean(editingId);
+    await runAction('member-save', async () => {
       const status = formData.dormantSemester ? '휴면' : '활동';
       const _dormantSemester = formData.dormantSemester || '';
       const dataToSave = { ...formData, studentId, phone: formatMemberPhone(formData.phone), nickname, status, dormantSemester: _dormantSemester };
 
       if (editingId) {
         await updateDoc(doc(db, 'members', editingId), dataToSave);
-        toast.success('멤버 정보가 수정되었습니다.');
       } else {
         await addDoc(collection(db, 'members'), {
           ...dataToSave,
           createdAt: serverTimestamp(),
         });
-        toast.success('새로운 멤버가 등록되었습니다.');
       }
       setIsAdding(false);
       resetForm();
-    } catch (error) {
-      handleFirestoreError(error, editingId ? OperationType.UPDATE : OperationType.CREATE, `members/${editingId || ''}`);
-      toast.error('오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: isEditing ? '멤버 정보가 수정되었습니다.' : '새로운 멤버가 등록되었습니다.',
+      errorMessage: '멤버 정보를 저장하지 못했습니다.',
+      onError: (error) => handleFirestoreError(error, isEditing ? OperationType.UPDATE : OperationType.CREATE, `members/${editingId || ''}`),
+    });
   };
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
+    if (isPending('member-delete')) return;
+    const member = itemToDelete;
     try {
-      const linkedApplicants = await getDocs(query(collection(db, 'interviewApplicants'), where('memberId', '==', itemToDelete.id)));
+      await runAction('member-delete', async () => {
+      const linkedApplicants = await getDocs(query(collection(db, 'interviewApplicants'), where('memberId', '==', member.id)));
       const batch = writeBatch(db);
-      batch.delete(doc(db, 'members', itemToDelete.id));
+      batch.delete(doc(db, 'members', member.id));
       linkedApplicants.docs.forEach(snapshot => batch.update(snapshot.ref, {
         memberId: null,
         memberRegisteredAt: null,
@@ -284,10 +274,11 @@ export function useMembersLogic() {
         updatedAt: serverTimestamp(),
       }));
       await batch.commit();
-      toast.success('멤버가 삭제되었습니다.');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `members/${itemToDelete.id}`);
-      toast.error('삭제 중 오류가 발생했습니다.');
+      }, {
+        successMessage: '멤버가 삭제되었습니다.',
+        errorMessage: '멤버를 삭제하지 못했습니다.',
+        onError: (error) => handleFirestoreError(error, OperationType.DELETE, `members/${member.id}`),
+      });
     } finally {
       setItemToDelete(null);
     }
@@ -344,6 +335,10 @@ export function useMembersLogic() {
     handleBulkDormant,
     handleBulkDormantSemesterChange,
     handleBulkRestoreActive,
+    memberSaving: isPending('member-save'),
+    memberDeleting: isPending('member-delete'),
+    memberActionPending: anyPending,
+    memberBulkPending: isPending('member-bulk'),
     resetForm,
     filteredMembers,
     semesters,
