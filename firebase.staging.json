@@ -7,7 +7,7 @@
     }
   ],
   "hosting": {
-    "site": "avalon-manager-stg-260813",
+    "site": "avalon-manager-staging",
     "public": "dist",
     "ignore": [
       "firebase.staging.json",
