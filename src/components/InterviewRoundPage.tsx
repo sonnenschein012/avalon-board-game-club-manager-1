@@ -21,6 +21,7 @@ import MemberRegistrationPanel from './MemberRegistrationPanel';
 import { useInterviewRoundLogic, type InterviewApplicantFilter } from '../hooks/useInterviewRoundLogic';
 import { parseSlotId } from '../domain/interviews/scheduling';
 import type { InterviewRoundDraft, InterviewScheduleDraft } from '../services/interviewsService';
+import { haveInterviewQuestionsChanged } from '../domain/interviews/interviewQuestions';
 import type { InterviewApplicantWithAccess } from '../types';
 import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interviews/applicantSort';
 import { getApplicantJourney } from '../domain/interviews/applicantJourney';
@@ -255,25 +256,14 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     }
   };
 
-  const applySettings = async (draft: InterviewRoundDraft, expectedScheduleRevision?: number) => {
-    const impact = logic.previewScheduleImpact(draft);
-    if (impact.affectedResponseCount > 0 || impact.affectedAssignmentCount > 0) {
-      const applicantsById = new Map(logic.applicants.map((applicant) => [applicant.id, applicant.name]));
-      const responsePreview = impact.affectedResponses
-        .slice(0, 6)
-        .map((item) => `- ${applicantsById.get(item.applicantId) ?? item.applicantId}: ${item.removedSlots.map(formatSlot).join(', ')}`)
-        .join('\n');
-      const responseRemainder = impact.affectedResponses.length > 6 ? `\n- 그 외 ${impact.affectedResponses.length - 6}명` : '';
-      const assignmentPreview = impact.affectedAssignments
-        .slice(0, 6)
-        .map((item) => `- ${applicantsById.get(item.applicantId) ?? item.applicantId}: ${item.slotId ? formatSlot(item.slotId) : '기존 형식 배정'}`)
-        .join('\n');
-      const assignmentRemainder = impact.affectedAssignments.length > 6 ? `\n- 그 외 ${impact.affectedAssignments.length - 6}명` : '';
-      const sections = [impact.affectedResponseCount > 0 ? `응답 선택 정리 ${impact.affectedResponseCount}명 / ${impact.removedSelectionCount}개\n${responsePreview}${responseRemainder}` : '', impact.affectedAssignmentCount > 0 ? `기존 면접 배정 해제 ${impact.affectedAssignmentCount}명\n${assignmentPreview}${assignmentRemainder}` : ''].filter(Boolean).join('\n\n');
-      const confirmed = window.confirm(`일정 변경 영향 미리보기\n\n${sections}\n\n확인을 누르면 회차 설정 저장, 무효 선택 정리, 유효하지 않은 기존 배정 해제를 한 번에 실행합니다.`);
+  const applySettings = async (draft: InterviewRoundDraft) => {
+    const questionsChanged = haveInterviewQuestionsChanged(round.interviewQuestions ?? [], draft.interviewQuestions);
+    const hasInterviewActivity = questionsChanged ? await logic.hasInterviewActivity() : false;
+    if (questionsChanged && hasInterviewActivity) {
+      const confirmed = window.confirm('면접 질문 변경 안내\n\n이미 면접을 진행했거나 완료한 지원자가 있습니다. 질문을 수정·추가·삭제하면 기존 면접 기록과 현재 질문 구성이 달라질 수 있습니다.\n\n그대로 저장할까요?');
       if (!confirmed) return false;
     }
-    return logic.applySchedule(draft, expectedScheduleRevision);
+    return logic.applySettings(draft);
   };
 
   const detailApplicant = logic.applicants.find((applicant) => applicant.id === detailApplicantId) ?? null;

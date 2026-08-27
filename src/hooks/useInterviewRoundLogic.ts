@@ -26,7 +26,6 @@ import {
   addRoundInterviewer,
   assignRoundInterviewerToSchedule,
   applyInterviewAssignmentProposals,
-  applyInterviewScheduleChange,
   completeInterviewAtomically,
   createInterviewApplicant,
   createInterviewSchedule,
@@ -36,6 +35,7 @@ import {
   assignApplicantsToInterviewSchedule,
   archiveInterviewSchedule,
   getInterviewRoundExportRecords,
+  hasInterviewRoundNotes,
   getInterviewLink,
   markInterviewMessageSent,
   mergeInterviewApplicants,
@@ -58,6 +58,7 @@ import {
   subscribeRoundInterviewers,
   subscribeRoundScheduleInterviewers,
   updateInterviewApplicant,
+  updateInterviewRoundSettings,
   updateInterviewAssignmentState,
   updateCompletedInterviewOverallRating,
   updateInterviewSelectionStatus,
@@ -362,43 +363,17 @@ export function useInterviewRoundLogic(roundId: string) {
     }
   };
 
-  const previewScheduleImpact = (draft: InterviewRoundDraft) => {
-    const responseImpact = !round ? {
-      addedAllowedSlots: [],
-      removedAllowedSlots: [],
-      affectedResponseCount: 0,
-      removedSelectionCount: 0,
-      affectedResponses: [],
-    } : getScheduleChangeImpact(round.allowedSlots, draft.allowedSlots, access);
-    const assignmentImpact = getAssignmentScheduleImpact(
-      draft.allowedSlots,
-      draft.availabilitySlotMinutes,
-      draft.assignmentSlotMinutes,
-      joinedApplicants.map(item => ({ applicantId: item.id, assignment: item.assignment })),
-    );
-    return { ...responseImpact, ...assignmentImpact };
-  };
-
-  const applySchedule = async (draft: InterviewRoundDraft, expectedScheduleRevision?: number) => {
+  const applySettings = async (draft: InterviewRoundDraft) => {
     try {
-      const impacted = await applyInterviewScheduleChange(
-        roundId,
-        draft,
-        access.map(item => item.id),
-        joinedApplicants.map(item => item.id),
-        expectedScheduleRevision ?? round?.scheduleRevision,
-      );
+      await updateInterviewRoundSettings(roundId, draft);
       setRound(current => current ? {
         ...current,
-        ...draft,
-        surveyOpensAt: Timestamp.fromDate(draft.surveyOpensAt),
-        surveyClosesAt: Timestamp.fromDate(draft.surveyClosesAt),
+        name: draft.name.trim(),
+        instructions: draft.instructions,
+        messageTemplates: draft.messageTemplates,
+        interviewQuestions: draft.interviewQuestions,
       } : current);
-      const summaries = [
-        impacted.cleanedResponseCount ? `${impacted.cleanedResponseCount}명의 무효 응답 정리` : '',
-        impacted.clearedAssignmentCount ? `${impacted.clearedAssignmentCount}명의 기존 배정 해제` : '',
-      ].filter(Boolean).join(' · ');
-      toast.success(`일정을 저장했습니다${summaries ? ` · ${summaries}` : ''}.`);
+      toast.success('회차 공통 설정을 저장했습니다.');
       return true;
     } catch (error) {
       console.error(error);
@@ -406,6 +381,12 @@ export function useInterviewRoundLogic(roundId: string) {
       return false;
     }
   };
+
+  const hasInterviewActivity = async () => (
+    joinedApplicants.some(applicant => (
+      getInterviewProgressStatus(applicant) === 'completed' || Boolean(applicant.overallRating)
+    )) || await hasInterviewRoundNotes(roundId)
+  );
 
   const addApplicant = async (draft: ApplicantDraft) => {
     try { await createInterviewApplicant(roundId, draft); toast.success('지원자를 추가했습니다.'); return true; }
@@ -916,8 +897,8 @@ export function useInterviewRoundLogic(roundId: string) {
     getAssignmentConflict,
     assignApplicant,
     clearAssignment,
-    previewScheduleImpact,
-    applySchedule,
+    applySettings,
+    hasInterviewActivity,
     addInterviewer,
     editInterviewer,
     saveInterviewerAvailability,

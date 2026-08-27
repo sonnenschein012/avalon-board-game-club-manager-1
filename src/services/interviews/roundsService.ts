@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -81,6 +82,36 @@ export async function createInterviewRound(draft: InterviewRoundDraft): Promise<
   batch.set(publicRef, publicRoundData(draft, 1));
   await batch.commit();
   return roundRef.id;
+}
+
+/** Updates only fields owned by the round settings screen. Schedule fields and
+ * revisions are intentionally left untouched. */
+export async function updateInterviewRoundSettings(roundId: string, draft: InterviewRoundDraft): Promise<void> {
+  if (!isSingleDocumentId(roundId)) throw new Error('올바른 면접 회차 ID가 아닙니다.');
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'interviewRounds', roundId), {
+    name: draft.name.trim(),
+    instructions: draft.instructions,
+    messageTemplates: draft.messageTemplates,
+    interviewQuestions: draft.interviewQuestions,
+    updatedAt: serverTimestamp(),
+  });
+  batch.update(doc(db, 'interviewPublicRounds', roundId), {
+    name: draft.name.trim(),
+    instructions: draft.instructions,
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+export async function hasInterviewRoundNotes(roundId: string): Promise<boolean> {
+  if (!isSingleDocumentId(roundId)) return false;
+  const snapshot = await getDocs(query(
+    collection(db, 'interviewNotes'),
+    where('roundId', '==', roundId),
+    limit(1),
+  ));
+  return !snapshot.empty;
 }
 
 const ROUND_SCOPED_COLLECTIONS = [
