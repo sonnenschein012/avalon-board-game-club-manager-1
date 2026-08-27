@@ -34,7 +34,7 @@ export function useGamesLogic() {
   const [playerCountType, setPlayerCountType] = useState<'best' | 'possible'>('best');
   const [sortOrder, setSortOrder] = useState<'이름순' | '인기순'>('이름순');
   const [isDeleteAllModalOpen, setIsDeleteAllModalOpen] = useState(false);
-  const { runExclusive, isPending } = useAsyncActionState();
+  const { runAction, isPending } = useAsyncActionState();
 
   const gamePlayCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -204,45 +204,42 @@ export function useGamesLogic() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPending('game-save')) return;
-    await runExclusive('game-save', async () => {
-    try {
+    const isEditing = Boolean(editingId);
+    await runAction('game-save', async () => {
       if (editingId) {
         await updateDoc(doc(db, 'games', editingId), formData);
-        toast.success('게임 정보가 수정되었습니다.');
         setEditingId(null);
       } else {
         await addDoc(collection(db, 'games'), formData);
-        toast.success('신규 게임이 등록되었습니다.');
       }
       setIsAdding(false);
       setFormData({ title: '', minPlayers: 2, maxPlayers: 4, bestMinPlayers: 2, bestMaxPlayers: 4, complexity: 1.0, memo: '', genres: [] });
-    } catch (error) {
-      handleFirestoreError(error, editingId ? OperationType.UPDATE : OperationType.CREATE, `games/${editingId || ''}`);
-      toast.error('오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: isEditing ? '게임 정보가 수정되었습니다.' : '신규 게임이 등록되었습니다.',
+      errorMessage: '게임을 저장하지 못했습니다.',
+      onError: (error) => handleFirestoreError(error, isEditing ? OperationType.UPDATE : OperationType.CREATE, `games/${editingId || ''}`),
     });
   };
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
     if (isPending('game-delete')) return;
-    await runExclusive('game-delete', async () => {
+    const game = itemToDelete;
     try {
-      await deleteDoc(doc(db, 'games', itemToDelete.id));
-      toast.success('게임이 삭제되었습니다.');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `games/${itemToDelete.id}`);
-      toast.error('삭제 중 오류가 발생했습니다.');
+      await runAction('game-delete', () => deleteDoc(doc(db, 'games', game.id)), {
+        successMessage: '게임이 삭제되었습니다.',
+        errorMessage: '게임을 삭제하지 못했습니다.',
+        onError: (error) => handleFirestoreError(error, OperationType.DELETE, `games/${game.id}`),
+      });
     } finally {
       setItemToDelete(null);
     }
-    });
   };
 
   const handleDeleteAll = async () => {
     if (isPending('game-delete-all')) return;
-    await runExclusive('game-delete-all', async () => {
     try {
+      await runAction('game-delete-all', async () => {
       const chunkSize = 500;
       for (let i = 0; i < games.length; i += chunkSize) {
         const chunk = games.slice(i, i + chunkSize);
@@ -252,14 +249,14 @@ export function useGamesLogic() {
         });
         await batch.commit();
       }
-      toast.success('모든 게임이 삭제되었습니다.');
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'games (batch)');
-      toast.error('전체 삭제 중 오류가 발생했습니다.');
+      }, {
+        successMessage: '모든 게임이 삭제되었습니다.',
+        errorMessage: '전체 게임을 삭제하지 못했습니다.',
+        onError: (error) => handleFirestoreError(error, OperationType.DELETE, 'games (batch)'),
+      });
     } finally {
       setIsDeleteAllModalOpen(false);
     }
-    });
   };
 
   return {

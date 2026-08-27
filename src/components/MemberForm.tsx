@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
-import { AVAILABLE_GENRES, defaultSemester, defaultDormantSemester, MemberFormData } from '../hooks/useMembersLogic';
+import { AVAILABLE_GENRES, defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
 
 export interface MemberFormProps {
   formData: MemberFormData;

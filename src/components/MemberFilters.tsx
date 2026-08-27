@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Filter } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { AVAILABLE_GENRES } from '../hooks/useMembersLogic';
+import { AVAILABLE_GENRES } from '../domain/members/memberForm';
 
 export interface MemberFiltersProps {
   currentTab: '활동' | '휴면';

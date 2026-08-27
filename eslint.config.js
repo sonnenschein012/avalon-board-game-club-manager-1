@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', '.firebase', 'stats.html'] },
+  { ignores: ['dist', 'coverage', 'node_modules', '.firebase', 'playwright-report', 'test-results', 'stats.html'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -58,7 +58,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['vite.config.ts'],
+    files: ['vite.config.ts', 'playwright.config.ts', 'tests/design-lab/**/*.{ts,tsx}', 'scripts/**/*.mjs'],
     languageOptions: { globals: globals.node },
   },
   firebaseRulesPlugin.configs['flat/recommended']

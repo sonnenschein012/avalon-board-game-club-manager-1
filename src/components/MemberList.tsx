@@ -4,7 +4,7 @@ import { Search, Edit2, Trash2, Info, Loader2, UserCheck, UserMinus } from 'luci
 import { cn } from '../lib/utils';
 import { Member } from '../types';
 import MemberForm from './MemberForm';
-import { MemberFormData, defaultSemester, defaultDormantSemester } from '../hooks/useMembersLogic';
+import { defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
 
 interface MemberListProps {
   filteredMembers: Member[];

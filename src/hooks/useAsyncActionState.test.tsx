@@ -48,4 +48,16 @@ describe('useAsyncActionState', () => {
     });
     expect(latest!.statusOf('save')).toBe('success');
   });
+
+  it('실패한 요청은 오류 상태로 남기고 다음 재시도를 허용한다', async () => {
+    await act(async () => {
+      await expect(latest!.runExclusive('save', async () => { throw new Error('offline'); })).rejects.toThrow('offline');
+    });
+    expect(latest!.statusOf('save')).toBe('error');
+
+    await act(async () => {
+      await latest!.runExclusive('save', async () => undefined);
+    });
+    expect(latest!.statusOf('save')).toBe('success');
+  });
 });

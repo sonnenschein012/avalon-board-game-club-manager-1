@@ -10,6 +10,7 @@ import {
   subscribeInterviewRounds,
   type InterviewRoundDraft,
 } from '../services/interviewsService';
+import { useAsyncActionState } from './useAsyncActionState';
 
 export interface InterviewRoundCounts {
   total: number;
@@ -22,8 +23,9 @@ export function useInterviewRoundsLogic() {
   const [applicants, setApplicants] = useState<InterviewApplicant[]>([]);
   const [access, setAccess] = useState<InterviewAccess[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [deletingRoundId, setDeletingRoundId] = useState<string | null>(null);
+  const { runAction, isPending } = useAsyncActionState();
+  const saving = isPending('interview-round-save');
 
   useEffect(() => {
     const stopRounds = subscribeInterviewRounds(
@@ -60,31 +62,27 @@ export function useInterviewRoundsLogic() {
   }, [access, applicants, rounds]);
 
   const saveRound = async (draft: InterviewRoundDraft) => {
-    setSaving(true);
-    try {
-      await createInterviewRound(draft);
-      toast.success('면접 회차가 생성되었습니다.');
-      return true;
-    } catch (error) {
-      console.error(error);
-      toast.error('면접 회차를 저장하지 못했습니다.');
-      return false;
-    } finally {
-      setSaving(false);
-    }
+    if (saving) return false;
+    const result = await runAction('interview-round-save', () => createInterviewRound(draft), {
+      successMessage: '면접 회차가 생성되었습니다.',
+      errorMessage: '면접 회차를 저장하지 못했습니다.',
+      onError: console.error,
+    });
+    return result.succeeded;
   };
 
   const removeRound = async (round: InterviewRound) => {
-    if (deletingRoundId) return false;
+    if (deletingRoundId || isPending('interview-round-delete')) return false;
     setDeletingRoundId(round.id);
     try {
-      const result = await deleteInterviewRound(round.id);
-      toast.success(`${round.name} 회차와 관련 데이터 ${result.deletedDocuments}건을 삭제했습니다.`);
-      return true;
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : '면접 회차를 삭제하지 못했습니다.');
-      return false;
+      const result = await runAction('interview-round-delete', () => deleteInterviewRound(round.id), {
+        errorMessage: '면접 회차를 삭제하지 못했습니다.',
+        onError: console.error,
+      });
+      if (result.succeeded && result.value) {
+        toast.success(`${round.name} 회차와 관련 데이터 ${result.value.deletedDocuments}건을 삭제했습니다.`);
+      }
+      return result.succeeded;
     } finally {
       setDeletingRoundId(null);
     }

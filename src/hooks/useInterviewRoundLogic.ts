@@ -111,7 +111,7 @@ export function useInterviewRoundLogic(roundId: string) {
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
   const [search, setSearch] = useState('');
   const [deletingRound, setDeletingRound] = useState(false);
-  const { runExclusive, isPending } = useAsyncActionState();
+  const { runAction, isPending } = useAsyncActionState();
   const normalizedRoundId = roundId.trim();
 
   useEffect(() => {
@@ -643,8 +643,7 @@ export function useInterviewRoundLogic(roundId: string) {
   const applyAutoDraft = async () => {
     if (!activeSchedulingConfig || !autoDraft) return false;
     if (isPending('auto-draft-apply')) return false;
-    const result = await runExclusive('auto-draft-apply', async () => {
-      try {
+    const result = await runAction('auto-draft-apply', async () => {
       await applyInterviewAssignmentProposals(roundId, autoDraft.proposals.filter(proposal => !proposal.preserved).map(proposal => {
         const parsed = parseSlotId(proposal.slotId)!;
         const current = joinedApplicants.find(item => item.id === proposal.applicantId)?.assignment;
@@ -658,20 +657,28 @@ export function useInterviewRoundLogic(roundId: string) {
           expectedAssignmentRevision: proposal.expectedAssignmentRevision,
         };
       }), activeSchedule?.id ?? null);
-      toast.success('검토한 자동 배정 초안을 반영했습니다.'); setAutoDraft(null); return true;
-      } catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '자동 배정을 반영하지 못했습니다.'); return false; }
+      setAutoDraft(null);
+      return true;
+    }, {
+      successMessage: '검토한 자동 배정 초안을 반영했습니다.',
+      errorMessage: '자동 배정을 반영하지 못했습니다.',
+      onError: console.error,
     });
-    return result.value ?? false;
+    return result.succeeded && (result.value ?? false);
   };
 
   const changeAssignmentState = async (applicantId: string, patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>) => {
     const key = `assignment-state:${applicantId}`;
     if (isPending(key)) return false;
-    const result = await runExclusive(key, async () => {
-      try { await updateInterviewAssignmentState(applicantId, patch); toast.success('면접 상태를 변경했습니다.'); return true; }
-      catch (error) { console.error(error); toast.error('면접 상태를 변경하지 못했습니다.'); return false; }
+    const result = await runAction(key, async () => {
+      await updateInterviewAssignmentState(applicantId, patch);
+      return true;
+    }, {
+      successMessage: '면접 상태를 변경했습니다.',
+      errorMessage: '면접 상태를 변경하지 못했습니다.',
+      onError: console.error,
     });
-    return result.value ?? false;
+    return result.succeeded && (result.value ?? false);
   };
 
   const resolveChangeRequest = async (requestId: string, status: 'resolved' | 'dismissed') => {

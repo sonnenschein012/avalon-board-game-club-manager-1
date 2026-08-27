@@ -1,9 +1,11 @@
+import { existsSync } from 'node:fs';
 import { delimiter, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const projectRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const bundledJavaHome = join(projectRoot, '.demo-runtime', 'java-21');
+const firebaseCli = join(projectRoot, 'node_modules', 'firebase-tools', 'lib', 'bin', 'firebase.js');
 const javaExecutableName = process.platform === 'win32' ? 'java.exe' : 'java';
 
 function normalizeJavaHome(value) {
@@ -67,7 +69,10 @@ for (const candidate of candidates) {
   }
 }
 
-if (!java) {
+if (!existsSync(firebaseCli)) {
+  console.error('Firebase CLI를 찾을 수 없습니다. 먼저 `npm install`을 실행해 주세요.');
+  process.exitCode = 1;
+} else if (!java) {
   console.error('Java 21 이상을 찾을 수 없습니다. 먼저 `npm run demo:setup`을 실행해 주세요.');
   process.exitCode = 1;
 } else {
@@ -79,11 +84,19 @@ if (!java) {
     JAVA_HOME: java.home,
     PATH: process.env.PATH ? `${javaBin}${delimiter}${process.env.PATH}` : javaBin,
   };
-  const firebaseCommand = 'npx --yes firebase-tools@15.28.1 emulators:exec --only auth,firestore --project demo-avalon-manager --config firebase.demo.json "npm run demo:serve"';
-  const result = spawnSync(firebaseCommand, {
+  const result = spawnSync(process.execPath, [
+    firebaseCli,
+    'emulators:exec',
+    '--only',
+    'auth,firestore',
+    '--project',
+    'demo-avalon-manager',
+    '--config',
+    'firebase.demo.json',
+    'npm run demo:serve',
+  ], {
     cwd: projectRoot,
     env: childEnvironment,
-    shell: true,
     stdio: 'inherit',
     windowsHide: false,
   });

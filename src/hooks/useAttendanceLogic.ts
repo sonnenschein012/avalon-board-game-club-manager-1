@@ -54,7 +54,7 @@ interface UseAttendanceLogicProps {
 }
 
 export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) {
-  const { runExclusive, isPending } = useAsyncActionState();
+  const { runAction, isPending } = useAsyncActionState();
   const { data: attendees } = useFirestore<Attendee>('attendees', orderBy('importDate', 'desc'));
   const { data: members } = useFirestore<Member>('members');
   const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
@@ -413,7 +413,6 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
 
   const handleMoveToRecord = async () => {
     if (isPending('attendance-save')) return;
-    await runExclusive('attendance-save', async () => {
     if (groups.length === 0) {
       toast.error('최소 1개 이상의 조가 편성되어야 합니다.');
       return;
@@ -427,37 +426,32 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
       return;
     }
 
-    const batch = writeBatch(db);
-    attendees.forEach(a => {
-      batch.update(doc(db, 'attendees', a.id), { status: '편성됨' });
-    });
-    await batch.commit().catch((error) => {
-      handleFirestoreError(error, OperationType.UPDATE, 'attendees (batch)');
-    });
-
     const mappedGroups = convertAttendeeIdsToMemberIds(groups, attendees, members);
+    const result = await runAction('attendance-save', async () => {
+      const batch = writeBatch(db);
+      attendees.forEach(a => {
+        batch.update(doc(db, 'attendees', a.id), { status: '편성됨' });
+      });
+      await batch.commit();
 
-    try {
       await setDoc(doc(db, 'DailyPlannings', sessionDate || 'temp'), {
         name: sessionName,
         date: sessionDate,
         groups: mappedGroups,
         createdAt: serverTimestamp()
       });
-      toast.success('오늘의 모임 편성이 저장되었습니다.');
-
-      if (sessionName && sessionDate && onMoveToRecord) {
-        onMoveToRecord({
-          name: sessionName,
-          date: sessionDate,
-          groups: mappedGroups
-        });
-      }
-    } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `DailyPlannings/${sessionDate}`);
-      toast.error('오류가 발생했습니다.');
-    }
+    }, {
+      successMessage: '오늘의 모임 편성이 저장되었습니다.',
+      errorMessage: '모임 편성을 저장하지 못했습니다.',
+      onError: (error) => handleFirestoreError(error, OperationType.WRITE, `DailyPlannings/${sessionDate || 'temp'}`),
     });
+    if (result.succeeded && sessionName && sessionDate && onMoveToRecord) {
+      onMoveToRecord({
+        name: sessionName,
+        date: sessionDate,
+        groups: mappedGroups
+      });
+    }
   };
 
   return {

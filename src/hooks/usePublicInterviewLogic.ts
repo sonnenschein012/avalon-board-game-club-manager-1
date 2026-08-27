@@ -7,6 +7,7 @@ import {
 } from '../services/publicInterviewService';
 import { getSurveyPhase } from '../domain/interviews/scheduling';
 import { calculateApplicantTimeWindow } from '../domain/interviews/publicTimeWindow';
+import { useAsyncActionState } from './useAsyncActionState';
 
 type PublicInterviewState = 'loading' | 'invalid' | 'inactive' | 'unassigned' | 'before' | 'collecting' | 'closed' | 'completed' | 'error';
 const PUBLIC_LOAD_TIMEOUT_MS = 10_000;
@@ -57,7 +58,6 @@ export function usePublicInterviewLogic(token: string | undefined) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [initializationError, setInitializationError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [initializationRetry, setInitializationRetry] = useState(0);
   const [subscriptionRetry, setSubscriptionRetry] = useState(0);
@@ -65,6 +65,8 @@ export function usePublicInterviewLogic(token: string | undefined) {
   const localEditRef = useRef(false);
   const initializationKeyRef = useRef<string | null>(null);
   const initializationGenerationRef = useRef(0);
+  const { runAction, isPending } = useAsyncActionState();
+  const saving = isPending('public-availability-save');
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 30_000);
@@ -228,25 +230,23 @@ export function usePublicInterviewLogic(token: string | undefined) {
   };
 
   const submit = async () => {
-    if (!token || state !== 'collecting') return;
+    if (!token || state !== 'collecting' || saving) return;
     if (needsAccessInitialization) {
       setInitializationError('면접 가능시간을 준비하고 있습니다. 잠시 후 다시 저장해주세요.');
       return;
     }
-    setSaving(true);
     setSaveError(null);
-    try {
+    const result = await runAction('public-availability-save', async () => {
       const allowed = new Set(visibleSlots);
       const normalized = Array.from(availability).filter((slot) => allowed.has(slot)).sort();
       await savePublicAvailability(token, normalized, access?.submittedAt == null);
       localEditRef.current = false;
       setAvailability(new Set(normalized));
       setSaved(true);
-    } catch {
-      setSaveError('저장하지 못했습니다. 조사 기간과 네트워크 상태를 확인해주세요. 선택 내용은 이 화면에 남아 있으니 다시 시도해주세요.');
-    } finally {
-      setSaving(false);
-    }
+    }, {
+      onError: () => setSaveError('저장하지 못했습니다. 조사 기간과 네트워크 상태를 확인해주세요. 선택 내용은 이 화면에 남아 있으니 다시 시도해주세요.'),
+    });
+    if (result.started && !result.succeeded) setSaved(false);
   };
 
   return {

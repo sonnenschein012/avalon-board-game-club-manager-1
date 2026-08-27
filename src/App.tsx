@@ -86,6 +86,7 @@ export default function App() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const isPublicInterviewRoute = location.pathname.startsWith('/interview/');
 
   const handleLogin = async () => {
     if (loggingIn) return;
@@ -112,7 +113,7 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!isDemoMode && !window.location.pathname.startsWith('/interview/')) {
+    if (!isDemoMode && !isPublicInterviewRoute) {
       testConnection();
     }
     
@@ -133,9 +134,15 @@ export default function App() {
     let unsubscribe: () => void = () => undefined;
     const startAuth = async () => {
       try {
-        await initializeDemoSession();
+        // Public applicant links must remain unauthenticated in Design Lab so
+        // they exercise the same Firestore rule path as the production UI.
+        if (isDemoMode && isPublicInterviewRoute) {
+          await logout();
+        } else {
+          await initializeDemoSession();
+        }
         if (cancelled) return;
-        if (isDemoMode && !window.location.pathname.startsWith('/interview/')) {
+        if (isDemoMode && !isPublicInterviewRoute) {
           await testConnection();
         }
       } catch (error) {
@@ -168,9 +175,7 @@ export default function App() {
       window.removeEventListener('avalon-admin-mode-toggle', handleAdminModeToggle);
       unsubscribe();
     };
-  }, []);
-
-  const isPublicInterviewRoute = location.pathname.startsWith('/interview/');
+  }, [isPublicInterviewRoute]);
 
   if (loading && !isPublicInterviewRoute) {
     return (

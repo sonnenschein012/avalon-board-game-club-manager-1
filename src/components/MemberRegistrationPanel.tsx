@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, Link2, Loader2, Search, UserPlus, Users, X
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import type { InterviewApplicantWithAccess, Member } from '../types';
-import { AVAILABLE_GENRES } from '../hooks/useMembersLogic';
+import { AVAILABLE_GENRES } from '../domain/members/memberForm';
 import { useMemberRegistrationLogic, type InterviewMemberRegistrationDraft } from '../hooks/useMemberRegistrationLogic';
 import {
   defaultMemberNickname,

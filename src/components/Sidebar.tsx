@@ -1,5 +1,4 @@
 import React from 'react';
-import { User } from 'firebase/auth';
 import { ChevronLeft, ChevronRight, LogOut, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import AvalonLogo from './AvalonLogo';
@@ -7,7 +6,7 @@ import AvalonLogo from './AvalonLogo';
 interface SidebarProps {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (c: boolean) => void;
-  user: User;
+  user: { displayName: string | null; email: string | null; photoURL: string | null };
   logout: () => Promise<void>;
   tabs: { id: string, label: string, icon: React.ElementType, category: string, path: string }[];
 }

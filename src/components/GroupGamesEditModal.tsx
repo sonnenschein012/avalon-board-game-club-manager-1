@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Search, Plus } from 'lucide-react';
+import { X, Save, Search, Plus, Loader2 } from 'lucide-react';
 import { Session, StoredSessionGroup, Game } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { toast } from 'sonner';
+import { useAsyncActionState } from '../hooks/useAsyncActionState';
 
 interface GroupGamesEditModalProps {
   session: Session;
@@ -15,7 +15,8 @@ interface GroupGamesEditModalProps {
 export default function GroupGamesEditModal({ session, group, games, onClose }: GroupGamesEditModalProps) {
   const [selectedGameIds, setSelectedGameIds] = useState<string[]>(group.gameIds || []);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const { runAction, isPending } = useAsyncActionState();
+  const isSaving = isPending('group-games-save');
 
   useEffect(() => {
     setSelectedGameIds(group.gameIds || []);
@@ -30,8 +31,8 @@ export default function GroupGamesEditModal({ session, group, games, onClose }: 
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    try {
+    if (isSaving) return;
+    const result = await runAction('group-games-save', async () => {
       const docRef = doc(db, 'sessions', session.id);
       const docSnap = await getDoc(docRef);
 
@@ -48,19 +49,19 @@ export default function GroupGamesEditModal({ session, group, games, onClose }: 
           };
 
           await updateDoc(docRef, { groups: currentGroups });
-          toast.success('조 게임 기록이 성공적으로 수정되었습니다.');
-          onClose();
         } else {
-          toast.error('해당 조를 찾을 수 없습니다.');
+          throw new Error('해당 조를 찾을 수 없습니다.');
         }
       } else {
-        toast.error('세션을 찾을 수 없습니다.');
+        throw new Error('세션을 찾을 수 없습니다.');
       }
-    } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `sessions/${session.id}`);
-      toast.error('저장 중 오류가 발생했습니다.');
-    } finally {
-      setIsSaving(false);
+    }, {
+      successMessage: '조 게임 기록이 성공적으로 수정되었습니다.',
+      errorMessage: '저장 중 오류가 발생했습니다.',
+      onError: (error) => handleFirestoreError(error, OperationType.UPDATE, `sessions/${session.id}`),
+    });
+    if (result.succeeded) {
+      onClose();
     }
   };
 
@@ -162,7 +163,7 @@ export default function GroupGamesEditModal({ session, group, games, onClose }: 
             disabled={isSaving}
             className="flex items-center gap-2 px-6 py-2 bg-navy hover:bg-gold text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-50"
           >
-            <Save size={16} />
+            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {isSaving ? '저장 중...' : '저장하기'}
           </button>
         </div>

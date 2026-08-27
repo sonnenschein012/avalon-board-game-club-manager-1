@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Loader2, Plus, Save, Trash2, X } from 'lucide-react';
 import type { InterviewApplicant } from '../types';
 import type { ApplicantDraft } from '../services/interviewsService';
+import { useAsyncActionState } from '../hooks/useAsyncActionState';
 
 interface Props {
   open: boolean;
@@ -14,7 +15,8 @@ const emptyDraft = (): ApplicantDraft => ({ applicantNumber: '', name: '', phone
 
 export default function ApplicantFormModal({ open, applicant, onClose, onSave }: Props) {
   const [draft, setDraft] = useState<ApplicantDraft>(emptyDraft);
-  const [saving, setSaving] = useState(false);
+  const { runAction, isPending } = useAsyncActionState();
+  const saving = isPending('applicant-save');
   useEffect(() => {
     if (!open) return;
     setDraft(applicant ? {
@@ -28,8 +30,8 @@ export default function ApplicantFormModal({ open, applicant, onClose, onSave }:
   const valid = Boolean(draft.applicantNumber.trim() && draft.name.trim() && draft.phone.trim());
   const submit = async () => {
     if (!valid || saving) return;
-    setSaving(true);
-    try { if (await onSave(draft)) onClose(); } finally { setSaving(false); }
+    const result = await runAction('applicant-save', () => onSave(draft));
+    if (result.succeeded && result.value) onClose();
   };
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm">
     <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
