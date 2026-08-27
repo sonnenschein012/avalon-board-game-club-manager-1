@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test": "npm run test:unit",
-    "test:unit": "vitest run --exclude src/tests/firestore.rules.test.ts --exclude tests/design-lab/** --exclude tests/scenario-lab/**",
+    "test:unit": "vitest run --exclude .codex-deploy-audit-*/** --exclude src/tests/firestore.rules.test.ts --exclude tests/design-lab/** --exclude tests/scenario-lab/**",
     "test:rules": "node scripts/run-rules-tests.mjs",
     "test:ui": "vitest --ui"
   },

@@ -43,7 +43,7 @@ if (!existsSync(firebaseCli)) {
     'firestore',
     '--project',
     'test-project-1234',
-    'vitest run src/tests/firestore.rules.test.ts',
+    'vitest run --exclude .codex-deploy-audit-*/** src/tests/firestore.rules.test.ts',
   ], {
     cwd: projectRoot,
     env: {

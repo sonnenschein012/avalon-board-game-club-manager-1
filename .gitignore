@@ -12,3 +12,4 @@ test-results/
 stats.html
 .firebase/
 .demo-runtime/
+.codex-deploy-audit-*

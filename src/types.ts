@@ -411,7 +411,6 @@ export interface InterviewAccess {
   active: boolean;
   assignmentSummary?: {
     slotId: string;
-    interviewerName: string;
     status: InterviewAssignmentStatus;
     revision: number;
   } | null;

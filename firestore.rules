@@ -134,6 +134,15 @@ service cloud.firestore {
         hasValidSubmissionTimestamps();
     }
 
+    // Fail closed if private assignment details are accidentally copied into
+    // a document that is readable through an applicant bearer link.
+    function hasPublicSafeAssignmentSummary() {
+      return !('assignmentSummary' in resource.data) ||
+        resource.data.assignmentSummary == null ||
+        (resource.data.assignmentSummary is map &&
+          resource.data.assignmentSummary.keys().hasOnly(['slotId', 'status', 'revision']));
+    }
+
     // Internal club operations are available only to registered operators.
     match /members/{memberId} {
       allow read: if isAdmin() || isMasterAdmin();
@@ -267,7 +276,7 @@ service cloud.firestore {
       // inactive real tokens remain unreadable and token listing stays denied.
       allow get: if canManageInterviews() ||
         !exists(/databases/$(database)/documents/interviewAccess/$(token)) ||
-        resource.data.active == true;
+        (resource.data.active == true && hasPublicSafeAssignmentSummary());
       allow list: if canManageInterviews();
       allow create, delete: if canManageInterviews();
       allow update: if canManageInterviews() || isValidPublicResponseUpdate() || isValidPublicFirstAccessUpdate();

@@ -618,7 +618,7 @@ describe('Firestore Security Rules', () => {
     const { token } = await seedInterviewFixture();
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await updateDoc(doc(context.firestore(), 'interviewAccess', token), {
-        assignmentSummary: { slotId: ALLOWED_SLOT_A, interviewerName: '면접관', status: 'completed' },
+        assignmentSummary: { slotId: ALLOWED_SLOT_A, status: 'completed', revision: 1 },
       });
     });
     const publicDb = testEnv.unauthenticatedContext().firestore();
@@ -629,6 +629,24 @@ describe('Firestore Security Rules', () => {
       updatedAt: serverTimestamp(),
       responseUpdatedAt: serverTimestamp(),
     }));
+  });
+
+  it('면접관 이름이 포함된 공개 배정 정보는 지원자 링크에서 읽을 수 없다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    const { token } = await seedInterviewFixture();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'interviewAccess', token), {
+        assignmentSummary: {
+          slotId: ALLOWED_SLOT_A,
+          status: 'confirmed',
+          revision: 1,
+          interviewerName: '노출되면 안 되는 이름',
+        },
+      });
+    });
+
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(publicDb, 'interviewAccess', token)));
   });
 
 });
