@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { normalizeApplicantNumber } from '../../domain/interviews/applicantMerge';
+import { assertExpectedUpdatedAt, timestampMillis } from '../../domain/interviews/revisionConflict';
 import type { InterviewAccess, InterviewApplicant } from '../../types';
 import {
   type ApplicantDraft,
@@ -178,12 +179,18 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
 export async function updateInterviewApplicant(applicant: InterviewApplicant, draft: ApplicantDraft): Promise<void> {
   const oldKeyRef = doc(db, 'interviewApplicantKeys', getApplicantKeyId(applicant.roundId, applicant.applicantNumber));
   const newKeyRef = doc(db, 'interviewApplicantKeys', getApplicantKeyId(applicant.roundId, draft.applicantNumber));
+  const applicantRef = doc(db, 'interviewApplicants', applicant.id);
   await runTransaction(db, async transaction => {
-    const newKeySnapshot = await transaction.get(newKeyRef);
+    const [newKeySnapshot, currentApplicantSnapshot] = await Promise.all([
+      transaction.get(newKeyRef),
+      transaction.get(applicantRef),
+    ]);
+    if (!currentApplicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    assertExpectedUpdatedAt(currentApplicantSnapshot.data().updatedAt, timestampMillis(applicant.updatedAt) ?? undefined, '지원자 정보');
     if (newKeySnapshot.exists() && newKeySnapshot.data().applicantId !== applicant.id) throw new Error('이미 등록된 지원번호입니다.');
     if (oldKeyRef.path !== newKeyRef.path) transaction.delete(oldKeyRef);
     transaction.set(newKeyRef, { roundId: applicant.roundId, applicantId: applicant.id, applicantNumber: normalizeApplicantNumber(draft.applicantNumber), updatedAt: serverTimestamp() });
-    transaction.update(doc(db, 'interviewApplicants', applicant.id), {
+    transaction.update(applicantRef, {
       applicantNumber: draft.applicantNumber.trim(),
       name: draft.name.trim(),
       phone: draft.phone.trim(),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, CalendarDays, Plus, Trash2 } from 'lucide-react';
 import type { InterviewRound } from '../types';
 import {
@@ -84,16 +84,25 @@ interface InterviewRoundFormModalProps {
   round?: InterviewRound | null;
   saving?: boolean;
   onClose: () => void;
-  onSave: (draft: InterviewRoundDraft) => Promise<boolean | void>;
+  onSave: (draft: InterviewRoundDraft, expectedScheduleRevision?: number) => Promise<boolean | void>;
 }
 
 export default function InterviewRoundFormModal({ open, round, saving = false, onClose, onSave }: InterviewRoundFormModalProps) {
   const [draft, setDraft] = useState<InterviewRoundDraft>(() => roundToDraft(round));
   const [daySchedules, setDaySchedules] = useState<InterviewDaySchedule[]>(() => schedulesFromDraft(roundToDraft(round)));
   const [internalSaving, setInternalSaving] = useState(false);
+  const initializedOpenKey = useRef<string | null>(null);
+  const loadedRevision = useRef<number | undefined>(round?.scheduleRevision);
 
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      initializedOpenKey.current = null;
+      return;
+    }
+    const key = round?.id ?? 'new';
+    if (initializedOpenKey.current !== key) {
+      initializedOpenKey.current = key;
+      loadedRevision.current = round?.scheduleRevision;
       const nextDraft = roundToDraft(round);
       const nextSchedules = schedulesFromDraft(nextDraft);
       setDraft(nextDraft);
@@ -133,7 +142,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
         interviewQuestions: draft.interviewQuestions
           .map(question => ({ ...question, text: question.text.trim() }))
           .filter(question => question.text.length > 0),
-      });
+      }, loadedRevision.current);
       if (saved !== false) onClose();
     } finally {
       setInternalSaving(false);

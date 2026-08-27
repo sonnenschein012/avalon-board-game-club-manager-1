@@ -60,6 +60,10 @@ function DraggableMember({ memberId, source, children, className }: { memberId: 
   );
 }
 
+function preventDragActivation(event: React.SyntheticEvent) {
+  event.stopPropagation();
+}
+
 function DroppablePool({ id, className, children }: { id: string, className?: string, children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
@@ -153,6 +157,8 @@ export default function SessionFormModal({
                               <button 
                                 key={g.id} 
                                 onClick={() => assignToGroup(id, g.id)}
+                                onMouseDown={preventDragActivation}
+                                onTouchStart={preventDragActivation}
                                 className="w-6 h-6 bg-navy hover:bg-gold text-white rounded flex items-center justify-center text-[10px] font-bold"
                               >
                                 {i + 1}
@@ -239,7 +245,9 @@ export default function SessionFormModal({
                                        removeFromGroup(mId, group.id);
                                      }} 
                                      className="text-slate-300 hover:text-red-500"
-                                     onPointerDown={(e) => e.stopPropagation()}
+                                     onMouseDown={preventDragActivation}
+                                     onTouchStart={preventDragActivation}
+                                     onPointerDown={preventDragActivation}
                                    >
                                      <X size={12} />
                                    </button>

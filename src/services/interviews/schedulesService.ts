@@ -13,6 +13,7 @@ import {
 import { db } from '../../lib/firebase';
 import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
 import { getAssignmentScheduleImpact } from '../../domain/interviews/scheduling';
+import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
 import type { InterviewAccess, InterviewApplicant, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../../types';
 import type { InterviewScheduleDraft } from './models';
 import { actorEmail, adminScheduleData, currentAssignmentRevision, getAssignmentLockId, mapSnapshot, publicScheduleData } from './shared';
@@ -116,11 +117,16 @@ export async function createInterviewSchedule(roundId: string, draft: InterviewS
 }
 
 export async function updateInterviewSchedule(schedule: InterviewSchedule, draft: InterviewScheduleDraft): Promise<void> {
-  const nextRevision = schedule.scheduleRevision + 1;
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'interviewSchedules', schedule.id), adminScheduleData(schedule.roundId, draft, schedule.order, nextRevision));
-  batch.set(doc(db, 'interviewPublicSchedules', schedule.id), publicScheduleData(schedule.roundId, draft, nextRevision));
-  await batch.commit();
+  const scheduleRef = doc(db, 'interviewSchedules', schedule.id);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(scheduleRef);
+    if (!snapshot.exists()) throw new Error('면접 일정을 찾을 수 없습니다.');
+    const current = snapshot.data() as InterviewSchedule;
+    assertExpectedRevision(current.scheduleRevision, schedule.scheduleRevision, '면접 일정 설정');
+    const nextRevision = current.scheduleRevision + 1;
+    transaction.update(scheduleRef, adminScheduleData(schedule.roundId, draft, current.order, nextRevision));
+    transaction.set(doc(db, 'interviewPublicSchedules', schedule.id), publicScheduleData(schedule.roundId, draft, nextRevision));
+  });
 }
 
 /** Applies a schedule edit while removing responses and assignments that no
@@ -132,6 +138,7 @@ export async function applyConcreteInterviewScheduleChange(
   draft: InterviewScheduleDraft,
   accessRecordIds: string[],
   applicantRecordIds: string[],
+  expectedScheduleRevision?: number,
 ): Promise<{ cleanedResponseCount: number; clearedAssignmentCount: number }> {
   if (accessRecordIds.length + applicantRecordIds.length > 198) {
     throw new Error('한 번에 변경할 수 있는 해당 일정의 면접 데이터 수(99명)를 초과했습니다.');
@@ -149,6 +156,7 @@ export async function applyConcreteInterviewScheduleChange(
     if (!scheduleSnapshot.exists()) throw new Error('면접 일정을 찾을 수 없습니다.');
     const currentSchedule = scheduleSnapshot.data() as InterviewSchedule;
     if (currentSchedule.roundId !== roundId || currentSchedule.status === 'archived') throw new Error('현재 회차에서 수정할 수 없는 면접 일정입니다.');
+    assertExpectedRevision(currentSchedule.scheduleRevision, expectedScheduleRevision, '면접 일정 설정');
 
     const affectedResponses = accessSnapshots.flatMap(snapshot => {
       if (!snapshot.exists()) return [];

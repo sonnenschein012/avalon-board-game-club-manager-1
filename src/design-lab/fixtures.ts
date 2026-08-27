@@ -195,7 +195,7 @@ export function createInterviewFixture(state: InterviewScenarioState): {
     createdAt: now,
     updatedAt: now,
   } satisfies InterviewRound;
-  const applicantCount = state === 'mobile-heavy' ? 18 : 7;
+  const applicantCount = state === 'mobile-heavy' ? 180 : 7;
   const applicants = Array.from({ length: applicantCount }, (_, index) =>
     makeApplicant(index, round, index < applicantCount - 3, state === 'change-needed' && index === 1));
   const interviewers = Array.from({ length: 3 }, (_, index) => ({

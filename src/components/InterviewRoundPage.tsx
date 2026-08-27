@@ -58,6 +58,7 @@ const FILTERS: Array<{ id: InterviewApplicantFilter; label: string }> = [
   { id: 'withdrawn', label: '지원 철회' },
   { id: 'archived', label: '보관됨' },
 ];
+const APPLICANT_RENDER_BATCH = 60;
 function formatSlot(slot: string) {
   const parsed = parseSlotId(slot);
   return parsed ? `${parsed.date} ${parsed.time}` : slot;
@@ -89,6 +90,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   const [editingApplicantId, setEditingApplicantId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<ApplicantSortKey>('applicantNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [visibleApplicantCount, setVisibleApplicantCount] = useState(APPLICANT_RENDER_BATCH);
   const [exporting, setExporting] = useState(false);
   const [selectedApplicantIds, setSelectedApplicantIds] = useState<Set<string>>(new Set());
   const [scheduleAssignmentOpen, setScheduleAssignmentOpen] = useState(false);
@@ -118,14 +120,13 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     };
   }, [stopEdgeAutoScroll]);
 
-  const counts = useMemo(
-    () => ({
-      total: logic.applicants.filter(isActiveInterviewApplicant).length,
-      responded: logic.applicants.filter((item) => isActiveInterviewApplicant(item) && item.access?.submittedAt).length,
-      assigned: logic.applicants.filter((item) => isActiveInterviewApplicant(item) && item.assignment).length,
-    }),
-    [logic.applicants],
-  );
+  const counts = useMemo(() => logic.applicants.reduce((result, applicant) => {
+    if (!isActiveInterviewApplicant(applicant)) return result;
+    result.total += 1;
+    if (applicant.access?.submittedAt) result.responded += 1;
+    if (applicant.assignment) result.assigned += 1;
+    return result;
+  }, { total: 0, responded: 0, assigned: 0 }), [logic.applicants]);
   const applicationHeaders = useMemo(() => [...new Set(logic.applicants.flatMap((applicant) => applicant.applicationData.map((field) => field.header.trim()).filter(Boolean)))].sort((left, right) => left.localeCompare(right, 'ko-KR')), [logic.applicants]);
   const scheduleApplicantCounts = useMemo(
     () =>
@@ -137,6 +138,13 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   );
   const scheduleNames = useMemo(() => new Map(logic.schedules.map((schedule) => [schedule.id, schedule.name])), [logic.schedules]);
   const sortedApplicants = useMemo(() => sortInterviewApplicants(logic.filteredApplicants, sortKey, sortDirection), [logic.filteredApplicants, sortDirection, sortKey]);
+  const visibleApplicants = useMemo(() => sortedApplicants.slice(0, visibleApplicantCount), [sortedApplicants, visibleApplicantCount]);
+  const activeSchedules = useMemo(() => logic.schedules.filter((schedule) => schedule.status !== 'archived'), [logic.schedules]);
+  const activeSchedule = logic.activeSchedule;
+  const scheduleApplicants = useMemo(() => activeSchedule
+    ? logic.applicants.filter((applicant) => applicant.scheduleId === activeSchedule.id && isActiveInterviewApplicant(applicant))
+    : [], [activeSchedule, logic.applicants]);
+  const selectedApplicants = useMemo(() => logic.applicants.filter((applicant) => selectedApplicantIds.has(applicant.id)), [logic.applicants, selectedApplicantIds]);
 
   if (logic.loading)
     return (
@@ -146,8 +154,6 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     );
   if (!logic.round) return <div className="rounded-2xl bg-white p-12 text-center text-sm font-bold text-slate-500">면접 회차를 찾을 수 없습니다.</div>;
   const round = logic.round;
-  const activeSchedule = logic.activeSchedule;
-  const scheduleApplicants = activeSchedule ? logic.applicants.filter((applicant) => applicant.scheduleId === activeSchedule.id && isActiveInterviewApplicant(applicant)) : [];
   const scheduleViewRound: typeof round = activeSchedule
     ? {
         ...round,
@@ -159,7 +165,6 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
         interviewQuestions: round.interviewQuestions,
       }
     : round;
-  const selectedApplicants = logic.applicants.filter((applicant) => selectedApplicantIds.has(applicant.id));
   const toggleApplicantSelection = (applicantId: string, selected: boolean) =>
     setSelectedApplicantIds((current) => {
       const next = new Set(current);
@@ -182,6 +187,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     toggleApplicantSelection(applicantId, paint.selected);
   };
   const handleApplicantTouchTap = (applicantId: string) => {
+    if (selectionPaint.current.active) return;
     const timeStamp = Date.now(); // eslint-disable-line react-hooks/purity -- runs only from a pointer event
     if (lastApplicantTap.current?.id === applicantId && timeStamp - lastApplicantTap.current.at < 360) {
       lastApplicantTap.current = null;
@@ -197,7 +203,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     setEditingScheduleId(null);
     setScheduleFormOpen(true);
   };
-  const saveInterviewSchedule = async (draft: InterviewScheduleDraft) => {
+  const saveInterviewSchedule = async (draft: InterviewScheduleDraft, expectedScheduleRevision?: number) => {
     if (scheduleSaving) return false;
     setScheduleSaving(true);
     try {
@@ -211,7 +217,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
       }
       let saved: boolean;
       if (editing) {
-        saved = await logic.editInterviewSchedule(editing, draft);
+        saved = await logic.editInterviewSchedule(editing, draft, expectedScheduleRevision);
       } else {
         const scheduleId = await logic.addInterviewSchedule(draft);
         saved = Boolean(scheduleId);
@@ -249,7 +255,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     }
   };
 
-  const applySettings = async (draft: InterviewRoundDraft) => {
+  const applySettings = async (draft: InterviewRoundDraft, expectedScheduleRevision?: number) => {
     const impact = logic.previewScheduleImpact(draft);
     if (impact.affectedResponseCount > 0 || impact.affectedAssignmentCount > 0) {
       const applicantsById = new Map(logic.applicants.map((applicant) => [applicant.id, applicant.name]));
@@ -267,7 +273,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
       const confirmed = window.confirm(`일정 변경 영향 미리보기\n\n${sections}\n\n확인을 누르면 회차 설정 저장, 무효 선택 정리, 유효하지 않은 기존 배정 해제를 한 번에 실행합니다.`);
       if (!confirmed) return false;
     }
-    return logic.applySchedule(draft);
+    return logic.applySchedule(draft, expectedScheduleRevision);
   };
 
   const detailApplicant = logic.applicants.find((applicant) => applicant.id === detailApplicantId) ?? null;
@@ -355,10 +361,10 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 text-slate-300" size={16} />
-                <input value={logic.search} onChange={(event) => logic.setSearch(event.target.value)} className="w-full rounded-xl border border-slate-100 py-2 pl-9 pr-3 text-sm" placeholder="이름, 번호, 연락처 검색" />
+                <input value={logic.search} onChange={(event) => { logic.setSearch(event.target.value); setVisibleApplicantCount(APPLICANT_RENDER_BATCH); }} className="w-full rounded-xl border border-slate-100 py-2 pl-9 pr-3 text-sm" placeholder="이름, 번호, 연락처 검색" />
               </div>
               <div className="flex gap-2">
-                <select aria-label="지원자 정렬 기준" value={sortKey} onChange={(event) => setSortKey(event.target.value as ApplicantSortKey)} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy sm:w-48">
+                <select aria-label="지원자 정렬 기준" value={sortKey} onChange={(event) => { setSortKey(event.target.value as ApplicantSortKey); setVisibleApplicantCount(APPLICANT_RENDER_BATCH); }} className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy sm:w-48">
                   <option value="applicantNumber">지원번호</option>
                   <option value="name">이름</option>
                   <option value="createdAt">등록 시각</option>
@@ -371,14 +377,14 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
                     </option>
                   ))}
                 </select>
-                <button aria-label={sortDirection === 'asc' ? '오름차순' : '내림차순'} title={sortDirection === 'asc' ? '오름차순' : '내림차순'} onClick={() => setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))} className="rounded-xl border border-slate-200 bg-white p-2.5 text-navy">
+                <button aria-label={sortDirection === 'asc' ? '오름차순' : '내림차순'} title={sortDirection === 'asc' ? '오름차순' : '내림차순'} onClick={() => { setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc')); setVisibleApplicantCount(APPLICANT_RENDER_BATCH); }} className="rounded-xl border border-slate-200 bg-white p-2.5 text-navy">
                   {sortDirection === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowUpAZ size={16} />}
                 </button>
               </div>
             </div>
             <div className="mt-3 flex gap-2 overflow-x-auto">
               {FILTERS.map((item) => (
-                <button key={item.id} onClick={() => logic.setFilter(item.id)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-bold ${logic.filter === item.id ? 'bg-navy text-white' : 'bg-slate-50 text-slate-500'}`}>
+                <button key={item.id} onClick={() => { logic.setFilter(item.id); setVisibleApplicantCount(APPLICANT_RENDER_BATCH); }} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[10px] font-bold ${logic.filter === item.id ? 'bg-navy text-white' : 'bg-slate-50 text-slate-500'}`}>
                   {item.label}
                 </button>
               ))}
@@ -398,12 +404,12 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             className="space-y-2"
             onPointerMove={(event) => {
               if (!selectionPaint.current.active) return;
-              updateEdgeAutoScroll(event.clientY);
+              updateEdgeAutoScroll(event.clientY, event.currentTarget);
               const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-applicant-id]');
               if (target?.dataset.applicantId) continueApplicantSelection(target.dataset.applicantId);
             }}
           >
-            {sortedApplicants.map((applicant) => (
+            {visibleApplicants.map((applicant) => (
               <ApplicantRow
                 key={applicant.id}
                 applicant={applicant}
@@ -432,6 +438,11 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               />
             ))}
           </div>
+          {visibleApplicants.length < sortedApplicants.length && (
+            <button type="button" onClick={() => setVisibleApplicantCount((current) => current + APPLICANT_RENDER_BATCH)} className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-navy shadow-sm">
+              더 보기 · {visibleApplicants.length}/{sortedApplicants.length}명 표시 중
+            </button>
+          )}
         </section>
       )}
 
@@ -442,7 +453,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               <h2 className="font-black text-navy">면접관 관리</h2>
               <p className="mt-1 text-xs text-slate-400">명부의 기본 정보와 일정별 가능시간을 나누어 관리합니다.</p>
             </div>
-            <InterviewScheduleSelector schedules={logic.schedules.filter((schedule) => schedule.status !== 'archived')} activeScheduleId={activeSchedule?.id ?? null} applicantCounts={scheduleApplicantCounts} allowNone noneLabel="면접관 명부" onSelect={logic.setActiveScheduleId} />
+            <InterviewScheduleSelector schedules={activeSchedules} activeScheduleId={activeSchedule?.id ?? null} applicantCounts={scheduleApplicantCounts} allowNone noneLabel="면접관 명부" onSelect={logic.setActiveScheduleId} />
           </div>
           <InterviewersPanel round={scheduleViewRound} interviewers={logic.activeInterviewers} roster={logic.interviewers} scheduleParticipants={logic.roundScheduleInterviewers} schedules={logic.schedules} applicants={activeSchedule ? scheduleApplicants : logic.applicants} isRoster={!activeSchedule} onAdd={logic.addInterviewer} onEdit={logic.editInterviewer} onSaveAvailability={logic.saveInterviewerAvailability} onRemove={logic.removeInterviewer} onAssign={logic.assignInterviewer} />
         </section>
@@ -456,7 +467,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               <p className="mt-1 text-xs text-slate-400">선택한 일정 안에서 응답과 실제 면접 시간을 관리합니다.</p>
             </div>
             <div className="flex w-full items-center gap-2 sm:w-auto">
-              <InterviewScheduleSelector schedules={logic.schedules.filter((schedule) => schedule.status !== 'archived')} activeScheduleId={activeSchedule?.id ?? null} applicantCounts={scheduleApplicantCounts} onSelect={logic.setActiveScheduleId} />
+              <InterviewScheduleSelector schedules={activeSchedules} activeScheduleId={activeSchedule?.id ?? null} applicantCounts={scheduleApplicantCounts} onSelect={logic.setActiveScheduleId} />
               <button type="button" onClick={() => openNewScheduleForm()} className="shrink-0 rounded-xl bg-navy px-3 py-3 text-xs font-black text-white">
                 일정 추가
               </button>

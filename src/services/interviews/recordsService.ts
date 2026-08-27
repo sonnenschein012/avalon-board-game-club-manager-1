@@ -13,6 +13,7 @@ import {
   prepareInterviewReopen,
 } from '../../domain/interviews/interviewCompletion';
 import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
+import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
 import type {
   InterviewApplicant,
   InterviewNote,
@@ -49,19 +50,23 @@ export async function saveInterviewNote(input: {
   generalNotes: string;
   answers: Record<string, string>;
   overallRating?: InterviewOverallRating | null;
-}): Promise<void> {
+  expectedRevision?: number;
+}): Promise<number> {
   if (input.overallRating != null && !OVERALL_RATINGS.includes(input.overallRating)) {
     throw new Error('올바르지 않은 종합평가입니다.');
   }
   const noteRef = doc(db, 'interviewNotes', `${input.roundId}__${input.applicantId}`);
   const applicantRef = doc(db, 'interviewApplicants', input.applicantId);
-  await runTransaction(db, async transaction => {
+  return runTransaction(db, async transaction => {
     const [noteSnapshot, applicantSnapshot] = await Promise.all([
       transaction.get(noteRef),
       transaction.get(applicantRef),
     ]);
     if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = applicantSnapshot.data() as InterviewApplicant;
+    const existingNote = noteSnapshot.data() as InterviewNote | undefined;
+    const currentRevision = existingNote?.revision ?? 0;
+    assertExpectedRevision(currentRevision, input.expectedRevision, '면접 기록');
     if (applicant.roundId !== input.roundId) throw new Error('다른 면접 회차의 지원자입니다.');
     if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 면접 기록은 수정할 수 없습니다.');
     // A pending autosave that races the final completion transaction must not
@@ -69,8 +74,11 @@ export async function saveInterviewNote(input: {
     if (getInterviewProgressStatus(applicant) === 'completed') {
       throw new Error('완료된 면접의 평가는 선발 상세에서 수정해주세요.');
     }
+    const { expectedRevision, ...noteInput } = input;
+    void expectedRevision;
     transaction.set(noteRef, {
-      ...input,
+      ...noteInput,
+      revision: currentRevision + 1,
       ...(noteSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
       updatedAt: serverTimestamp(),
       updatedBy: actorEmail(),
@@ -81,6 +89,7 @@ export async function saveInterviewNote(input: {
         updatedAt: serverTimestamp(),
       });
     }
+    return currentRevision + 1;
   });
 }
 
@@ -99,6 +108,7 @@ export async function updateCompletedInterviewOverallRating(
     const noteRef = doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`);
     const noteSnapshot = await transaction.get(noteRef);
     const note = noteSnapshot.data() as InterviewNote | undefined;
+    const noteRevision = note?.revision ?? 0;
     const assignment = applicant.assignment ?? applicant.previousAssignment;
     transaction.set(noteRef, {
       roundId: applicant.roundId,
@@ -108,6 +118,7 @@ export async function updateCompletedInterviewOverallRating(
       generalNotes: note?.generalNotes ?? '',
       answers: note?.answers ?? {},
       overallRating,
+      revision: noteRevision + 1,
       ...(noteSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
       updatedAt: serverTimestamp(),
       updatedBy: actorEmail(),
@@ -197,6 +208,8 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
     if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = applicantSnapshot.data() as InterviewApplicant;
     const existingNote = noteSnapshot.data() as InterviewNote | undefined;
+    const noteRevision = existingNote?.revision ?? 0;
+    assertExpectedRevision(noteRevision, input.expectedNoteRevision, '면접 기록');
     const completion = prepareInterviewCompletion(applicant, existingNote ?? null, { ...input, roundId });
 
     transaction.set(noteRef, {
@@ -207,6 +220,7 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
       generalNotes: completion.generalNotes,
       answers: completion.answers,
       overallRating: completion.overallRating,
+      revision: noteRevision + 1,
       ...(noteSnapshot.exists() ? {} : { createdAt: serverTimestamp() }),
       updatedAt: serverTimestamp(),
       updatedBy: actorEmail(),

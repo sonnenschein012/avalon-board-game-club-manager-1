@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Plus, Save, Trash2, UserRound, X } from 'lucide-react';
 import type { InterviewApplicant, InterviewRound, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../types';
 import { formatMemberPhone } from '../domain/interviews/memberRegistration';
@@ -16,7 +16,7 @@ interface Props {
   isRoster: boolean;
   onAdd: (name: string, email?: string, phone?: string) => Promise<boolean>;
   onEdit: (item: InterviewRoundInterviewer, name: string, email?: string, phone?: string) => Promise<boolean>;
-  onSaveAvailability: (id: string, slots: string[]) => Promise<boolean>;
+  onSaveAvailability: (id: string, slots: string[], expectedUpdatedAtMillis?: number) => Promise<boolean>;
   onRemove: (item: InterviewRoundInterviewer) => Promise<boolean>;
   onAssign: (item: InterviewRoundInterviewer) => Promise<boolean>;
 }
@@ -36,6 +36,7 @@ export default function InterviewersPanel({ round, interviewers, roster, schedul
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const availabilityBaseUpdatedAt = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (selectedId && !active.some((item) => item.id === selectedId)) setSelectedId(active[0]?.id ?? '');
   }, [active, selectedId]);
@@ -171,7 +172,7 @@ export default function InterviewersPanel({ round, interviewers, roster, schedul
                     </button>
                     <button
                       onClick={async () => {
-                        if (await onSaveAvailability(selected.id, [...selectedSlots])) {
+                        if (await onSaveAvailability(selected.id, [...selectedSlots], availabilityBaseUpdatedAt.current)) {
                           setDraft(null);
                           setEditingSlots(false);
                         }
@@ -183,7 +184,7 @@ export default function InterviewersPanel({ round, interviewers, roster, schedul
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => setEditingSlots(true)} className="flex items-center gap-1 rounded-xl border border-navy/30 bg-navy/5 px-4 py-2 text-xs font-black text-navy">
+                  <button onClick={() => { availabilityBaseUpdatedAt.current = selected.updatedAt?.toMillis(); setEditingSlots(true); }} className="flex items-center gap-1 rounded-xl border border-navy/30 bg-navy/5 px-4 py-2 text-xs font-black text-navy">
                     <Pencil size={14} />
                     수정하기
                   </button>

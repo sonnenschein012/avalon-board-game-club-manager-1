@@ -71,3 +71,33 @@ test('fixture 상호작용은 메모리에서만 바뀌고 새로고침하면 �
   await expect(preview.getByRole('heading', { name: /김민준/ }).first()).toBeVisible();
   expect(backendRequests).toEqual([]);
 });
+
+test('모바일 대용량 면접 목록은 나눠 렌더링하고 버튼 입력을 유지한다', async ({ page }) => {
+  await page.goto('/design.html#/interview/mobile-heavy?viewport=390');
+  const preview = page.frameLocator('iframe[title="Scenario preview"]');
+
+  await expect(preview.getByText('180', { exact: true })).toBeVisible();
+  const loadMore = preview.getByRole('button', { name: /면접 일정 더 보기/ });
+  await expect(loadMore).toContainText('60/177건');
+  await loadMore.click();
+  await expect(loadMore).toContainText('120/177건');
+
+  const autoAssign = preview.getByRole('button', { name: '자동배정' }).first();
+  await autoAssign.click();
+  await expect(preview.getByText('배정 대기 지원자').locator('..').locator('..').getByText('A-178')).toHaveCount(0);
+});
+
+test('느린 정적 리소스 응답에서도 모바일 면접 화면이 한 번의 입력으로 열린다', async ({ page }) => {
+  await page.route('**/*', async route => {
+    if (route.request().resourceType() === 'document' || route.request().resourceType() === 'script') {
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    await route.continue();
+  });
+
+  await page.goto('/design.html#/interview/change-needed?viewport=390');
+  const preview = page.frameLocator('iframe[title="Scenario preview"]');
+  await expect(preview.getByRole('heading', { name: '전체 면접 시간표' })).toBeVisible();
+  await preview.getByRole('button', { name: '자동배정' }).first().click();
+  await expect(preview.getByRole('button', { name: '자동배정' }).first()).toBeVisible();
+});

@@ -93,7 +93,7 @@ export default function AvailabilityGrid({
       className="relative z-0 isolate max-w-full overflow-auto rounded-2xl border border-slate-100 bg-white"
       onPointerMove={(event) => {
         if (paintMode.current === null) return;
-        updateEdgeAutoScroll(event.clientY);
+        updateEdgeAutoScroll(event.clientY, event.currentTarget);
         const element = document.elementFromPoint(event.clientX, event.clientY);
         const button = element?.closest<HTMLButtonElement>('[data-slot-id]');
         const slotId = button?.dataset.slotId;
@@ -140,7 +140,7 @@ export default function AvailabilityGrid({
                   }}
                   onPointerDown={onToggle ? (event) => {
                     event.preventDefault();
-                    updateEdgeAutoScroll(event.clientY);
+                    updateEdgeAutoScroll(event.clientY, event.currentTarget);
                     beginPaint(slotId, isSelected, event.pointerId, event.currentTarget);
                   } : undefined}
                   onPointerEnter={onToggle ? (event) => continuePaint(slotId, event.buttons) : undefined}

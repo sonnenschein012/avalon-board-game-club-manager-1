@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarPlus, Plus, Save, Trash2, X } from 'lucide-react';
 import { generateAvailabilitySlotsForSchedules } from '../domain/interviews/scheduling';
 import type { InterviewDaySchedule, InterviewRound, InterviewSchedule } from '../types';
@@ -70,7 +70,7 @@ interface Props {
   schedule?: InterviewSchedule | null;
   saving?: boolean;
   onClose: () => void;
-  onSave: (draft: InterviewScheduleDraft) => Promise<boolean>;
+  onSave: (draft: InterviewScheduleDraft, expectedScheduleRevision?: number) => Promise<boolean>;
 }
 
 function scheduleToDraft(schedule: InterviewSchedule): InterviewScheduleDraft {
@@ -104,9 +104,15 @@ export default function InterviewScheduleFormModal({ open, round, schedules, sch
   const [draft, setDraft] = useState<InterviewScheduleDraft>(() => schedule ? scheduleToDraft(schedule) : suggestedInterviewScheduleDraft(round, schedules));
   const [rangeStart, setRangeStart] = useState('');
   const [rangeEnd, setRangeEnd] = useState('');
+  const initializedOpenKey = useRef<string | null>(null);
+  const loadedRevision = useRef<number | undefined>(schedule?.scheduleRevision);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { initializedOpenKey.current = null; return; }
+    const key = schedule?.id ?? 'new';
+    if (initializedOpenKey.current === key) return;
+    initializedOpenKey.current = key;
+    loadedRevision.current = schedule?.scheduleRevision;
     setDraft(schedule ? scheduleToDraft(schedule) : suggestedInterviewScheduleDraft(round, schedules));
     setRangeStart('');
     setRangeEnd('');
@@ -141,7 +147,7 @@ export default function InterviewScheduleFormModal({ open, round, schedules, sch
   const submit = async () => {
     if (validationError || saving) return;
     const daySchedules = [...draft.daySchedules].sort((left, right) => left.date.localeCompare(right.date));
-    await onSave({ ...draft, name: draft.name.trim(), interviewDates: daySchedules.map(item => item.date), dayStartTime: daySchedules.map(item => item.startTime).sort()[0] ?? draft.dayStartTime, dayEndTime: daySchedules.map(item => item.endTime).sort().at(-1) ?? draft.dayEndTime, daySchedules, allowedSlots: generatedSlots });
+    await onSave({ ...draft, name: draft.name.trim(), interviewDates: daySchedules.map(item => item.date), dayStartTime: daySchedules.map(item => item.startTime).sort()[0] ?? draft.dayStartTime, dayEndTime: daySchedules.map(item => item.endTime).sort().at(-1) ?? draft.dayEndTime, daySchedules, allowedSlots: generatedSlots }, loadedRevision.current);
   };
 
   return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:p-3">

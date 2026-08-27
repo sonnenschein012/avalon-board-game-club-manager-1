@@ -4,6 +4,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -14,6 +15,7 @@ import { db } from '../../lib/firebase';
 import type { InterviewChangeRequest, InterviewRoundInterviewer, InterviewScheduleInterviewer, InterviewerProfile } from '../../types';
 import type { RoundInterviewerDraft } from './models';
 import { formatMemberPhone } from '../../domain/interviews/memberRegistration';
+import { assertExpectedUpdatedAt } from '../../domain/interviews/revisionConflict';
 import { actorEmail, mapSnapshot } from './shared';
 
 export function subscribeRoundInterviewers(
@@ -64,12 +66,22 @@ export async function addRoundInterviewer(
   return profileRef.id;
 }
 
-export async function updateRoundInterviewerAvailability(participantId: string, availability: string[]): Promise<void> {
-  await updateDoc(doc(db, 'interviewRoundInterviewers', participantId), { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+async function updateInterviewerAvailability(collectionName: 'interviewRoundInterviewers' | 'interviewScheduleInterviewers', participantId: string, availability: string[], expectedUpdatedAtMillis?: number) {
+  const participantRef = doc(db, collectionName, participantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(participantRef);
+    if (!snapshot.exists()) throw new Error('면접관 정보를 찾을 수 없습니다.');
+    assertExpectedUpdatedAt(snapshot.data().updatedAt, expectedUpdatedAtMillis, '면접관 가능시간');
+    transaction.update(participantRef, { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+  });
 }
 
-export async function updateScheduleInterviewerAvailability(participantId: string, availability: string[]): Promise<void> {
-  await updateDoc(doc(db, 'interviewScheduleInterviewers', participantId), { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+export async function updateRoundInterviewerAvailability(participantId: string, availability: string[], expectedUpdatedAtMillis?: number): Promise<void> {
+  await updateInterviewerAvailability('interviewRoundInterviewers', participantId, availability, expectedUpdatedAtMillis);
+}
+
+export async function updateScheduleInterviewerAvailability(participantId: string, availability: string[], expectedUpdatedAtMillis?: number): Promise<void> {
+  await updateInterviewerAvailability('interviewScheduleInterviewers', participantId, availability, expectedUpdatedAtMillis);
 }
 
 export async function updateInterviewerPhone(participant: InterviewRoundInterviewer, phone: string): Promise<void> {
