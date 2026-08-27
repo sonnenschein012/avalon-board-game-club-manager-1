@@ -13,3 +13,7 @@ stats.html
 .firebase/
 .demo-runtime/
 .codex-deploy-audit-*
+.codex-tmp-deploy-*
+agent_docs/
+.codex_workflow_hidden_resources/
+AGENTS.md

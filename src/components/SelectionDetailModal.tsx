@@ -25,6 +25,23 @@ const RATINGS: Record<InterviewOverallRating, { label: string; className: string
 
 const SELECTIONS: Record<InterviewSelectionStatus, string> = { pending: '미결정', selected: '선발', rejected: '미선발' };
 
+export type SelectionDecision = Exclude<InterviewSelectionStatus, 'pending'>;
+
+const DECISION_BUTTON_STYLES: Record<SelectionDecision, { active: string; inactive: string }> = {
+  rejected: {
+    active: 'border-red-600 bg-red-600 text-white hover:bg-red-700',
+    inactive: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+  },
+  selected: {
+    active: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
+    inactive: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+  },
+};
+
+export function getSelectionDecisionButtonClass(selection: InterviewSelectionStatus, decision: SelectionDecision): string {
+  return selection === decision ? DECISION_BUTTON_STYLES[decision].active : DECISION_BUTTON_STYLES[decision].inactive;
+}
+
 export default function SelectionDetailModal({ applicant, round, onClose, onUpdateSelectionStatus, onUpdateOverallRating, onReopenCompletedInterview }: SelectionDetailModalProps) {
   const [updating, setUpdating] = useState(false);
   const [ratingUpdating, setRatingUpdating] = useState(false);
@@ -76,9 +93,9 @@ export default function SelectionDetailModal({ applicant, round, onClose, onUpda
         <section className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><Award size={16} className="text-gold" />면접관 종합평가</h3><p className="mt-1 text-xs text-slate-500">완료 후 정정이 필요한 경우 아래 평가를 선택하면 기록과 지원자 상태가 함께 갱신됩니다.</p><div className="mt-3 grid grid-cols-2 gap-2">{Object.entries(RATINGS).map(([value, info]) => <button key={value} type="button" disabled={ratingUpdating} onClick={() => void updateRating(value as InterviewOverallRating)} className={`rounded-xl border px-2 py-2.5 text-xs font-black disabled:opacity-50 ${rating === value ? 'border-navy bg-navy text-white' : info.className}`}>{info.label}</button>)}</div><div className="mt-3 rounded-xl bg-white p-3"><p className="text-xs font-bold text-slate-400">종합 노트</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.generalNotes || '기록 없음'}</p></div></section>
         <section className="rounded-2xl bg-white p-5 shadow-sm"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><MessageSquareText size={16} className="text-gold" />질문별 면접 기록</h3><div className="mt-4 space-y-3">{(round.interviewQuestions ?? []).map((question, index) => <div key={question.id} className="rounded-xl bg-slate-50 p-3"><p className="whitespace-pre-wrap text-xs font-black text-navy">{index + 1}. {question.text}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.answers[question.id] || '기록 없음'}</p></div>)}{!(round.interviewQuestions ?? []).length && <p className="text-sm text-slate-400">등록된 면접 질문이 없습니다.</p>}</div></section>
       </main>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4"><div><p className="text-xs font-bold text-slate-500">현재 선발 상태: <span className="text-navy">{SELECTIONS[selection]}</span></p><button type="button" disabled={reopening} onClick={() => void reopenInterview()} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-navy disabled:opacity-50">{reopening ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}면접 완료 취소</button></div><div className="flex gap-2"><DecisionButton label="미선발" active={selection === 'rejected'} disabled={updating || reopening} onClick={() => void updateStatus('rejected')} icon={<XCircle size={14} />} /><DecisionButton label="선발" active={selection === 'selected'} disabled={updating || reopening} onClick={() => void updateStatus('selected')} icon={updating ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} /></div></footer>
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4"><div><p className="text-xs font-bold text-slate-500">현재 선발 상태: <span className="text-navy">{SELECTIONS[selection]}</span></p><button type="button" disabled={reopening} onClick={() => void reopenInterview()} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-navy disabled:opacity-50">{reopening ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}면접 완료 취소</button></div><div className="flex gap-2"><DecisionButton label="미선발" decision="rejected" selection={selection} disabled={updating || reopening} onClick={() => void updateStatus('rejected')} icon={<XCircle size={14} />} /><DecisionButton label="선발" decision="selected" selection={selection} disabled={updating || reopening} onClick={() => void updateStatus('selected')} icon={updating ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} /></div></footer>
     </div>
   </div>;
 }
 
-function DecisionButton({ label, active, disabled, onClick, icon }: { label: string; active: boolean; disabled: boolean; onClick: () => void; icon: React.ReactNode }) { return <button type="button" disabled={disabled} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-50 ${active ? 'border-navy bg-navy text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>{icon}{label}</button>; }
+function DecisionButton({ label, decision, selection, disabled, onClick, icon }: { label: string; decision: SelectionDecision; selection: InterviewSelectionStatus; disabled: boolean; onClick: () => void; icon: React.ReactNode }) { return <button type="button" disabled={disabled} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-50 ${getSelectionDecisionButtonClass(selection, decision)}`}>{icon}{label}</button>; }

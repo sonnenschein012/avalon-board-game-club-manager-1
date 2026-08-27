@@ -268,7 +268,7 @@ export function useInterviewRoundLogic(roundId: string) {
       interviewerId: interviewer.interviewerId,
       interviewerName: interviewer.displayName,
       status: 'scheduled',
-      locked: source === 'manual',
+      locked: false,
       source,
     };
   };
@@ -284,7 +284,7 @@ export function useInterviewRoundLogic(roundId: string) {
     )) ?? null;
   };
 
-  const assignApplicant = async (applicant: InterviewApplicantWithAccess, slot: string, interviewerId: string, lock = true) => {
+  const assignApplicant = async (applicant: InterviewApplicantWithAccess, slot: string, interviewerId: string) => {
     if (!activeSchedulingConfig) return false;
     if (activeScheduleId && applicant.scheduleId !== activeScheduleId) {
       toast.error('현재 선택한 면접 일정의 지원자만 배정할 수 있습니다.');
@@ -308,7 +308,6 @@ export function useInterviewRoundLogic(roundId: string) {
       toast.error('올바르지 않은 면접 시간입니다.');
       return false;
     }
-    assignment.locked = lock;
     const conflict = getAssignmentConflict(slot, applicant.id, interviewerId);
     if (conflict) {
       toast.error(`${interviewer.displayName} 면접관 일정이 ${conflict.name} 지원자와 겹칩니다.`);

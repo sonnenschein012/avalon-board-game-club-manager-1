@@ -4,7 +4,6 @@ import type { InterviewAccess, InterviewApplicant, InterviewRound } from '../typ
 import { isActiveInterviewApplicant } from '../domain/interviews/interviewV3Policy';
 import {
   createInterviewRound,
-  deleteInterviewRound,
   subscribeAllInterviewAccess,
   subscribeAllInterviewApplicants,
   subscribeInterviewRounds,
@@ -23,7 +22,6 @@ export function useInterviewRoundsLogic() {
   const [applicants, setApplicants] = useState<InterviewApplicant[]>([]);
   const [access, setAccess] = useState<InterviewAccess[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingRoundId, setDeletingRoundId] = useState<string | null>(null);
   const { runAction, isPending } = useAsyncActionState();
   const saving = isPending('interview-round-save');
 
@@ -71,22 +69,5 @@ export function useInterviewRoundsLogic() {
     return result.succeeded;
   };
 
-  const removeRound = async (round: InterviewRound) => {
-    if (deletingRoundId || isPending('interview-round-delete')) return false;
-    setDeletingRoundId(round.id);
-    try {
-      const result = await runAction('interview-round-delete', () => deleteInterviewRound(round.id), {
-        errorMessage: '면접 회차를 삭제하지 못했습니다.',
-        onError: console.error,
-      });
-      if (result.succeeded && result.value) {
-        toast.success(`${round.name} 회차와 관련 데이터 ${result.value.deletedDocuments}건을 삭제했습니다.`);
-      }
-      return result.succeeded;
-    } finally {
-      setDeletingRoundId(null);
-    }
-  };
-
-  return { rounds, countsByRound, loading, saving, saveRound, deletingRoundId, removeRound };
+  return { rounds, countsByRound, loading, saving, saveRound };
 }

@@ -82,7 +82,7 @@ test('모바일 대용량 면접 목록은 나눠 렌더링하고 버튼 입력�
   await loadMore.click();
   await expect(loadMore).toContainText('120/177건');
 
-  const autoAssign = preview.getByRole('button', { name: '자동배정' }).first();
+  const autoAssign = preview.getByRole('button', { name: '자동배정', exact: true }).first();
   await autoAssign.click();
   await expect(preview.getByText('배정 대기 지원자').locator('..').locator('..').getByText('A-178')).toHaveCount(0);
 });

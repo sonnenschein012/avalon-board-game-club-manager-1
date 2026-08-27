@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, ArrowDownAZ, ArrowLeft, ArrowUpAZ, CalendarClock, Copy, Download, FileUp, Loader2, MessageSquare, RotateCcw, Search, Settings, Trash2, UserMinus, UserPlus, Users } from 'lucide-react';
+import { Archive, ArrowDownAZ, ArrowLeft, ArrowUpAZ, CalendarClock, Copy, Download, FileUp, Loader2, MessageSquare, RotateCcw, Search, Settings, UserMinus, UserPlus, Users } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Papa from 'papaparse';
 import { toast } from 'sonner';
@@ -465,13 +465,6 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
           </div>
           {activeSchedule ? (
             <div className="space-y-3">
-              {!logic.autoDraft && (
-                <div className="flex justify-end rounded-2xl bg-emerald-50 p-3">
-                  <button type="button" onClick={() => logic.runAutoAssignment('unassigned')} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white">
-                    미배정자 전체 자동배정
-                  </button>
-                </div>
-              )}
               <InterviewSchedulePanel
                 round={scheduleViewRound}
                 applicants={scheduleApplicants}
@@ -479,6 +472,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
                 changeRequests={logic.changeRequests.filter((request) => request.scheduleId === activeSchedule.id)}
                 draft={logic.autoDraft}
                 onDraftChange={logic.setAutoDraft}
+                onRunAutoAssignment={() => logic.runAutoAssignment('unassigned')}
                 onRunApplicantAutoAssignment={(applicantId) => {
                   logic.runAutoAssignment('applicant', applicantId);
                 }}
@@ -522,18 +516,6 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               </button>
             </div>
           </section>
-          <section className="rounded-3xl border border-red-100 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="font-black text-red-700">회차 삭제</h3>
-                <p className="mt-1 text-sm text-slate-500">지원자, 개인 링크, 일정, 평가와 이력을 영구 삭제합니다. 등록된 동아리원은 유지됩니다.</p>
-              </div>
-              <button type="button" onClick={() => setDeleteOpen(true)} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-700">
-                <Trash2 size={15} />
-                회차 삭제
-              </button>
-            </div>
-          </section>
         </div>
       )}
 
@@ -548,7 +530,16 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
         }}
       />
       <ApplicantDetailModal applicant={detailApplicant} round={round} schedule={detailSchedule} interviewers={logic.interviewers} onClose={() => setDetailApplicantId(null)} onMarkSent={(kind, markedSent) => (detailApplicant ? logic.markSent(detailApplicant.id, kind, markedSent) : Promise.resolve())} />
-      <InterviewRoundFormModal open={settingsOpen} round={round} onClose={() => setSettingsOpen(false)} onSave={applySettings} />
+      <InterviewRoundFormModal
+        open={settingsOpen}
+        round={round}
+        onClose={() => setSettingsOpen(false)}
+        onSave={applySettings}
+        onDelete={() => {
+          setSettingsOpen(false);
+          setDeleteOpen(true);
+        }}
+      />
       <InterviewRoundDeleteModal
         open={deleteOpen}
         round={round}

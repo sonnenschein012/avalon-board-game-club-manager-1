@@ -7,6 +7,7 @@ import MemberFilters from '../components/MemberFilters';
 import MemberList from '../components/MemberList';
 import PageHeader from '../components/PageHeader';
 import UnassignedPool from '../components/UnassignedPool';
+import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import type { MemberFormData } from '../domain/members/memberForm';
 import type { Attendee, InterviewAssignment, Member, SessionGroup } from '../types';
 import {
@@ -89,8 +90,9 @@ export function MembersScenario({ state }: { state: MembersScenarioState }) {
 export function InterviewScenario({ state }: { state: InterviewScenarioState }) {
   const fixture = useMemo(() => createInterviewFixture(state), [state]);
   const [applicants, setApplicants] = useState(fixture.applicants);
+  const [draft, setDraft] = useState<AutoAssignmentResult | null>(null);
 
-  const assign = async (applicantId: string, slotId: string, interviewerId: string, locked = false) => {
+  const assign = async (applicantId: string, slotId: string, interviewerId: string) => {
     const interviewer = fixture.interviewers.find(item => item.interviewerId === interviewerId);
     setApplicants(current => current.map(applicant => applicant.id === applicantId ? {
       ...applicant,
@@ -101,7 +103,7 @@ export function InterviewScenario({ state }: { state: InterviewScenarioState }) 
         interviewerId,
         interviewerName: interviewer?.displayName ?? '면접관',
         status: 'scheduled',
-        locked,
+        locked: false,
         source: 'manual',
         confirmationRevision: (applicant.assignmentRevision ?? 0) + 1,
       },
@@ -123,16 +125,41 @@ export function InterviewScenario({ state }: { state: InterviewScenarioState }) 
       applicants={applicants}
       interviewers={fixture.interviewers}
       changeRequests={fixture.changeRequests}
-      draft={null}
-      onDraftChange={() => undefined}
+      draft={draft}
+      onDraftChange={setDraft}
+      onRunAutoAssignment={() => {
+        const waitingApplicants = applicants.filter(applicant => !applicant.assignment);
+        const proposals = waitingApplicants.flatMap(applicant => {
+          const interviewer = fixture.interviewers.find(item => item.availability.some(slotId => applicant.access?.availability.includes(slotId)));
+          const slotId = interviewer?.availability.find(candidate => applicant.access?.availability.includes(candidate));
+          return interviewer && slotId ? [{
+            applicantId: applicant.id,
+            applicantName: applicant.name,
+            interviewerId: interviewer.interviewerId,
+            interviewerName: interviewer.displayName,
+            slotId,
+            locked: false,
+            preserved: false,
+            protected: false,
+            expectedAssignmentRevision: applicant.assignmentRevision ?? 0,
+          }] : [];
+        });
+        setDraft({
+          proposals,
+          failures: [],
+          totalApplicants: waitingApplicants.length,
+          assignedCount: proposals.length,
+          interviewerLoads: Object.fromEntries(proposals.map(proposal => [proposal.interviewerId, 1])),
+        });
+      }}
       onRunApplicantAutoAssignment={applicantId => {
         const applicant = applicants.find(item => item.id === applicantId);
         const interviewer = fixture.interviewers[0];
         const firstSlot = applicant?.access?.availability.find(slotId => interviewer?.availability.includes(slotId));
         if (applicant && interviewer && firstSlot) void assign(applicant.id, firstSlot, interviewer.interviewerId);
       }}
-      onApplyDraft={async () => true}
-      onAssign={(applicant, slotId, interviewerId, locked) => assign(applicant.id, slotId, interviewerId, locked)}
+      onApplyDraft={async () => { setDraft(null); return true; }}
+      onAssign={(applicant, slotId, interviewerId) => assign(applicant.id, slotId, interviewerId)}
       onClearAssignment={async applicantId => setApplicants(current => current.map(applicant => applicant.id === applicantId ? { ...applicant, assignment: null } : applicant))}
       onChangeAssignmentState={async (applicantId, patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>) => {
         setApplicants(current => current.map(applicant => applicant.id === applicantId && applicant.assignment
