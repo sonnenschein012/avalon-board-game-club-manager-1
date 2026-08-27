@@ -29,15 +29,28 @@ export function subscribeToPublicInterview(
   onError: (error: Error) => void,
 ) {
   let roundUnsubscribe: (() => void) | null = null;
+  let commonRoundUnsubscribe: (() => void) | null = null;
   let currentAccess: InterviewAccess | null = null;
   let currentRound: InterviewPublicRound | InterviewPublicSchedule | null = null;
+  let currentCommonRound: InterviewPublicRound | null = null;
   let currentRoundKey: string | null = null;
   let hasReceivedRoundSnapshot = false;
 
+  const emitCurrent = () => {
+    if (!currentAccess || !hasReceivedRoundSnapshot) return;
+    const mergedRound = currentRound && currentCommonRound
+      ? { ...currentRound, name: currentCommonRound.name, instructions: currentCommonRound.instructions }
+      : currentRound;
+    onValue({ access: currentAccess, round: mergedRound });
+  };
+
   const clearRoundSubscription = () => {
     roundUnsubscribe?.();
+    commonRoundUnsubscribe?.();
     roundUnsubscribe = null;
+    commonRoundUnsubscribe = null;
     currentRound = null;
+    currentCommonRound = null;
     currentRoundKey = null;
     hasReceivedRoundSnapshot = false;
   };
@@ -74,7 +87,7 @@ export function subscribeToPublicInterview(
       if (currentRoundKey === nextRoundKey) {
         // Access updates (first visit, response save) must be visible
         // immediately without tearing down and recreating the round listener.
-        if (hasReceivedRoundSnapshot) onValue({ access, round: currentRound });
+        emitCurrent();
         return;
       }
       clearRoundSubscription();
@@ -89,13 +102,28 @@ export function subscribeToPublicInterview(
             ? ({ id: roundSnapshot.id, ...roundSnapshot.data() } as InterviewPublicRound | InterviewPublicSchedule)
             : null;
           currentRound = round;
-          onValue({ access: latestAccess, round });
+          emitCurrent();
         },
         (error) => {
           handleFirestoreError(error, OperationType.GET, `${publicCollection}/${publicDocumentId}`);
           onError(error);
         },
       );
+      if (access.scheduleId) {
+        commonRoundUnsubscribe = onSnapshot(
+          doc(db, 'interviewPublicRounds', access.roundId),
+          (roundSnapshot) => {
+            currentCommonRound = roundSnapshot.exists()
+              ? ({ id: roundSnapshot.id, ...roundSnapshot.data() } as InterviewPublicRound)
+              : null;
+            emitCurrent();
+          },
+          (error) => {
+            handleFirestoreError(error, OperationType.GET, `interviewPublicRounds/${access.roundId}`);
+            onError(error);
+          },
+        );
+      }
     },
     (error) => {
       handleFirestoreError(error, OperationType.GET, 'interviewAccess/[redacted]');

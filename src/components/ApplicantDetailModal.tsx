@@ -67,17 +67,11 @@ export default function ApplicantDetailModal({ applicant, round, schedule, inter
     const interviewerName = applicant.assignment?.interviewerName ?? assignedInterviewer?.displayName ?? '';
     const interviewerPhone = assignedInterviewer?.phone?.trim() || '';
     const placeholders = { name: applicant.name, link: applicant.link, ...(schedule ? { deadline: schedule.surveyClosesAt.toDate().toLocaleString('ko-KR') } : {}), interviewDate: assignmentParts.date, interviewTime: assignmentParts.time, oldInterviewDate: previousParts.date, oldInterviewTime: previousParts.time, interviewerName, interviewerPhone, roundName: round.name };
-    const renderConfirmationMessage = (template: string) => {
-      const renderedMessage = renderInterviewMessage(template, placeholders);
-      return template.includes('{interviewerPhone}')
-        ? renderedMessage
-        : `${renderedMessage}\n\n☎️ 담당 면접관 ${interviewerName} · ${interviewerPhone}`;
-    };
     return {
       availability: renderInterviewMessage(round.messageTemplates.availability, placeholders),
       reminder: renderInterviewMessage(round.messageTemplates.reminder, placeholders),
-      confirmation: renderConfirmationMessage(round.messageTemplates.confirmation),
-      reschedule: renderConfirmationMessage(round.messageTemplates.reschedule),
+      confirmation: renderInterviewMessage(round.messageTemplates.confirmation, placeholders),
+      reschedule: renderInterviewMessage(round.messageTemplates.reschedule, placeholders),
     };
   }, [applicant, interviewers, round, schedule]);
   if (!applicant) return null;
