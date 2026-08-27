@@ -60,21 +60,24 @@ function getStoredAssignmentParts(assignment: InterviewApplicantWithAccess['assi
 export default function ApplicantDetailModal({ applicant, round, schedule, interviewers, onClose, onMarkSent }: ApplicantDetailModalProps) {
   const [pendingMessageKind, setPendingMessageKind] = useState<'availability' | 'reminder' | 'confirmation' | null>(null);
   const messages = useMemo(() => {
-    if (!applicant) return { availability: '', reminder: '', confirmation: '' };
+    if (!applicant) return { availability: '', reminder: '', confirmation: '', reschedule: '' };
     const assignmentParts = getAssignmentParts(applicant);
     const previousParts = getStoredAssignmentParts(applicant.previousAssignment ?? null);
     const assignedInterviewer = interviewers.find(item => item.interviewerId === applicant.assignment?.interviewerId);
     const interviewerName = applicant.assignment?.interviewerName ?? assignedInterviewer?.displayName ?? '';
     const interviewerPhone = assignedInterviewer?.phone?.trim() || '';
     const placeholders = { name: applicant.name, link: applicant.link, ...(schedule ? { deadline: schedule.surveyClosesAt.toDate().toLocaleString('ko-KR') } : {}), interviewDate: assignmentParts.date, interviewTime: assignmentParts.time, oldInterviewDate: previousParts.date, oldInterviewTime: previousParts.time, interviewerName, interviewerPhone, roundName: round.name };
-    const confirmationTemplate = applicant.previousAssignment ? round.messageTemplates.reschedule : round.messageTemplates.confirmation;
-    const renderedConfirmation = renderInterviewMessage(confirmationTemplate, placeholders);
+    const renderConfirmationMessage = (template: string) => {
+      const renderedMessage = renderInterviewMessage(template, placeholders);
+      return template.includes('{interviewerPhone}')
+        ? renderedMessage
+        : `${renderedMessage}\n\n☎️ 담당 면접관 ${interviewerName} · ${interviewerPhone}`;
+    };
     return {
       availability: renderInterviewMessage(round.messageTemplates.availability, placeholders),
       reminder: renderInterviewMessage(round.messageTemplates.reminder, placeholders),
-      confirmation: confirmationTemplate.includes('{interviewerPhone}')
-        ? renderedConfirmation
-        : `${renderedConfirmation}\n\n☎️ 담당 면접관 ${interviewerName} · ${interviewerPhone}`,
+      confirmation: renderConfirmationMessage(round.messageTemplates.confirmation),
+      reschedule: renderConfirmationMessage(round.messageTemplates.reschedule),
     };
   }, [applicant, interviewers, round, schedule]);
   if (!applicant) return null;
@@ -126,9 +129,9 @@ export default function ApplicantDetailModal({ applicant, round, schedule, inter
     <section className="grid gap-3 rounded-2xl bg-indigo-50 p-4 text-xs sm:grid-cols-3"><div><p className="font-bold text-slate-400">최초 유효 접속</p><p className="mt-1 font-black text-navy">{formatTimestamp(applicant.access?.firstAccessedAt)}</p></div><div><p className="font-bold text-slate-400">가능시간 응답</p><p className="mt-1 font-black text-navy">{applicant.access?.submittedAt ? '응답 완료' : '미응답'}</p><p className="mt-1 text-slate-500">지원자 최종 수정 {formatTimestamp(applicant.access?.responseUpdatedAt ?? applicant.access?.updatedAt)}</p></div><div><p className="font-bold text-slate-400">최종 면접시간</p><p className="mt-1 font-black text-navy">{applicant.assignment ? `${assignmentParts.date} ${assignmentParts.time} KST` : '미배정'}</p></div><div className="space-y-2 sm:col-span-3"><p className="font-bold text-slate-400">선택한 가능시간</p>{selectedAvailability.length > 0 ? selectedAvailability.map(row => <div key={row.dateKey} className="grid grid-cols-[88px_minmax(0,1fr)] gap-2 rounded-xl bg-white/80 px-3 py-2"><span className="font-black text-navy">{row.dateLabel}</span><span className="font-medium leading-5 text-slate-600">{row.ranges.join(', ')}</span></div>) : <p className="rounded-xl bg-white/80 px-3 py-2 text-slate-500">선택한 시간이 없습니다.</p>}</div></section>
     {responseConflictsWithAssignment && <div className="flex items-start gap-2 rounded-2xl bg-red-50 p-4 text-xs font-bold text-red-700"><AlertTriangle size={16} className="mt-0.5 shrink-0" /><span>지원자가 응답을 수정하여 현재 배정 시간이 최신 가능시간에 포함되지 않습니다. 변경 필요 여부를 확인해주세요.</span></div>}
     <section className="rounded-2xl border border-slate-100 p-4"><h3 className="mb-3 text-xs font-black text-navy">지원서 원본 정보</h3><dl className="grid gap-3 sm:grid-cols-2">{applicant.applicationData.map((field, index) => <div key={`${field.header}-${index}`}><dt className="text-[10px] font-bold text-slate-400">{field.header || `(열 ${index + 1})`}</dt><dd className="whitespace-pre-wrap text-sm text-slate-700">{field.value || '-'}</dd></div>)}</dl></section>
-    {(['availability', 'reminder', 'confirmation'] as const).map(kind => {
+    {(['availability', 'reminder', ...(applicant.previousAssignment ? ['reschedule'] as const : []), 'confirmation'] as const).map(kind => {
       const message = messages[kind];
-      const isConfirmation = kind === 'confirmation';
+      const isConfirmation = kind === 'confirmation' || kind === 'reschedule';
       const status = kind === 'availability'
         ? applicant.availabilityMessage
         : kind === 'reminder'
@@ -146,7 +149,7 @@ export default function ApplicantDetailModal({ applicant, round, schedule, inter
         ? '가능시간 조사 안내'
         : kind === 'reminder'
           ? '미응답 재안내'
-          : applicant.previousAssignment ? '일정 변경 안내' : '최종 면접 안내';
+          : kind === 'reschedule' ? '일정 변경 안내' : '최종 면접 안내';
       return <section key={kind} className="rounded-2xl bg-slate-50 p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-xs font-black text-navy">{title}</h3>
@@ -169,7 +172,7 @@ export default function ApplicantDetailModal({ applicant, round, schedule, inter
           <button disabled={(isConfirmation && !applicant.assignment) || confirmationContactUnavailable || surveyMessageUnavailable} onClick={() => launchSms(message)} className="rounded-lg bg-navy px-3 py-2 text-[11px] font-bold text-white disabled:opacity-40"><MessageSquare size={13} className="mr-1 inline" />문자 앱 열기</button>
           <button
             disabled={disabled}
-            onClick={() => toggleSentStatus(kind, title, markAsSent, confirmationNeedsResend)}
+            onClick={() => toggleSentStatus(kind === 'reschedule' ? 'confirmation' : kind, title, markAsSent, confirmationNeedsResend)}
             className={`rounded-lg px-3 py-2 text-[11px] font-bold disabled:opacity-40 ${markAsSent ? 'bg-emerald-600 text-white' : 'bg-white text-red-600'}`}
           >
             {pendingMessageKind === kind ? '변경 중…' : confirmationNeedsResend ? '재발송 완료 표시' : isMarkedSent ? '발송 표시 취소' : '발송 완료 표시'}
