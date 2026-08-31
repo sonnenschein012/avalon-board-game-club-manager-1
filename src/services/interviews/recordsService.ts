@@ -33,13 +33,21 @@ import {
 export function subscribeInterviewNote(
   roundId: string,
   applicantId: string,
-  onData: (note: InterviewNote | null) => void,
+  onData: (note: InterviewNote | null, metadata: { hasPendingWrites: boolean }) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
   const noteId = `${roundId}__${applicantId}`;
-  return onSnapshot(doc(db, 'interviewNotes', noteId), snapshot => {
-    onData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewNote) : null);
-  }, onError);
+  return onSnapshot(
+    doc(db, 'interviewNotes', noteId),
+    { includeMetadataChanges: true },
+    snapshot => {
+      onData(
+        snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewNote) : null,
+        { hasPendingWrites: snapshot.metadata.hasPendingWrites },
+      );
+    },
+    onError,
+  );
 }
 
 export async function saveInterviewNote(input: {

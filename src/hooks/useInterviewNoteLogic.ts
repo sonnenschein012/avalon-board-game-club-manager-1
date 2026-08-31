@@ -61,13 +61,14 @@ export function useInterviewNoteLogic(
     ownSaveSerializedRef.current = null;
     if (!applicantId) { setState('loading'); return; }
     setState('loading');
-    return subscribeInterviewNote(roundId, applicantId, value => {
+    return subscribeInterviewNote(roundId, applicantId, (value, metadata) => {
       const next = toDraft(value);
       const nextSerialized = serialize(next);
       const currentSerialized = serialize(draftRef.current);
       const nextRevision = value?.revision ?? 0;
       const hasUnsavedLocalChanges = initialized.current && currentSerialized !== lastSaved.current;
-      const acknowledgesOwnSave = nextSerialized === ownSaveSerializedRef.current;
+      const acknowledgesOwnSave = metadata.hasPendingWrites
+        || nextSerialized === ownSaveSerializedRef.current;
 
       setNote(value);
       if (!hasUnsavedLocalChanges || currentSerialized === nextSerialized || acknowledgesOwnSave) {
@@ -78,7 +79,7 @@ export function useInterviewNoteLogic(
         if (currentSerialized === nextSerialized || !hasUnsavedLocalChanges) {
           setDraft(next);
           draftRef.current = next;
-          setState('saved');
+          setState(metadata.hasPendingWrites ? 'saving' : 'saved');
         } else {
           setState('saving');
         }

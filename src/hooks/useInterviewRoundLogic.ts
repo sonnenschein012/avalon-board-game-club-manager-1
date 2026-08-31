@@ -29,11 +29,11 @@ import {
   completeInterviewAtomically,
   createInterviewApplicant,
   createInterviewSchedule,
+  deleteInterviewSchedule,
   deleteInterviewRound,
   applyConcreteInterviewScheduleChange,
   migrateLegacyApplicantsToInterviewSchedule,
   assignApplicantsToInterviewSchedule,
-  archiveInterviewSchedule,
   getInterviewRoundExportRecords,
   hasInterviewRoundNotes,
   getInterviewLink,
@@ -444,22 +444,14 @@ export function useInterviewRoundLogic(roundId: string) {
     return { ...responseImpact, ...assignmentImpact };
   };
 
-  const archiveSchedule = async (schedule: InterviewSchedule) => {
-    const unfinishedApplicants = joinedApplicants.filter(applicant => applicant.scheduleId === schedule.id
-      && (applicant.lifecycle ?? 'active') === 'active'
-      && (applicant.applicationStatus ?? 'active') === 'active'
-      && getInterviewProgressStatus(applicant) !== 'completed');
-    if (unfinishedApplicants.length > 0) {
-      toast.error(`면접이 끝나지 않은 지원자 ${unfinishedApplicants.length}명이 있어 보관할 수 없습니다.`);
-      return false;
-    }
+  const deleteSchedule = async (schedule: InterviewSchedule) => {
     try {
-      await archiveInterviewSchedule(schedule);
-      toast.success('면접 일정을 보관했습니다.');
+      await deleteInterviewSchedule(schedule);
+      toast.success('사용하지 않은 면접 일정을 삭제했습니다.');
       return true;
     } catch (error) {
       console.error(error);
-      toast.error(error instanceof Error ? error.message : '면접 일정을 보관하지 못했습니다.');
+      toast.error(error instanceof Error ? error.message : '면접 일정을 삭제하지 못했습니다.');
       return false;
     }
   };
@@ -641,6 +633,9 @@ export function useInterviewRoundLogic(roundId: string) {
     const result = generateAutoAssignment({
       applicants: schedulingApplicants.map(applicant => ({
         id: applicant.id, name: applicant.name, availability: applicant.access?.availability ?? [],
+        autoAssignmentTarget: isActiveInterviewApplicant(applicant)
+          && Boolean(applicant.access?.submittedAt)
+          && (mode !== 'unassigned' || !applicant.assignment),
         lifecycle: applicant.lifecycle ?? 'active',
         withdrawn: (applicant.applicationStatus ?? 'active') === 'withdrawn',
         interviewStatus: openChangeRequestApplicantIds.has(applicant.id)
@@ -887,7 +882,7 @@ export function useInterviewRoundLogic(roundId: string) {
     addInterviewSchedule,
     editInterviewSchedule,
     previewInterviewScheduleImpact,
-    archiveSchedule,
+    deleteSchedule,
     assignApplicantsToSchedule,
     migrateLegacyApplicants,
     editApplicant,

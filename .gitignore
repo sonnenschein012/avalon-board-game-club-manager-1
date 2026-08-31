@@ -17,3 +17,7 @@ stats.html
 agent_docs/
 .codex_workflow_hidden_resources/
 AGENTS.md
+
+# Local Graphify / Codex integration
+graphify-out/
+.codex/

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Check, ChevronDown } from 'lucide-react';
+import { getInterviewScheduleEndDate } from '../domain/interviews/scheduleOrder';
 import type { InterviewSchedule } from '../types';
 
 interface Props {
@@ -20,6 +21,9 @@ function dateRange(schedule: InterviewSchedule) {
 }
 
 function statusLabel(schedule: InterviewSchedule) {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const endDate = getInterviewScheduleEndDate(schedule);
+  if (endDate && endDate < today) return { label: '지난 일정', className: 'bg-slate-100 text-slate-500' };
   if (schedule.status === 'collecting') return { label: '응답 수집 중', className: 'bg-emerald-50 text-emerald-700' };
   if (schedule.status === 'draft') return { label: '준비 중', className: 'bg-slate-100 text-slate-600' };
   if (schedule.status === 'finished') return { label: '완료', className: 'bg-slate-100 text-slate-500' };

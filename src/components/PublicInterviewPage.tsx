@@ -96,7 +96,7 @@ export default function PublicInterviewPage() {
     );
   }
 
-  const stateMessage = state !== 'collecting' && state !== 'completed' ? STATE_MESSAGES[state] : null;
+  const stateMessage = state !== 'collecting' ? STATE_MESSAGES[state] : null;
   const canShowGrid = !!round && !!access && !['invalid', 'inactive', 'completed', 'error'].includes(state);
 
   return (
@@ -118,15 +118,6 @@ export default function PublicInterviewPage() {
             </div>
           )}
         </header>
-
-        {access?.assignmentSummary && (
-          <section className="rounded-3xl border border-amber-100 bg-amber-50 p-5 shadow-sm sm:p-7">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Assigned interview</p>
-            <h2 className="mt-2 text-lg font-black text-navy">{access.assignmentSummary.status === 'completed' ? '완료된 면접 일정' : '확정된 면접 일정'}</h2>
-            <p className="mt-2 text-sm font-bold text-slate-700">{access.assignmentSummary.slotId.replace('|', ' ')}</p>
-            {access.assignmentSummary.status === 'completed' ? <p className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700"><CheckCircle2 size={17} />면접이 완료되었습니다. 이 링크는 더 이상 일정 변경에 사용할 수 없습니다.</p> : <p className="mt-4 rounded-xl bg-white/80 px-4 py-3 text-sm font-bold text-amber-700">일정 관련 문의는 운영진에게 직접 전달해주세요.</p>}
-          </section>
-        )}
 
         {stateMessage && (
           <section className="rounded-3xl border border-slate-100 bg-white p-6 text-center shadow-sm">

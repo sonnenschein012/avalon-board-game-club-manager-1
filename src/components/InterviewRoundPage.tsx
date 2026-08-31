@@ -15,6 +15,7 @@ import InterviewSchedulePanel from './InterviewSchedulePanel';
 import InterviewSchedulesOverview from './InterviewSchedulesOverview';
 import InterviewScheduleFormModal from './InterviewScheduleFormModal';
 import InterviewScheduleAssignmentModal from './InterviewScheduleAssignmentModal';
+import InterviewScheduleManagement from './InterviewScheduleManagement';
 import InterviewScheduleSelector from './InterviewScheduleSelector';
 import SelectionPanel from './SelectionPanel';
 import MemberRegistrationPanel from './MemberRegistrationPanel';
@@ -338,10 +339,6 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             setEditingScheduleId(schedule.id);
             setScheduleFormOpen(true);
           }}
-          onArchiveSchedule={(schedule) => {
-            const completedCount = logic.applicants.filter((item) => item.scheduleId === schedule.id).length;
-            if (window.confirm(`${schedule.name} 일정을 보관할까요? 이 일정의 지원자 ${completedCount}명은 기록에 남고 개인 링크는 비활성화됩니다.`)) void logic.archiveSchedule(schedule);
-          }}
         />
       )}
 
@@ -381,13 +378,18 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             </div>
           </div>
           {selectedApplicants.length > 0 && (
-            <div className="flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white sm:flex-row sm:items-center sm:justify-between">
+            <div className="sticky top-3 z-40 flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white shadow-xl sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-bold">
                 <strong className="font-black">{selectedApplicants.length}명</strong> 선택됨
               </p>
-              <button type="button" onClick={() => setScheduleAssignmentOpen(true)} className="rounded-xl bg-gold px-4 py-2 text-xs font-black text-navy">
-                면접 일정 지정
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setSelectedApplicantIds(new Set())} className="flex-1 rounded-xl bg-white/10 px-4 py-2 text-xs font-black text-white hover:bg-white/20 sm:flex-none">
+                  선택 해제
+                </button>
+                <button type="button" onClick={() => setScheduleAssignmentOpen(true)} className="flex-1 rounded-xl bg-gold px-4 py-2 text-xs font-black text-navy sm:flex-none">
+                  면접 일정 지정
+                </button>
+              </div>
             </div>
           )}
           <div
@@ -516,6 +518,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               </button>
             </div>
           </section>
+          <InterviewScheduleManagement schedules={logic.schedules} applicants={logic.applicants} onDelete={logic.deleteSchedule} />
         </div>
       )}
 

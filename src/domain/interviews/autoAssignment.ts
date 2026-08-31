@@ -18,6 +18,8 @@ export interface AutoAssignmentApplicant {
   id: string;
   name: string;
   availability: string[];
+  /** False when this applicant is supplied only to reserve an existing resource. */
+  autoAssignmentTarget?: boolean;
   lifecycle?: 'active' | 'archived' | 'withdrawn';
   /** Supports callers which keep application status separately from lifecycle. */
   withdrawn?: boolean;
@@ -345,7 +347,7 @@ function generateBulk(input: AutoAssignmentInput, activeInterviewers: AutoAssign
   });
   const excludedReservations = input.applicants.filter(applicant => isExcluded(applicant) && keepsResourceReserved(applicant));
   const reserved = new Set([...fixed, ...excludedReservations].map(applicant => resourceKey(applicant.existingAssignment!)));
-  const candidates = input.applicants.filter(applicant => !isExcluded(applicant) && !fixed.includes(applicant));
+  const candidates = input.applicants.filter(applicant => applicant.autoAssignmentTarget !== false && !isExcluded(applicant) && !fixed.includes(applicant));
   const candidatesByApplicant = new Map<string, Candidate[]>();
   const overlaps = new Map<string, boolean>();
   candidates.forEach(applicant => {
@@ -360,7 +362,12 @@ function generateBulk(input: AutoAssignmentInput, activeInterviewers: AutoAssign
     if (interviewerId) fixedLoads.set(interviewerId, (fixedLoads.get(interviewerId) ?? 0) + 1);
   });
   const assignments = match(candidates, candidatesByApplicant, fixedLoads);
-  const proposals = fixed.flatMap(applicant => proposalFromExisting(applicant) ?? []);
+  const fixedProposals = fixed.flatMap(applicant => proposalFromExisting(applicant) ?? []);
+  const targetApplicantIds = new Set(input.applicants.filter(applicant => applicant.autoAssignmentTarget !== false).map(applicant => applicant.id));
+  const visibleFixedProposals = input.mode === 'unassigned'
+    ? []
+    : fixedProposals.filter(proposal => targetApplicantIds.has(proposal.applicantId));
+  const proposals = [...visibleFixedProposals];
   candidates.forEach(applicant => {
     const candidate = assignments.get(applicant.id);
     if (!candidate) return;
@@ -374,8 +381,16 @@ function generateBulk(input: AutoAssignmentInput, activeInterviewers: AutoAssign
     });
   });
   const proposalIds = new Set(proposals.map(proposal => proposal.applicantId));
-  const failures = input.applicants.flatMap(applicant => proposalIds.has(applicant.id) ? [] : [failureFor(applicant, overlaps.get(applicant.id) ?? false)]);
-  return resultFromProposals(proposals, failures, input.applicants);
+  const failures = candidates.flatMap(applicant => proposalIds.has(applicant.id) ? [] : [failureFor(applicant, overlaps.get(applicant.id) ?? false)]);
+  const countedApplicants = input.mode === 'unassigned'
+    ? candidates
+    : input.applicants.filter(applicant => applicant.autoAssignmentTarget !== false);
+  const result = resultFromProposals(proposals, failures, countedApplicants);
+  const visibleFixedApplicantIds = new Set(visibleFixedProposals.map(proposal => proposal.applicantId));
+  fixedProposals.filter(proposal => !visibleFixedApplicantIds.has(proposal.applicantId)).forEach(proposal => {
+    result.interviewerLoads[proposal.interviewerId] = (result.interviewerLoads[proposal.interviewerId] ?? 0) + 1;
+  });
+  return result;
 }
 
 export function generateAutoAssignment(input: AutoAssignmentInput): AutoAssignmentResult {

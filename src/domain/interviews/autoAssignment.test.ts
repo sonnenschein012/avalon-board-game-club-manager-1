@@ -159,7 +159,28 @@ describe('legacy bulk modes', () => {
       interviewers: [interviewer('i1', ['2026-08-27|19:00', '2026-08-27|19:30'])],
       availabilitySlotMinutes: 30, assignmentSlotMinutes: 30, mode: 'unassigned',
     });
-    expect(result.proposals.find(item => item.applicantId === 'fixed')?.preserved).toBe(true);
+    expect(result.proposals.find(item => item.applicantId === 'fixed')).toBeUndefined();
     expect(result.proposals.find(item => item.applicantId === 'new')?.slotId).toBe('2026-08-27|19:30');
+    expect(result.totalApplicants).toBe(1);
+    expect(result.assignedCount).toBe(1);
+    expect(result.interviewerLoads).toEqual({ i1: 2 });
+  });
+
+  it('uses non-target assignments as reservations without listing them in the draft', () => {
+    const result = generateAutoAssignment({
+      applicants: [
+        { id: 'locked', name: '잠금', availability: [], autoAssignmentTarget: false, existingAssignment: existing('2026-08-27|19:00', { locked: true }) },
+        { id: 'nonrespondent', name: '미응답', availability: [], autoAssignmentTarget: false },
+        { id: 'respondent', name: '응답자', availability: ['2026-08-27|19:00', '2026-08-27|19:30'], autoAssignmentTarget: true },
+      ],
+      interviewers: [interviewer('i1', ['2026-08-27|19:00', '2026-08-27|19:30'])],
+      availabilitySlotMinutes: 30, assignmentSlotMinutes: 30, mode: 'unassigned',
+    });
+
+    expect(result.proposals).toEqual([expect.objectContaining({ applicantId: 'respondent', slotId: '2026-08-27|19:30' })]);
+    expect(result.failures).toEqual([]);
+    expect(result.totalApplicants).toBe(1);
+    expect(result.assignedCount).toBe(1);
+    expect(result.interviewerLoads).toEqual({ i1: 2 });
   });
 });

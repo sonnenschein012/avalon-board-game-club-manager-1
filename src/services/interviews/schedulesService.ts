@@ -1,7 +1,9 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
+  limit,
   onSnapshot,
   query,
   runTransaction,
@@ -11,8 +13,10 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
+import { commitBatchesInChunks } from '../../lib/chunkBatch';
 import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
 import { getAssignmentScheduleImpact } from '../../domain/interviews/scheduling';
+import { compareInterviewSchedules } from '../../domain/interviews/scheduleOrder';
 import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
 import type { InterviewAccess, InterviewApplicant, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../../types';
 import type { InterviewScheduleDraft } from './models';
@@ -27,7 +31,7 @@ export function subscribeInterviewSchedules(
 ): Unsubscribe {
   return onSnapshot(
     query(collection(db, 'interviewSchedules'), where('roundId', '==', roundId)),
-    snapshot => onData(mapSnapshot<InterviewSchedule>(snapshot).sort((left, right) => left.order - right.order)),
+    snapshot => onData(mapSnapshot<InterviewSchedule>(snapshot).sort(compareInterviewSchedules)),
     onError,
   );
 }
@@ -214,11 +218,46 @@ export async function applyConcreteInterviewScheduleChange(
   });
 }
 
-export async function archiveInterviewSchedule(schedule: InterviewSchedule): Promise<void> {
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'interviewSchedules', schedule.id), { status: 'archived', updatedAt: serverTimestamp() });
-  batch.update(doc(db, 'interviewPublicSchedules', schedule.id), { active: false, updatedAt: serverTimestamp() });
-  await batch.commit();
+const SCHEDULE_DELETE_BLOCKER_COLLECTIONS = [
+  'interviewApplicants',
+  'interviewAccess',
+  'interviewAssignmentLocks',
+  'interviewAssignmentEvents',
+  'interviewRecordEvents',
+  'interviewChangeRequests',
+] as const;
+
+export interface InterviewScheduleDeletionResult {
+  deletedDocuments: number;
+}
+
+/** Permanently removes an unused schedule. Any current or historical
+ * applicant linkage blocks deletion so interview records cannot be orphaned. */
+export async function deleteInterviewSchedule(schedule: InterviewSchedule): Promise<InterviewScheduleDeletionResult> {
+  const scheduleRef = doc(db, 'interviewSchedules', schedule.id);
+  const scheduleSnapshot = await getDoc(scheduleRef);
+  if (!scheduleSnapshot.exists()) throw new Error('삭제할 면접 일정을 찾을 수 없습니다.');
+  const current = scheduleSnapshot.data() as InterviewSchedule;
+  if (current.roundId !== schedule.roundId) throw new Error('다른 면접 회차의 일정은 삭제할 수 없습니다.');
+
+  const blockerSnapshots = await Promise.all(SCHEDULE_DELETE_BLOCKER_COLLECTIONS.map(collectionName => (
+    getDocs(query(collection(db, collectionName), where('scheduleId', '==', schedule.id), limit(1)))
+  )));
+  if (blockerSnapshots.some(snapshot => !snapshot.empty)) {
+    throw new Error('지원자 또는 면접 기록이 연결된 일정은 삭제할 수 없습니다.');
+  }
+
+  const participantSnapshot = await getDocs(query(
+    collection(db, 'interviewScheduleInterviewers'),
+    where('scheduleId', '==', schedule.id),
+  ));
+  const dependentRefs = [
+    doc(db, 'interviewPublicSchedules', schedule.id),
+    ...participantSnapshot.docs.map(item => item.ref),
+  ];
+  await commitBatchesInChunks(db, dependentRefs.map(ref => ({ type: 'delete' as const, ref })));
+  await commitBatchesInChunks(db, [{ type: 'delete', ref: scheduleRef }]);
+  return { deletedDocuments: dependentRefs.length + 1 };
 }
 
 /**
