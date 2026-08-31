@@ -200,6 +200,10 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     setSelectedApplicantIds(new Set(applicantIds));
     setScheduleAssignmentOpen(true);
   };
+  const selectTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    if (nextTab === 'interviewers') logic.setActiveScheduleId(null);
+  };
   const openNewScheduleForm = (applicantIds: string[] = []) => {
     setPendingNewScheduleApplicantIds(applicantIds);
     setEditingScheduleId(null);
@@ -310,7 +314,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
       </div>
       <nav className="flex gap-1 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-sm">
         {TABS.map((item) => (
-          <button key={item.id} onClick={() => setTab(item.id)} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold ${tab === item.id ? 'bg-navy text-white' : 'text-slate-400 hover:bg-slate-50 hover:text-navy'}`}>
+          <button key={item.id} onClick={() => selectTab(item.id)} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-bold ${tab === item.id ? 'bg-navy text-white' : 'text-slate-400 hover:bg-slate-50 hover:text-navy'}`}>
             {item.label}
           </button>
         ))}
@@ -378,19 +382,22 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
             </div>
           </div>
           {selectedApplicants.length > 0 && (
-            <div className="sticky top-3 z-40 flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white shadow-xl sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-bold">
-                <strong className="font-black">{selectedApplicants.length}명</strong> 선택됨
-              </p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setSelectedApplicantIds(new Set())} className="flex-1 rounded-xl bg-white/10 px-4 py-2 text-xs font-black text-white hover:bg-white/20 sm:flex-none">
-                  선택 해제
-                </button>
-                <button type="button" onClick={() => setScheduleAssignmentOpen(true)} className="flex-1 rounded-xl bg-gold px-4 py-2 text-xs font-black text-navy sm:flex-none">
-                  면접 일정 지정
-                </button>
+            <>
+              <div aria-hidden="true" className="h-[6.5rem] sm:h-16" />
+              <div role="region" aria-label="선택한 지원자 작업" className="fixed left-3 right-3 top-16 z-[60] flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white shadow-2xl sm:flex-row sm:items-center sm:justify-between md:left-72 md:right-4 md:top-20">
+                <p className="text-sm font-bold">
+                  <strong className="font-black">{selectedApplicants.length}명</strong> 선택됨
+                </p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setSelectedApplicantIds(new Set())} className="flex-1 rounded-xl bg-white/10 px-4 py-2 text-xs font-black text-white hover:bg-white/20 sm:flex-none">
+                    선택 해제
+                  </button>
+                  <button type="button" onClick={() => setScheduleAssignmentOpen(true)} className="flex-1 rounded-xl bg-gold px-4 py-2 text-xs font-black text-navy sm:flex-none">
+                    면접 일정 지정
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
           <div
             className="space-y-2"
