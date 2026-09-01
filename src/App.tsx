@@ -213,7 +213,7 @@ export default function App() {
       />
 
       {/* Content Area */}
-      <main className="flex-1 overflow-auto flex flex-col w-full md:w-auto">
+      <main className="flex min-w-0 flex-1 flex-col overflow-visible w-full md:w-auto">
         <header className="h-14 md:h-16 bg-white border-b border-slate-100 md:border-transparent px-4 md:px-8 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-400 uppercase tracking-widest">
             <span>Admin</span>
