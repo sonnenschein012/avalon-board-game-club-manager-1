@@ -200,7 +200,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">메시지 템플릿</h3>
             <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {interviewerName} {interviewerPhone} {roundName}'}</p>
-            <p className="text-[11px] text-slate-400">선발·미선발 안내에서는 {'{name}'}만 자동 치환됩니다. 은행, 계좌번호와 예금주는 템플릿에 직접 입력해주세요.</p>
+            <p className="text-[11px] text-slate-400">선발·미선발 안내에서는 {'{name}'}만 자동 치환됩니다. 회비 금액, 은행, 계좌번호와 예금주는 템플릿에 직접 입력해주세요.</p>
             {(['availability', 'reminder', 'confirmation', 'reschedule', 'selected', 'rejected'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : kind === 'reschedule' ? '일정 변경 안내' : kind === 'selected' ? '선발 안내' : '미선발 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
           </section>
 
