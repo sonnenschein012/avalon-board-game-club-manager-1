@@ -7,6 +7,7 @@ import {
   type InterviewDaySchedule,
 } from '../domain/interviews/scheduling';
 import type { InterviewRoundDraft } from '../services/interviewsService';
+import { resolveInterviewMessageTemplates } from '../domain/interviews/messages';
 
 export function roundToDraft(round?: InterviewRound | null): InterviewRoundDraft {
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -15,14 +16,7 @@ export function roundToDraft(round?: InterviewRound | null): InterviewRoundDraft
   const dayStartTime = round?.dayStartTime ?? '10:00';
   const dayEndTime = round?.dayEndTime ?? '22:00';
   const availabilitySlotMinutes = round?.availabilitySlotMinutes ?? 30;
-  const messageTemplates = round
-    ? round.messageTemplates
-    : {
-        availability: '{name} 님의 면접 가능 시간을 {deadline}까지 선택해주세요. {link}',
-        reminder: '{name} 님, 아직 면접 가능 시간 응답이 확인되지 않았습니다. {deadline}까지 제출해주세요. {link}',
-        confirmation: '{name} 님의 면접 시간이 {interviewDate} {interviewTime}으로 확정되었습니다.',
-        reschedule: '안녕하세요! 동국대학교 보드게임 동아리 아발론입니다🎲\n\n{name} 님, 요청하신 일정 조정에 따라 면접 일정이 변경되어 안내드립니다.\n\n기존: {oldInterviewDate} {oldInterviewTime}\n변경: {interviewDate} {interviewTime}\n☎️ 담당 면접관 {interviewerName} · {interviewerPhone}\n\n위 번호로 전화드릴 예정입니다. 확인 부탁드립니다!',
-      };
+  const messageTemplates = resolveInterviewMessageTemplates(round?.messageTemplates);
   return {
     name: round?.name ?? '',
     surveyOpensAt: round?.surveyOpensAt.toDate() ?? tomorrow,
@@ -206,7 +200,8 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">메시지 템플릿</h3>
             <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {interviewerName} {interviewerPhone} {roundName}'}</p>
-            {(['availability', 'reminder', 'confirmation', 'reschedule'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : '일정 변경 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
+            <p className="text-[11px] text-slate-400">선발·미선발 안내에서는 {'{name}'}만 자동 치환됩니다. 은행, 계좌번호와 예금주는 템플릿에 직접 입력해주세요.</p>
+            {(['availability', 'reminder', 'confirmation', 'reschedule', 'selected', 'rejected'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : kind === 'reschedule' ? '일정 변경 안내' : kind === 'selected' ? '선발 안내' : '미선발 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
           </section>
 
           {onDelete && <section className="flex flex-col gap-4 rounded-2xl border border-red-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between md:col-span-2"><div><h3 className="text-xs font-black uppercase tracking-wider text-red-700">회차 삭제</h3><p className="mt-1 text-xs leading-5 text-slate-500">지원자, 개인 링크, 일정, 면접관, 평가와 이력을 영구 삭제합니다. 등록된 동아리원은 유지됩니다.</p></div><button type="button" onClick={onDelete} disabled={busy} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-40"><Trash2 size={15} />회차 삭제</button></section>}

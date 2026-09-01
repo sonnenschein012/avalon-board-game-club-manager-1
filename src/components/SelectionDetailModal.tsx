@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Award, CheckCircle2, Loader2, MessageSquareText, RotateCcw, X, XCircle } from 'lucide-react';
+import { Award, CheckCircle2, Copy, Loader2, MessageSquare, MessageSquareText, RotateCcw, X, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInterviewNoteLogic } from '../hooks/useInterviewNoteLogic';
+import { renderInterviewMessage, resolveInterviewMessageTemplates } from '../domain/interviews/messages';
 import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewOverallRating, InterviewRound, InterviewSelectionStatus } from '../types';
 
@@ -42,6 +43,22 @@ export function getSelectionDecisionButtonClass(selection: InterviewSelectionSta
   return selection === decision ? DECISION_BUTTON_STYLES[decision].active : DECISION_BUTTON_STYLES[decision].inactive;
 }
 
+async function copyText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand('copy');
+  textarea.remove();
+  if (!copied) throw new Error('Clipboard API is unavailable.');
+}
+
 export default function SelectionDetailModal({ applicant, round, onClose, onUpdateSelectionStatus, onUpdateOverallRating, onReopenCompletedInterview }: SelectionDetailModalProps) {
   const [updating, setUpdating] = useState(false);
   const [ratingUpdating, setRatingUpdating] = useState(false);
@@ -53,6 +70,9 @@ export default function SelectionDetailModal({ applicant, round, onClose, onUpda
   const rating = applicant.overallRating ?? noteRating ?? null;
   const selection = applicant.selectionStatus ?? 'pending';
   const interviewAssignment = applicant.assignment ?? applicant.previousAssignment;
+  const selectionNotice = selection === 'pending'
+    ? null
+    : renderInterviewMessage(resolveInterviewMessageTemplates(round.messageTemplates)[selection], { name: applicant.name });
 
   const updateStatus = async (next: InterviewSelectionStatus) => {
     if (next === selection || updating) return;
@@ -92,6 +112,7 @@ export default function SelectionDetailModal({ applicant, round, onClose, onUpda
       <main className="grid flex-1 gap-4 overflow-y-auto p-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-6">
         <section className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><Award size={16} className="text-gold" />면접관 종합평가</h3><p className="mt-1 text-xs text-slate-500">완료 후 정정이 필요한 경우 아래 평가를 선택하면 기록과 지원자 상태가 함께 갱신됩니다.</p><div className="mt-3 grid grid-cols-2 gap-2">{Object.entries(RATINGS).map(([value, info]) => <button key={value} type="button" disabled={ratingUpdating} onClick={() => void updateRating(value as InterviewOverallRating)} className={`rounded-xl border px-2 py-2.5 text-xs font-black disabled:opacity-50 ${rating === value ? 'border-navy bg-navy text-white' : info.className}`}>{info.label}</button>)}</div><div className="mt-3 rounded-xl bg-white p-3"><p className="text-xs font-bold text-slate-400">종합 노트</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.generalNotes || '기록 없음'}</p></div></section>
         <section className="rounded-2xl bg-white p-5 shadow-sm"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><MessageSquareText size={16} className="text-gold" />질문별 면접 기록</h3><div className="mt-4 space-y-3">{(round.interviewQuestions ?? []).map((question, index) => <div key={question.id} className="rounded-xl bg-slate-50 p-3"><p className="whitespace-pre-wrap text-xs font-black text-navy">{index + 1}. {question.text}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.answers[question.id] || '기록 없음'}</p></div>)}{!(round.interviewQuestions ?? []).length && <p className="text-sm text-slate-400">등록된 면접 질문이 없습니다.</p>}</div></section>
+        {selectionNotice && <section className="rounded-2xl bg-white p-5 shadow-sm md:col-span-2"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><MessageSquare size={16} className="text-gold" />{selection === 'selected' ? '선발 안내' : '미선발 안내'}</h3><p className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{selectionNotice}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void copyText(selectionNotice).then(() => toast.success('메시지 문구를 복사했습니다.')).catch(() => toast.error('메시지 문구를 복사하지 못했습니다.'))} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy"><Copy size={14} />문구 복사</button><button type="button" onClick={() => { window.location.href = `sms:${encodeURIComponent(applicant.phone)}?body=${encodeURIComponent(selectionNotice)}`; }} className="inline-flex items-center gap-1.5 rounded-xl bg-navy px-3 py-2 text-xs font-bold text-white"><MessageSquare size={14} />문자 앱 열기</button></div></section>}
       </main>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4"><div><p className="text-xs font-bold text-slate-500">현재 선발 상태: <span className="text-navy">{SELECTIONS[selection]}</span></p><button type="button" disabled={reopening} onClick={() => void reopenInterview()} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-navy disabled:opacity-50">{reopening ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}면접 완료 취소</button></div><div className="flex gap-2"><DecisionButton label="미선발" decision="rejected" selection={selection} disabled={updating || reopening} onClick={() => void updateStatus('rejected')} icon={<XCircle size={14} />} /><DecisionButton label="선발" decision="selected" selection={selection} disabled={updating || reopening} onClick={() => void updateStatus('selected')} icon={updating ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} /></div></footer>
     </div>

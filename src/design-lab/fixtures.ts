@@ -185,7 +185,7 @@ export function createInterviewFixture(state: InterviewScenarioState): {
     assignmentSlotMinutes: 30,
     status: 'interviewing',
     instructions: '가능한 시간을 모두 선택해주세요.',
-    messageTemplates: { availability: '', reminder: '', confirmation: '', reschedule: '' },
+    messageTemplates: { availability: '', reminder: '', confirmation: '', reschedule: '', selected: '', rejected: '' },
     interviewQuestions: [],
     allowedSlots,
     daySchedules: dates.map(date => ({ date, startTime: '18:00', endTime: '21:00' })),

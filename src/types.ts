@@ -105,6 +105,8 @@ export interface InterviewMessageTemplates {
   reminder: string;
   confirmation: string;
   reschedule: string;
+  selected: string;
+  rejected: string;
 }
 
 export interface InterviewRound {
