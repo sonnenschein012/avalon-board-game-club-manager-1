@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import Papa from 'papaparse';
 import { 
   addDoc, 
@@ -25,10 +25,7 @@ const initialSessionMetadata = () => {
   return { date, name: getDefaultSessionName(date) };
 };
 
-export function useSessionsLogic(
-  draftSession?: { name: string, date: string, groups: StoredSessionGroup[] } | null,
-  onClearDraft?: () => void
-) {
+export function useSessionsLogic() {
   const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
   const { data: members } = useFirestore<Member>('members');
   const { data: games } = useFirestore<Game>('games', orderBy('title', 'asc'));
@@ -182,22 +179,6 @@ export function useSessionsLogic(
     if (selectedSemester === '전체') return sessions;
     return sessions.filter(s => getSemester(s.date) === selectedSemester);
   }, [sessions, selectedSemester]);
-
-  useEffect(() => {
-    if (draftSession) {
-      setSessionName(draftSession.name);
-      setSessionDate(draftSession.date);
-      setGroups(draftSession.groups);
-      
-      const assignedIds = draftSession.groups.flatMap(g => g.memberIds) as string[];
-      setUnassignedIds(members.filter(m => !assignedIds.includes(m.id)).map(m => m.id));
-      
-      setEditingSessionId(null);
-      setIsAdding(true);
-
-      if (onClearDraft) onClearDraft();
-    }
-  }, [draftSession, members, onClearDraft]);
 
   const handleAddNew = () => {
     const metadata = initialSessionMetadata();

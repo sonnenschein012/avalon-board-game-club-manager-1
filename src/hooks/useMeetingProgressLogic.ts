@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { orderBy, onSnapshot, doc, writeBatch } from 'firebase/firestore';
 import { StoredSessionGroup, Member, Game, Session, Attendee } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
@@ -8,11 +8,19 @@ import { captureBoard } from '../services/captureService';
 import { recommendGames, getMemberPlayedGames } from '../domain/recommendation/recommendGames';
 import { isSameName } from '../domain/matching/isSameName';
 import { calculateGridPositions, generateDrinkOrderText } from '../domain/meeting/progressHelpers';
+import { isSingleDocumentId } from '../domain/shared/documentId';
+
+interface DailyPlanning {
+  name: string;
+  date: string;
+  groups: StoredSessionGroup[];
+  sessionId?: string;
+}
 
 export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) => void) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [customTitle, setCustomTitle] = useState<string | null>(null);
-  const [dailyPlanning, setDailyPlanning] = useState<{name: string, date: string, groups: StoredSessionGroup[]} | null>(null);
+  const [dailyPlanning, setDailyPlanning] = useState<DailyPlanning | null>(null);
 
   const { data: members } = useFirestore<Member>('members');
   const { data: games } = useFirestore<Game>('games', orderBy('title', 'asc'));
@@ -86,7 +94,7 @@ export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) =
     const docRef = doc(db, 'DailyPlannings', selectedDate);
     const unsubPlanning = onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
-        setDailyPlanning(snap.data() as {name: string, date: string, groups: StoredSessionGroup[]});
+        setDailyPlanning(snap.data() as DailyPlanning);
       } else {
         setDailyPlanning(null);
       }
@@ -117,8 +125,12 @@ export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) =
         g.id === groupId ? { ...g, name: editingGroupName } : g
       );
       
-      const docRef = doc(db, 'DailyPlannings', selectedDate || 'temp');
-      await updateDoc(docRef, { groups: updatedGroups });
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'DailyPlannings', selectedDate || 'temp'), { groups: updatedGroups });
+      if (dailyPlanning.sessionId && isSingleDocumentId(dailyPlanning.sessionId)) {
+        batch.update(doc(db, 'sessions', dailyPlanning.sessionId), { groups: updatedGroups });
+      }
+      await batch.commit();
       setEditingGroupId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `DailyPlannings/${selectedDate}`);

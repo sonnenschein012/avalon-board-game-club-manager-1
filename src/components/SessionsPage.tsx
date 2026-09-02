@@ -10,12 +10,10 @@ import GroupGamesEditModal from './GroupGamesEditModal';
 import { StoredSessionGroup, Session } from '../types';
 
 interface SessionsPageProps {
-  draftSession?: { name: string, date: string, groups: StoredSessionGroup[] } | null;
-  onClearDraft?: () => void;
   isAdminModeActive?: boolean;
 }
 
-export default function SessionsPage({ draftSession, onClearDraft, isAdminModeActive = false }: SessionsPageProps) {
+export default function SessionsPage({ isAdminModeActive = false }: SessionsPageProps) {
   const [editingGroupInfo, setEditingGroupInfo] = useState<{ session: Session, group: StoredSessionGroup } | null>(null);
 
   const {
@@ -46,7 +44,7 @@ export default function SessionsPage({ draftSession, onClearDraft, isAdminModeAc
     handleClose,
     sessionSaving,
     sessionDeleting,
-  } = useSessionsLogic(draftSession, onClearDraft);
+  } = useSessionsLogic();
 
   return (
     <div className="space-y-6">

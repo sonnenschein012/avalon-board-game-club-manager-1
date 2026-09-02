@@ -15,7 +15,6 @@ import InterviewSchedulePanel from './InterviewSchedulePanel';
 import InterviewSchedulesOverview from './InterviewSchedulesOverview';
 import InterviewScheduleFormModal from './InterviewScheduleFormModal';
 import InterviewScheduleAssignmentModal from './InterviewScheduleAssignmentModal';
-import InterviewScheduleManagement from './InterviewScheduleManagement';
 import InterviewScheduleSelector from './InterviewScheduleSelector';
 import SelectionPanel from './SelectionPanel';
 import MemberRegistrationPanel from './MemberRegistrationPanel';
@@ -514,7 +513,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               <div>
                 <h3 className="font-black text-navy">회차 공통 설정</h3>
                 <p className="mt-1 text-sm text-slate-500">회차명, 지원자 안내문, 면접 질문과 메시지 템플릿을 관리합니다.</p>
-                <p className="mt-2 text-xs font-bold text-slate-600">조사 기간과 면접 가능일은 일정 탭의 각 면접 일정에서 설정합니다.</p>
+                <p className="mt-2 text-xs font-bold text-slate-600">면접 일정은 설정 변경에서 함께 관리합니다.</p>
               </div>
               <button onClick={() => setSettingsOpen(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-xs font-black text-white">
                 <Settings size={15} />
@@ -522,7 +521,6 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               </button>
             </div>
           </section>
-          <InterviewScheduleManagement schedules={logic.schedules} applicants={logic.applicants} onDelete={logic.deleteSchedule} />
         </div>
       )}
 
@@ -542,6 +540,9 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
         round={round}
         onClose={() => setSettingsOpen(false)}
         onSave={applySettings}
+        schedules={logic.schedules}
+        applicants={logic.applicants}
+        onDeleteSchedule={logic.deleteSchedule}
         onDelete={() => {
           setSettingsOpen(false);
           setDeleteOpen(true);

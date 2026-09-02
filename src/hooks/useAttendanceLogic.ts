@@ -3,8 +3,9 @@ import {
   writeBatch,
   doc,
   orderBy,
-  setDoc,
-  serverTimestamp
+  serverTimestamp,
+  getDoc,
+  Timestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Attendee, Member, SessionGroup, StoredSessionGroup, Session, MemberId } from '../types';
@@ -29,6 +30,7 @@ import {
 import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
 import { getActivity, getExperience } from '../domain/matching/groupCostFunction';
 import { getParticipationHistory } from '../domain/matching/participationHistory';
+import { resolveDailySessionId } from '../domain/attendance/dailySession';
 
 export function convertAttendeeIdsToMemberIds(
   groups: SessionGroup[],
@@ -50,7 +52,7 @@ export function convertAttendeeIdsToMemberIds(
 }
 
 interface UseAttendanceLogicProps {
-  onMoveToRecord?: (draft: { name: string, date: string, groups: StoredSessionGroup[] }) => void;
+  onMoveToRecord?: () => void;
 }
 
 export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) {
@@ -413,6 +415,10 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
 
   const handleMoveToRecord = async () => {
     if (isPending('attendance-save')) return;
+    if (!sessionName.trim() || !sessionDate) {
+      toast.error('세션명과 날짜를 입력해주세요.');
+      return;
+    }
     if (groups.length === 0) {
       toast.error('최소 1개 이상의 조가 편성되어야 합니다.');
       return;
@@ -428,29 +434,47 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
 
     const mappedGroups = convertAttendeeIdsToMemberIds(groups, attendees, members);
     const result = await runAction('attendance-save', async () => {
+      const planningRef = doc(db, 'DailyPlannings', sessionDate);
+      const planningSnapshot = await getDoc(planningRef);
+      const sessionId = resolveDailySessionId({
+        planningSessionId: planningSnapshot.data()?.sessionId,
+        sessions,
+        sessionDate,
+        sessionName,
+      });
+      const sessionRef = doc(db, 'sessions', sessionId);
+      const sessionSnapshot = await getDoc(sessionRef);
       const batch = writeBatch(db);
+
       attendees.forEach(a => {
         batch.update(doc(db, 'attendees', a.id), { status: '편성됨' });
       });
-      await batch.commit();
 
-      await setDoc(doc(db, 'DailyPlannings', sessionDate || 'temp'), {
+      batch.set(planningRef, {
         name: sessionName,
         date: sessionDate,
         groups: mappedGroups,
-        createdAt: serverTimestamp()
-      });
+        sessionId,
+        createdAt: planningSnapshot.exists() ? planningSnapshot.data().createdAt : serverTimestamp(),
+      }, { merge: true });
+
+      if (!sessionSnapshot.exists()) {
+        batch.set(sessionRef, {
+          name: sessionName,
+          date: Timestamp.fromDate(new Date(sessionDate)),
+          groups: mappedGroups,
+          boardMemberIds: members.filter(member => member.isBoardMember).map(member => member.id),
+        });
+      }
+
+      await batch.commit();
     }, {
-      successMessage: '오늘의 모임 편성이 저장되었습니다.',
-      errorMessage: '모임 편성을 저장하지 못했습니다.',
-      onError: (error) => handleFirestoreError(error, OperationType.WRITE, `DailyPlannings/${sessionDate || 'temp'}`),
+      successMessage: '모임을 시작하고 세션 기록을 저장했습니다.',
+      errorMessage: '모임과 세션 기록을 저장하지 못했습니다.',
+      onError: (error) => handleFirestoreError(error, OperationType.WRITE, `DailyPlannings/${sessionDate}`),
     });
-    if (result.succeeded && sessionName && sessionDate && onMoveToRecord) {
-      onMoveToRecord({
-        name: sessionName,
-        date: sessionDate,
-        groups: mappedGroups
-      });
+    if (result.succeeded && onMoveToRecord) {
+      onMoveToRecord();
     }
   };
 

@@ -3,7 +3,6 @@ import { auth, signInWithGoogle, logout, testConnection, checkAdminStatus, initi
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart, CalendarClock, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { StoredSessionGroup } from './types';
 import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 
 import { Toaster, toast } from 'sonner';
@@ -103,7 +102,6 @@ export default function App() {
       setLoggingIn(false);
     }
   };
-  const [draftSession, setDraftSession] = useState<{ name: string, date: string, groups: StoredSessionGroup[] } | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -287,7 +285,7 @@ export default function App() {
       } />
       <Route path="/attendance" element={
         <PrivateRoute user={user} isAdmin={isAdmin}>
-          {protectedLayout(<AttendancePage onMoveToRecord={(draft) => { setDraftSession(draft); navigate('/meeting'); }} isAdminModeActive={isAdminModeActive} />)}
+          {protectedLayout(<AttendancePage onMoveToRecord={() => navigate('/meeting')} isAdminModeActive={isAdminModeActive} />)}
         </PrivateRoute>
       } />
       <Route path="/meeting" element={
@@ -297,7 +295,7 @@ export default function App() {
       } />
       <Route path="/sessions" element={
         <PrivateRoute user={user} isAdmin={isAdmin}>
-          {protectedLayout(<SessionsPage draftSession={draftSession} onClearDraft={() => setDraftSession(null)} isAdminModeActive={isAdminModeActive} />)}
+          {protectedLayout(<SessionsPage isAdminModeActive={isAdminModeActive} />)}
         </PrivateRoute>
       } />
       <Route path="/archive" element={

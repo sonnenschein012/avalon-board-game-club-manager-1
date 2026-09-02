@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Save, CalendarDays, Plus, Trash2 } from 'lucide-react';
-import type { InterviewRound } from '../types';
+import type { InterviewApplicantWithAccess, InterviewRound, InterviewSchedule } from '../types';
 import {
   generateAvailabilitySlotsForSchedules,
   parseSlotId,
@@ -8,6 +8,7 @@ import {
 } from '../domain/interviews/scheduling';
 import type { InterviewRoundDraft } from '../services/interviewsService';
 import { resolveInterviewMessageTemplates } from '../domain/interviews/messages';
+import InterviewScheduleManagement from './InterviewScheduleManagement';
 
 export function roundToDraft(round?: InterviewRound | null): InterviewRoundDraft {
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -83,9 +84,12 @@ interface InterviewRoundFormModalProps {
   onClose: () => void;
   onSave: (draft: InterviewRoundDraft, expectedScheduleRevision?: number) => Promise<boolean | void>;
   onDelete?: () => void;
+  schedules?: InterviewSchedule[];
+  applicants?: InterviewApplicantWithAccess[];
+  onDeleteSchedule?: (schedule: InterviewSchedule) => Promise<boolean>;
 }
 
-export default function InterviewRoundFormModal({ open, round, saving = false, onClose, onSave, onDelete }: InterviewRoundFormModalProps) {
+export default function InterviewRoundFormModal({ open, round, saving = false, onClose, onSave, onDelete, schedules, applicants, onDeleteSchedule }: InterviewRoundFormModalProps) {
   const [draft, setDraft] = useState<InterviewRoundDraft>(() => roundToDraft(round));
   const [daySchedules, setDaySchedules] = useState<InterviewDaySchedule[]>(() => schedulesFromDraft(roundToDraft(round)));
   const [internalSaving, setInternalSaving] = useState(false);
@@ -189,7 +193,7 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">기본 설정</h3>
             <label className="block text-xs font-bold text-slate-500">회차명<input value={draft.name} onChange={event => setDraft({ ...draft, name: event.target.value })} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="2026-2 아발론 5기 신입부원 면접" /></label>
             <label className="block text-xs font-bold text-slate-500">지원자 안내문<textarea value={draft.instructions} onChange={event => setDraft({ ...draft, instructions: event.target.value })} className="mt-1 min-h-28 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
-            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-bold leading-relaxed text-slate-600">조사 기간과 면접 가능일은 일정 탭의 각 면접 일정에서 관리합니다.</p>
+            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-bold leading-relaxed text-slate-600">조사 기간과 면접 가능일은 아래 일정 관리에서 설정합니다.</p>
           </section>
 
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
@@ -203,6 +207,8 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
             <p className="text-[11px] text-slate-400">선발·미선발 안내에서는 {'{name}'}만 자동 치환됩니다. 회비 금액, 은행, 계좌번호와 예금주는 템플릿에 직접 입력해주세요.</p>
             {(['availability', 'reminder', 'confirmation', 'reschedule', 'selected', 'rejected'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : kind === 'reschedule' ? '일정 변경 안내' : kind === 'selected' ? '선발 안내' : '미선발 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
           </section>
+
+          {schedules && applicants && onDeleteSchedule && <div className="md:col-span-2"><InterviewScheduleManagement schedules={schedules} applicants={applicants} onDelete={onDeleteSchedule} /></div>}
 
           {onDelete && <section className="flex flex-col gap-4 rounded-2xl border border-red-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between md:col-span-2"><div><h3 className="text-xs font-black uppercase tracking-wider text-red-700">회차 삭제</h3><p className="mt-1 text-xs leading-5 text-slate-500">지원자, 개인 링크, 일정, 면접관, 평가와 이력을 영구 삭제합니다. 등록된 동아리원은 유지됩니다.</p></div><button type="button" onClick={onDelete} disabled={busy} className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs font-black text-slate-600 transition hover:bg-red-50 hover:text-red-700 disabled:opacity-40"><Trash2 size={15} />회차 삭제</button></section>}
         </div>

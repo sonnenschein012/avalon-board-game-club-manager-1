@@ -20,6 +20,7 @@ import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { defaultMemberNickname, formatMemberPhone, normalizeMemberName, normalizeStudentYear } from '../domain/interviews/memberRegistration';
 import { useAsyncActionState } from './useAsyncActionState';
 import { AVAILABLE_GENRES, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
+import { sortDormantMembers } from '../domain/members/dormantMemberOrder';
 
 export { AVAILABLE_GENRES, defaultDormantSemester, defaultSemester } from '../domain/members/memberForm';
 export type { MemberFormData } from '../domain/members/memberForm';
@@ -295,7 +296,7 @@ export function useMembersLogic() {
   };
 
   const filteredMembers = useMemo(() => {
-    return members.filter(m => {
+    const filtered = members.filter(m => {
       const isDormant = m.status === '휴면';
       const matchesTab = currentTab === '활동' ? !isDormant : isDormant;
       if (!matchesTab) return false;
@@ -306,6 +307,7 @@ export function useMembersLogic() {
       const matchesGenre = genreFilter === '전체' || (Array.isArray(m.preferredGenre) && m.preferredGenre.includes(genreFilter));
       return matchesSearch && matchesGender && matchesSemester && matchesGenre;
     });
+    return currentTab === '휴면' ? sortDormantMembers(filtered) : filtered;
   }, [members, searchTerm, genderFilter, semesterFilter, genreFilter, currentTab]);
 
   const semesters = useMemo(() => {

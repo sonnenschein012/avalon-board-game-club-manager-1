@@ -5,6 +5,7 @@ import { Member, Game, SessionGroup } from '../types';
 import { cn } from '../lib/utils';
 import { DndContext, useDraggable, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { sortUnassignedMemberIds } from '../domain/attendance/unassignedMemberOrder';
 
 export interface ModalControl {
   isAdding: boolean;
@@ -92,6 +93,7 @@ export default function SessionFormModal({
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
+  const sortedUnassignedIds = sortUnassignedMemberIds(unassignedIds, members);
 
   return (
     <AnimatePresence>
@@ -139,7 +141,7 @@ export default function SessionFormModal({
                     id="unassigned"
                     className="p-4 space-y-2 grow transition-colors"
                   >
-                    {Array.from(new Set<string>(unassignedIds)).map(id => {
+                    {sortedUnassignedIds.map(id => {
                       const m = members.find(x => x.id === id);
                       return (
                         <DraggableMember 
