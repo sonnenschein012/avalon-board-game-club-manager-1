@@ -1,6 +1,6 @@
 import React from 'react';
 import { Attendee, Member } from '../types';
-import { X, AlertTriangle, Plus } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import BoardMemberBadge from './BoardMemberBadge';
 
@@ -33,9 +33,9 @@ export default function UnassignedPool({
         <h3 className="text-xs font-bold text-slate-400 uppercase">출석 명단 / 미배정 ({unassignedAttendees.length})</h3>
         <button 
           onClick={onManualAddOpen}
-          className="inline-flex items-center gap-1 rounded-xl border border-gold/40 bg-gold/10 px-3 py-2 text-xs font-bold text-navy transition-colors hover:border-gold hover:bg-gold/20"
+          className="text-[10px] font-bold bg-navy text-white hover:bg-slate-800 px-2 py-1 rounded transition"
         >
-          <Plus size={13} /> 명단 추가
+          + 명단 추가
         </button>
       </div>
       <div 

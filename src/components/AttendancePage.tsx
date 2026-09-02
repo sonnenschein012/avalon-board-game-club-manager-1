@@ -82,15 +82,15 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
             <button 
               onClick={() => setIsAutoMode(!isAutoMode)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-bold transition-colors md:px-5",
+                "flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg",
                 isAutoMode 
-                  ? "border-gold bg-gold text-navy hover:bg-gold/80"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-gold/50 hover:bg-gold/10 hover:text-navy"
+                  ? "bg-orange-100 text-orange-600 border border-orange-200"
+                  : "bg-white text-slate-600 border border-slate-100"
               )}
             >
               <ClipboardList size={16} className="shrink-0" /> <span className="hidden sm:inline">{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</span><span className="sm:hidden">{isAutoMode ? '종료' : '자동편성'}</span>
             </button>
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-gold/50 hover:bg-gold/10 hover:text-navy md:px-5">
+            <label className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-slate-50 text-navy hover:text-gold border border-slate-100 rounded-xl hover:bg-indigo-100 transition-all text-xs font-bold cursor-pointer">
               {importing ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FileUp size={16} className="shrink-0" />} 
               <span className="hidden sm:inline">{importing ? '임포트 중...' : '파일 업로드'}</span>
               <span className="sm:hidden">업로드</span>
@@ -98,7 +98,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
             </label>
             <button 
               onClick={clearRecords}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-transparent px-3 py-2.5 text-xs font-bold text-slate-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-700 md:px-5"
+              className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all text-xs font-bold rounded-xl border border-transparent hover:border-red-100"
             >
               <Trash2 size={16} className="shrink-0" /> <span className="hidden sm:inline">초기화</span><span className="sm:hidden">초기화</span>
             </button>

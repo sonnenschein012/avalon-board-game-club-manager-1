@@ -90,21 +90,21 @@ export default function GroupsCanvas({
             {isAutoMode && (
               <button 
                 onClick={onAutoAssign}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-gold bg-gold px-3 py-2.5 text-xs font-bold text-navy transition-colors hover:bg-gold/80 md:px-5 whitespace-nowrap"
+                className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-orange-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 transition animate-pulse whitespace-nowrap"
               >
                 <CheckCircle2 size={14} className="shrink-0" /> <span className="hidden sm:inline">조편성 시작</span><span className="sm:hidden">시작</span>
               </button>
             )}
             <button 
               onClick={onCostModalOpen}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-navy md:px-5 whitespace-nowrap"
+              className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap"
             >
               <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">비용평가지표</span><span className="sm:hidden">지표</span>
             </button>
             {isAdminModeActive && (
               <button 
                 onClick={onExportSimulation}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-600 transition-colors hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 md:px-5 whitespace-nowrap"
+                className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap"
               >
                 <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">분포 데이터 추출</span><span className="sm:hidden">추출</span>
               </button>
@@ -112,7 +112,7 @@ export default function GroupsCanvas({
             <button 
               onClick={onMoveToRecord}
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-navy bg-navy px-3 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-slate-800 hover:shadow-md disabled:cursor-wait disabled:opacity-50 md:px-5 whitespace-nowrap"
+              className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-navy hover:bg-gold text-white rounded-lg text-xs font-bold shadow-lg shadow-sm transition whitespace-nowrap"
             >
               <span className="hidden sm:inline">{saving ? '저장 중…' : '오늘의 모임 시작'}</span><span className="sm:hidden">{saving ? '저장 중…' : '모임 시작'}</span>
               {saving ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <ArrowRight size={14} className="shrink-0" />}
