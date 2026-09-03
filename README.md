@@ -2,6 +2,8 @@
 
 Avalon 보드게임 동아리의 회원, 게임, 정기 모임, 면접을 관리하는 웹 애플리케이션입니다.
 
+현재 안정 기준은 [v1.0.0](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.0.0)입니다. 개발을 재개할 때는 아래 실행 환경 안내와 [개발 가이드](docs/development.md)에서 시작하세요.
+
 ## 주요 기능
 
 - 회원과 보유 게임 관리
