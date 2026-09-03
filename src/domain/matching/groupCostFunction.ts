@@ -1,6 +1,11 @@
 import { Member } from '../../types';
 
 export interface GroupCostResult {
+  ageVarianceCost: number;
+  experienceCost: number;
+  activityCost: number;
+  genderCost: number;
+  reunionPenalty: number;
   costWithoutReward: number;
   requestReward: number;
 }
@@ -8,9 +13,9 @@ export interface GroupCostResult {
 export interface CostCalculationContext {
   overallGenderRatio: number;
   vPool: number;
-  /** 0..1 long-term attendance experience for each attendee. */
+  /** 0..1 long-term attendance experience, keyed by member ID. */
   memberExperience: Record<string, number>;
-  /** 0..1 current-semester attendance activity for each attendee. */
+  /** 0..1 current-semester attendance activity, keyed by member ID. */
   memberActivity: Record<string, number>;
   overallExperienceAverage: number;
   overallActivityAverage: number;
@@ -19,9 +24,13 @@ export interface CostCalculationContext {
   requestedPairs: { a: string; b: string }[];
 }
 
+export function getStudentYear(member: Member): number {
+  return parseInt(member.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x => x) || '25');
+}
+
 function calculateAgeVarianceCost(gMems: Member[], vPool: number): number {
   if (vPool <= 0) return 0;
-  const years = gMems.map(m => parseInt(m.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x => x) || '25'));
+  const years = gMems.map(getStudentYear);
   const avgYear = years.reduce((a, b) => a + b, 0) / (years.length || 1);
   const vGroup = years.reduce((a, b) => a + Math.pow(b - avgYear, 2), 0) / (years.length || 1);
   return ((vGroup - vPool) / vPool) * 2.0;
@@ -84,9 +93,17 @@ export function getGroupCostDets(
   gMems: Member[],
   ctx: CostCalculationContext
 ): GroupCostResult {
-  if (gMems.length === 0) return { costWithoutReward: 0, requestReward: 0 };
+  if (gMems.length === 0) return {
+    ageVarianceCost: 0,
+    experienceCost: 0,
+    activityCost: 0,
+    genderCost: 0,
+    reunionPenalty: 0,
+    costWithoutReward: 0,
+    requestReward: 0,
+  };
 
-  const ageVarCost = calculateAgeVarianceCost(gMems, ctx.vPool);
+  const ageVarianceCost = calculateAgeVarianceCost(gMems, ctx.vPool);
   const experienceCost = calculateMeanBalanceCost(gMems, ctx.memberExperience, ctx.overallExperienceAverage, 0);
   const activityCost = calculateMeanBalanceCost(gMems, ctx.memberActivity, ctx.overallActivityAverage, 0.5);
   const genderCost = calculateGenderCost(gMems, ctx.overallGenderRatio);
@@ -94,7 +111,7 @@ export function getGroupCostDets(
 
   // Experience and current-semester activity deliberately use the same fixed
   // 0..1 mean-balance scale and equal weight. Do not normalize by variance.
-  const costWithoutReward = ageVarCost + experienceCost + activityCost + genderCost + reunionPenalty;
+  const costWithoutReward = ageVarianceCost + experienceCost + activityCost + genderCost + reunionPenalty;
   
-  return { costWithoutReward, requestReward };
+  return { ageVarianceCost, experienceCost, activityCost, genderCost, reunionPenalty, costWithoutReward, requestReward };
 }

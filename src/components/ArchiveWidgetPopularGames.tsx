@@ -6,24 +6,24 @@ import { Game } from '../types';
 
 interface ArchiveWidgetPopularGamesProps {
   selectedSemester: string;
-  w2Genres: string[];
-  setW2Genres: (g: string[]) => void;
-  w2Difficulties: string[];
-  setW2Difficulties: (d: string[]) => void;
-  w2PopularGames: {gameId: string, count: number, uniqueCount: number, fixation: number, game?: Game | undefined}[];
-  AVAILABLE_GENRES: string[];
-  DIFFICULTY_RANGES: {label: string}[];
+  popularGameGenres: string[];
+  setPopularGameGenres: (g: string[]) => void;
+  popularGameDifficulties: string[];
+  setPopularGameDifficulties: (d: string[]) => void;
+  popularGames: {gameId: string, count: number, uniqueCount: number, fixation: number, game?: Game | undefined}[];
+  availableGenres: string[];
+  difficultyRanges: {label: string}[];
 }
 
 export default function ArchiveWidgetPopularGames({
   selectedSemester,
-  w2Genres,
-  setW2Genres,
-  w2Difficulties,
-  setW2Difficulties,
-  w2PopularGames,
-  AVAILABLE_GENRES,
-  DIFFICULTY_RANGES
+  popularGameGenres,
+  setPopularGameGenres,
+  popularGameDifficulties,
+  setPopularGameDifficulties,
+  popularGames,
+  availableGenres,
+  difficultyRanges
 }: ArchiveWidgetPopularGamesProps) {
   return (
     <div className="glass-panel p-6 space-y-6">
@@ -36,15 +36,15 @@ export default function ArchiveWidgetPopularGames({
       <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
         <div>
            <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">선호 장르 필터</p>
-           <FilterPills options={AVAILABLE_GENRES} selected={w2Genres} onChange={setW2Genres} />
+           <FilterPills options={availableGenres} selected={popularGameGenres} onChange={setPopularGameGenres} />
         </div>
         <div>
            <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">난이도 필터</p>
-           <FilterPills options={DIFFICULTY_RANGES.map(r => r.label)} selected={w2Difficulties} onChange={setW2Difficulties} />
+           <FilterPills options={difficultyRanges.map(r => r.label)} selected={popularGameDifficulties} onChange={setPopularGameDifficulties} />
         </div>
       </div>
       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-        {w2PopularGames.map((item, idx) => (
+        {popularGames.map((item, idx) => (
           <div key={item.gameId} className="flex justify-between items-center p-3 bg-white border border-slate-50 rounded-xl hover:border-slate-100 transition-colors">
             <div className="flex items-center gap-4">
               <span className={cn("w-6 text-center font-bold text-lg", idx === 0 ? "text-orange-500" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-orange-400" : "text-slate-300 text-sm")}>
@@ -65,7 +65,7 @@ export default function ArchiveWidgetPopularGames({
             </div>
           </div>
         ))}
-        {w2PopularGames.length === 0 && <p className="text-center text-slate-400 text-sm py-8 font-bold">표시할 데이터가 없습니다.</p>}
+        {popularGames.length === 0 && <p className="text-center text-slate-400 text-sm py-8 font-bold">표시할 데이터가 없습니다.</p>}
       </div>
     </div>
   );

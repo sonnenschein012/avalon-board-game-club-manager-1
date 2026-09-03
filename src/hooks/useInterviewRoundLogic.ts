@@ -1,219 +1,76 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Timestamp } from 'firebase/firestore';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import type {
-  InterviewAccess,
-  InterviewApplicant,
-  InterviewApplicantWithAccess,
-  InterviewAssignment,
-  InterviewChangeRequest,
-  InterviewOverallRating,
-  InterviewRound,
-  InterviewRoundInterviewer,
-  InterviewSchedule,
-  InterviewScheduleInterviewer,
-  InterviewSelectionStatus,
-} from '../types';
+import { filterInterviewApplicants, type InterviewApplicantFilter } from '../domain/interviews/applicantFilter';
+import { previewApplicantMerge } from '../domain/interviews/applicantMerge';
+import { buildInterviewCsvRows } from '../domain/interviews/interviewCsvExport';
+import { getInterviewProgressStatus } from '../domain/interviews/interviewPolicy';
 import {
-  aggregateAvailability as aggregateAvailabilityResponses,
-  assignmentsOverlap,
-  availabilityToAssignmentCandidates,
   getAssignmentScheduleImpact,
-  getScheduleChangeImpact,
-  parseSlotId,
+  getScheduleChangeImpact
 } from '../domain/interviews/scheduling';
 import {
   addRoundInterviewer,
+  applyConcreteInterviewScheduleChange,
+  assignApplicantsToInterviewSchedule,
   assignRoundInterviewerToSchedule,
-  applyInterviewAssignmentProposals,
   completeInterviewAtomically,
   createInterviewApplicant,
   createInterviewSchedule,
-  deleteInterviewSchedule,
   deleteInterviewRound,
-  applyConcreteInterviewScheduleChange,
-  migrateLegacyApplicantsToInterviewSchedule,
-  assignApplicantsToInterviewSchedule,
+  deleteInterviewSchedule,
   getInterviewRoundExportRecords,
   hasInterviewRoundNotes,
-  getInterviewLink,
   markInterviewMessageSent,
   mergeInterviewApplicants,
-  reopenCompletedInterview,
+  migrateLegacyApplicantsToInterviewSchedule,
+  reactivateRoundInterviewer,
   removeRoundInterviewer,
   removeScheduleInterviewer,
-  reactivateRoundInterviewer,
-  resolveInterviewChangeRequest,
+  reopenCompletedInterview,
   resetInterviewApplicantSchedule,
+  resolveInterviewChangeRequest,
   restoreScheduledInterview,
-  saveInterviewAssignment,
+  setInterviewActionNeeded,
   setInterviewApplicantArchived,
   setInterviewApplicantWithdrawn,
-  setInterviewActionNeeded,
-  subscribeInterviewAccess,
-  subscribeInterviewApplicants,
-  subscribeInterviewChangeRequests,
-  subscribeInterviewRound,
-  subscribeInterviewSchedules,
-  subscribeRoundInterviewers,
-  subscribeRoundScheduleInterviewers,
+  updateCompletedInterviewOverallRating,
   updateInterviewApplicant,
   updateInterviewRoundSettings,
-  updateInterviewAssignmentState,
-  updateCompletedInterviewOverallRating,
   updateInterviewSelectionStatus,
-  updateInterviewerPhone,
   updateInterviewerProfile,
   updateRoundInterviewerAvailability,
   updateScheduleInterviewerAvailability,
   type ApplicantDraft,
   type ApplicantImportRow,
   type InterviewRoundDraft,
-  type InterviewScheduleDraft,
+  type InterviewScheduleDraft
 } from '../services/interviewsService';
-import { previewApplicantMerge } from '../domain/interviews/applicantMerge';
-import { generateAutoAssignment, type AutoAssignmentMode, type AutoAssignmentResult } from '../domain/interviews/autoAssignment';
-import { getInterviewProgressStatus, isActiveInterviewApplicant, isAssignmentConfirmationCurrent } from '../domain/interviews/interviewV3Policy';
-import { buildInterviewCsvRows } from '../domain/interviews/interviewCsvExport';
-import { applyOptimisticAssignment, rollbackOptimisticApplicant } from '../domain/interviews/optimisticApplicant';
-import { isInterviewRevisionConflict } from '../domain/interviews/revisionConflict';
-import { useAsyncActionState } from './useAsyncActionState';
-
-export type InterviewApplicantFilter =
-  | 'all'
-  | 'responded'
-  | 'pending'
-  | 'assigned'
-  | 'unassigned'
-  | 'schedule-unassigned'
-  | 'schedule-pending'
-  | 'assignment-pending'
-  | 'completed'
-  | 'action-needed'
-  | 'availability-unsent'
-  | 'availability-sent'
-  | 'availability-sent-pending'
-  | 'confirmation-unsent'
-  | 'confirmation-sent'
-  | 'withdrawn'
-  | 'archived';
+import type {
+  InterviewApplicantWithAccess,
+  InterviewOverallRating,
+  InterviewRoundInterviewer,
+  InterviewSchedule,
+  InterviewSelectionStatus
+} from '../types';
+import { useInterviewAssignmentLogic } from './interviews/useInterviewAssignmentLogic';
+import { useInterviewRoundData } from './interviews/useInterviewRoundData';
 
 export function useInterviewRoundLogic(roundId: string) {
-  const [round, setRound] = useState<InterviewRound | null>(null);
-  const [applicants, setApplicants] = useState<InterviewApplicant[]>([]);
-  const [access, setAccess] = useState<InterviewAccess[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [interviewers, setInterviewers] = useState<InterviewRoundInterviewer[]>([]);
-  const [schedules, setSchedules] = useState<InterviewSchedule[]>([]);
-  const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
-  const [roundScheduleInterviewers, setRoundScheduleInterviewers] = useState<InterviewScheduleInterviewer[]>([]);
-  const [changeRequests, setChangeRequests] = useState<InterviewChangeRequest[]>([]);
-  const [autoDraft, setAutoDraft] = useState<AutoAssignmentResult | null>(null);
+  const data = useInterviewRoundData(roundId);
+  const {
+    round, setRound, applicants, setApplicants, joinedApplicants, applicantById, joinedApplicantById,
+    loading, interviewers, schedules, activeSchedule, activeScheduleId, setActiveScheduleId,
+    activeInterviewers, roundScheduleInterviewers, changeRequests,
+  } = data;
+  const assignments = useInterviewAssignmentLogic(roundId, data);
   const [filter, setFilter] = useState<InterviewApplicantFilter>('all');
   const [search, setSearch] = useState('');
   const [deletingRound, setDeletingRound] = useState(false);
-  const { runAction, isPending } = useAsyncActionState();
-  const normalizedRoundId = roundId.trim();
-
-  useEffect(() => {
-    if (!normalizedRoundId) {
-      setRound(null);
-      setApplicants([]);
-      setAccess([]);
-      setInterviewers([]);
-      setSchedules([]);
-      setActiveScheduleId(null);
-      setRoundScheduleInterviewers([]);
-      setChangeRequests([]);
-      setAutoDraft(null);
-      setLoading(false);
-      return undefined;
-    }
-    setLoading(true);
-    const stopRound = subscribeInterviewRound(normalizedRoundId, value => { setRound(value); setLoading(false); }, error => {
-      console.error(error); toast.error('면접 회차를 불러오지 못했습니다.'); setLoading(false);
-    });
-    const stopApplicants = subscribeInterviewApplicants(normalizedRoundId, setApplicants, console.error);
-    const stopAccess = subscribeInterviewAccess(normalizedRoundId, setAccess, console.error);
-    const stopInterviewers = subscribeRoundInterviewers(normalizedRoundId, setInterviewers, console.error);
-    const stopRoundScheduleInterviewers = subscribeRoundScheduleInterviewers(normalizedRoundId, setRoundScheduleInterviewers, console.error);
-    const stopSchedules = subscribeInterviewSchedules(normalizedRoundId, setSchedules, console.error);
-    const stopRequests = subscribeInterviewChangeRequests(normalizedRoundId, setChangeRequests, console.error);
-    return () => { stopRound(); stopApplicants(); stopAccess(); stopInterviewers(); stopRoundScheduleInterviewers(); stopSchedules(); stopRequests(); };
-  }, [normalizedRoundId]);
-
-  useEffect(() => {
-    setActiveScheduleId(current => current && schedules.some(schedule => schedule.id === current && schedule.status !== 'archived')
-      ? current
-      : schedules.find(schedule => schedule.status !== 'archived')?.id ?? null);
-  }, [schedules]);
-
-  const activeSchedule = useMemo(() => schedules.find(schedule => schedule.id === activeScheduleId) ?? null, [activeScheduleId, schedules]);
-  const activeSchedulingConfig = activeSchedule ?? round;
-  const activeInterviewers: InterviewRoundInterviewer[] = useMemo(() => activeScheduleId
-    ? roundScheduleInterviewers.filter(item => item.scheduleId === activeScheduleId)
-    : interviewers, [activeScheduleId, interviewers, roundScheduleInterviewers]);
-
-  const applicantById = useMemo(() => new Map(applicants.map(item => [item.id, item])), [applicants]);
-
-  const joinedApplicants = useMemo<InterviewApplicantWithAccess[]>(() => {
-    const accessByToken = new Map(access.map(item => [item.id, item]));
-    return applicants.map(applicant => ({
-      ...applicant,
-      access: accessByToken.get(applicant.accessToken) ?? null,
-      link: getInterviewLink(applicant.accessToken),
-    }));
-  }, [access, applicants]);
-
-  const joinedApplicantById = useMemo(() => new Map(joinedApplicants.map(item => [item.id, item])), [joinedApplicants]);
   const deferredSearch = useDeferredValue(search);
-
-  const filteredApplicants = useMemo(() => {
-    const q = deferredSearch.trim().toLowerCase();
-    return joinedApplicants.filter(applicant => {
-    if (q && !`${applicant.applicantNumber} ${applicant.name} ${applicant.phone}`.toLowerCase().includes(q)) return false;
-    const lifecycle = applicant.lifecycle ?? 'active';
-    if (filter === 'archived') return lifecycle === 'archived';
-    if (lifecycle === 'archived') return false;
-    const applicationStatus = applicant.applicationStatus ?? 'active';
-    if (filter === 'withdrawn') return applicationStatus === 'withdrawn';
-    if (applicationStatus === 'withdrawn') return false;
-    const responded = Boolean(applicant.access?.submittedAt);
-    const availabilitySent = Boolean(applicant.availabilityMessage.firstMarkedSentAt);
-    const confirmationSent = Boolean(applicant.confirmationMessage.firstMarkedSentAt);
-    if (filter === 'responded') return responded;
-    if (filter === 'pending') return !responded;
-    if (filter === 'assigned') return Boolean(applicant.assignment);
-    if (filter === 'unassigned') return !applicant.assignment;
-    if (filter === 'schedule-unassigned') return applicant.scheduleId === null;
-    if (filter === 'schedule-pending') return applicant.scheduleId != null && !responded;
-    if (filter === 'assignment-pending') return applicant.scheduleId != null && responded && !applicant.assignment && getInterviewProgressStatus(applicant) === 'scheduled';
-    if (filter === 'completed') return getInterviewProgressStatus(applicant) === 'completed';
-    if (filter === 'action-needed') return getInterviewProgressStatus(applicant) === 'action_needed';
-    if (filter === 'availability-unsent') return !availabilitySent;
-    if (filter === 'availability-sent') return availabilitySent;
-    if (filter === 'availability-sent-pending') return availabilitySent && !responded;
-    const confirmationMatchesAssignment = Boolean(applicant.assignment) && confirmationSent
-      && (applicant.assignmentRevision ?? applicant.assignment?.confirmationRevision ?? 0) === (applicant.confirmationMessage.assignmentRevision ?? 0);
-    if (filter === 'confirmation-unsent') return Boolean(applicant.assignment) && !confirmationMatchesAssignment;
-    if (filter === 'confirmation-sent') return confirmationMatchesAssignment;
-      return true;
-    });
-  }, [deferredSearch, filter, joinedApplicants]);
-
-  const aggregateAvailability = useMemo(() => {
-    const applicantsById = new Map(joinedApplicants.map(applicant => [applicant.id, applicant]));
-    const activeApplicantIds = new Set(joinedApplicants.filter(isActiveInterviewApplicant).map(applicant => applicant.id));
-    const result: Record<string, InterviewApplicantWithAccess[]> = {};
-    activeSchedulingConfig?.allowedSlots.forEach(slot => { result[slot] = []; });
-    aggregateAvailabilityResponses(access.filter(item => activeApplicantIds.has(item.applicantId))).forEach(cell => {
-      if (!result[cell.slotId]) return;
-      result[cell.slotId] = cell.applicantIds
-        .map(applicantId => applicantsById.get(applicantId))
-        .filter((applicant): applicant is InterviewApplicantWithAccess => Boolean(applicant));
-    });
-    return result;
-  }, [access, activeSchedulingConfig, joinedApplicants]);
+  const filteredApplicants = useMemo(
+    () => filterInterviewApplicants(joinedApplicants, filter, deferredSearch),
+    [deferredSearch, filter, joinedApplicants],
+  );
 
   const previewImportRows = (rows: ApplicantImportRow[]) => previewApplicantMerge(
     applicants.map(applicant => ({
@@ -255,113 +112,6 @@ export function useInterviewRoundLogic(roundId: string) {
     }
   };
 
-  const assignmentFromSlot = (slot: string, interviewer: InterviewRoundInterviewer, source: 'manual' | 'automatic' = 'manual'): InterviewAssignment | null => {
-    if (!activeSchedulingConfig) return null;
-    const parsed = parseSlotId(slot);
-    if (!parsed) return null;
-    return {
-      slotId: slot,
-      startsAt: Timestamp.fromDate(new Date(`${parsed.date}T${parsed.time}:00+09:00`)),
-      scheduleId: activeSchedule?.id ?? null,
-      scheduleName: activeSchedule?.name ?? null,
-      durationMinutes: activeSchedulingConfig.assignmentSlotMinutes,
-      interviewerId: interviewer.interviewerId,
-      interviewerName: interviewer.displayName,
-      status: 'scheduled',
-      locked: false,
-      source,
-    };
-  };
-
-  const getAssignmentConflict = (slot: string, applicantId: string, interviewerId: string) => {
-    const interviewer = activeInterviewers.find(item => item.interviewerId === interviewerId);
-    const assignment = interviewer ? assignmentFromSlot(slot, interviewer) : null;
-    if (!assignment) return null;
-    return joinedApplicants.find(other => (
-      other.id !== applicantId
-      && Boolean(other.assignment)
-      && assignmentsOverlap(assignment, other.assignment!)
-    )) ?? null;
-  };
-
-  const assignApplicant = async (applicant: InterviewApplicantWithAccess, slot: string, interviewerId: string) => {
-    if (!activeSchedulingConfig) return false;
-    if (activeScheduleId && applicant.scheduleId !== activeScheduleId) {
-      toast.error('현재 선택한 면접 일정의 지원자만 배정할 수 있습니다.');
-      return false;
-    }
-    const candidates = availabilityToAssignmentCandidates(
-      applicant.access?.availability ?? [],
-      activeSchedulingConfig.availabilitySlotMinutes,
-      activeSchedulingConfig.assignmentSlotMinutes,
-    );
-    if (!candidates.includes(slot)) {
-      toast.error('지원자가 선택하지 않은 시간입니다.');
-      return false;
-    }
-    const interviewer = activeInterviewers.find(item => item.interviewerId === interviewerId && item.active);
-    if (!interviewer) { toast.error('면접관을 선택해주세요.'); return false; }
-    const interviewerCandidates = availabilityToAssignmentCandidates(interviewer.availability, activeSchedulingConfig.availabilitySlotMinutes, activeSchedulingConfig.assignmentSlotMinutes);
-    if (!interviewerCandidates.includes(slot)) { toast.error('면접관이 가능하다고 등록하지 않은 시간입니다.'); return false; }
-    const assignment = assignmentFromSlot(slot, interviewer);
-    if (!assignment) {
-      toast.error('올바르지 않은 면접 시간입니다.');
-      return false;
-    }
-    const conflict = getAssignmentConflict(slot, applicant.id, interviewerId);
-    if (conflict) {
-      toast.error(`${interviewer.displayName} 면접관 일정이 ${conflict.name} 지원자와 겹칩니다.`);
-      return false;
-    }
-    const previousApplicant = applicantById.get(applicant.id) ?? applicant;
-    const optimisticApplicant = applyOptimisticAssignment(previousApplicant, assignment);
-    setApplicants(current => current.map(item => item.id === applicant.id ? optimisticApplicant : item));
-    try {
-      await saveInterviewAssignment(
-        applicant.id,
-        assignment,
-        applicant.assignmentRevision ?? applicant.assignment?.confirmationRevision ?? 0,
-      );
-      const notice = applicant.confirmationMessage.firstMarkedSentAt
-        ? ' 기존 확정 안내는 이전 시간 기준이므로 새 문자를 다시 보내주세요.'
-        : '';
-      toast.success(`${applicant.name} 지원자의 면접 시간을 배정했습니다.${notice}`);
-      return true;
-    } catch (error) {
-      console.error(error);
-      setApplicants(current => current.map(item => item.id === applicant.id
-        ? rollbackOptimisticApplicant(item, optimisticApplicant, previousApplicant)
-        : item));
-      toast.error(error instanceof Error ? error.message : '면접 시간을 저장하지 못했습니다.');
-      return false;
-    }
-  };
-
-  const clearAssignment = async (applicantId: string) => {
-    const applicant = joinedApplicantById.get(applicantId);
-    if (!applicant) return;
-    const previousApplicant = applicantById.get(applicantId) ?? applicant;
-    const optimisticApplicant = applyOptimisticAssignment(previousApplicant, null);
-    setApplicants(current => current.map(item => item.id === applicantId ? optimisticApplicant : item));
-    try {
-      await saveInterviewAssignment(
-        applicantId,
-        null,
-        applicant?.assignmentRevision ?? applicant?.assignment?.confirmationRevision ?? 0,
-      );
-      const notice = applicant?.confirmationMessage.firstMarkedSentAt
-        ? ' 이전 확정 안내 기록은 이력으로 남아 있습니다.'
-        : '';
-      toast.success(`배정을 해제했습니다.${notice}`);
-    } catch (error) {
-      console.error(error);
-      setApplicants(current => current.map(item => item.id === applicantId
-        ? rollbackOptimisticApplicant(item, optimisticApplicant, previousApplicant)
-        : item));
-      toast.error(error instanceof Error ? error.message : '배정을 해제하지 못했습니다.');
-    }
-  };
-
   const applySettings = async (draft: InterviewRoundDraft) => {
     try {
       await updateInterviewRoundSettings(roundId, draft);
@@ -388,8 +138,15 @@ export function useInterviewRoundLogic(roundId: string) {
   );
 
   const addApplicant = async (draft: ApplicantDraft) => {
-    try { await createInterviewApplicant(roundId, draft); toast.success('지원자를 추가했습니다.'); return true; }
-    catch (error) { console.error(error); toast.error(error instanceof Error ? error.message : '지원자를 추가하지 못했습니다.'); return false; }
+    try {
+      await createInterviewApplicant(roundId, draft);
+      toast.success('지원자를 추가했습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : '지원자를 추가하지 못했습니다.');
+      return false;
+    }
   };
 
   const addInterviewSchedule = async (draft: InterviewScheduleDraft) => {
@@ -538,8 +295,15 @@ export function useInterviewRoundLogic(roundId: string) {
   };
 
   const archiveApplicant = async (applicant: InterviewApplicantWithAccess, archived: boolean) => {
-    try { await setInterviewApplicantArchived(applicant, archived); toast.success(archived ? '지원자를 보관 처리했습니다.' : '지원자를 복원했습니다.'); return true; }
-    catch (error) { console.error(error); toast.error('지원자 상태를 바꾸지 못했습니다.'); return false; }
+    try {
+      await setInterviewApplicantArchived(applicant, archived);
+      toast.success(archived ? '지원자를 보관 처리했습니다.' : '지원자를 복원했습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error('지원자 상태를 바꾸지 못했습니다.');
+      return false;
+    }
   };
 
   const addInterviewer = async (name: string, email?: string, phone?: string) => {
@@ -556,39 +320,62 @@ export function useInterviewRoundLogic(roundId: string) {
       && (!normalizedEmail || item.email?.toLowerCase() === normalizedEmail)
       && (!phone || item.phone === phone));
     if (inactiveMatch) {
-      try { await reactivateRoundInterviewer(inactiveMatch); toast.success('기존 면접관을 명부에 다시 추가했습니다.'); return true; }
-      catch (error) { console.error(error); toast.error('면접관을 다시 추가하지 못했습니다.'); return false; }
+      try {
+        await reactivateRoundInterviewer(inactiveMatch);
+        toast.success('기존 면접관을 명부에 다시 추가했습니다.');
+        return true;
+      } catch (error) {
+        console.error(error);
+        toast.error('면접관을 다시 추가하지 못했습니다.');
+        return false;
+      }
     }
-    try { await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }); toast.success('면접관 명부에 추가했습니다.'); return true; }
-    catch (error) { console.error(error); toast.error('면접관을 추가하지 못했습니다.'); return false; }
+    try {
+      await addRoundInterviewer(roundId, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) });
+      toast.success('면접관 명부에 추가했습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error('면접관을 추가하지 못했습니다.');
+      return false;
+    }
   };
 
   const editInterviewer = async (participant: InterviewRoundInterviewer, name: string, email?: string, phone?: string) => {
-    try { await updateInterviewerProfile(participant, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) }); toast.success('면접관 정보를 수정했습니다.'); return true; }
-    catch (error) { console.error(error); toast.error('면접관 정보를 수정하지 못했습니다.'); return false; }
+    try {
+      await updateInterviewerProfile(participant, { name, ...(email ? { email } : {}), ...(phone ? { phone } : {}) });
+      toast.success('면접관 정보를 수정했습니다.');
+      return true;
+    } catch (error) {
+      console.error(error);
+      toast.error('면접관 정보를 수정하지 못했습니다.');
+      return false;
+    }
   };
 
   const saveInterviewerAvailability = async (participantId: string, availability: string[], expectedUpdatedAtMillis?: number) => {
     try {
       if (activeScheduleId) await updateScheduleInterviewerAvailability(participantId, availability, expectedUpdatedAtMillis);
       else await updateRoundInterviewerAvailability(participantId, availability, expectedUpdatedAtMillis);
-      toast.success('면접관 가능시간을 저장했습니다.'); return true;
+      toast.success('면접관 가능시간을 저장했습니다.');
+      return true;
     }
-    catch (error) { console.error(error); toast.error('면접관 가능시간을 저장하지 못했습니다.'); return false; }
-  };
-
-  const saveInterviewerPhone = async (participant: InterviewRoundInterviewer, phone: string) => {
-    try { await updateInterviewerPhone(participant, phone); toast.success('면접관 연락처를 저장했습니다.'); return true; }
-    catch (error) { console.error(error); toast.error('면접관 연락처를 저장하지 못했습니다.'); return false; }
+    catch (error) {
+      console.error(error);
+      toast.error('면접관 가능시간을 저장하지 못했습니다.');
+      return false;
+    }
   };
 
   const removeInterviewer = async (participant: InterviewRoundInterviewer) => {
     if (joinedApplicants.some(applicant => applicant.assignment?.interviewerId === participant.interviewerId && (activeScheduleId == null || applicant.scheduleId === activeScheduleId))) {
-      toast.error('배정된 지원자가 있는 면접관은 먼저 일정을 변경해야 합니다.'); return false;
+      toast.error('배정된 지원자가 있는 면접관은 먼저 일정을 변경해야 합니다.');
+      return false;
     }
     if (activeScheduleId) await removeScheduleInterviewer(participant.id);
     else await removeRoundInterviewer(participant);
-    toast.success(activeScheduleId ? '현재 면접 일정에서 면접관을 제외했습니다.' : '회차에서 면접관을 제외했습니다.'); return true;
+    toast.success(activeScheduleId ? '현재 면접 일정에서 면접관을 제외했습니다.' : '회차에서 면접관을 제외했습니다.');
+    return true;
   };
 
   const assignInterviewer = async (participant: InterviewRoundInterviewer) => {
@@ -624,104 +411,9 @@ export function useInterviewRoundLogic(roundId: string) {
   };
 
 
-  const runAutoAssignment = (mode: AutoAssignmentMode, applicantId?: string) => {
-    if (!activeSchedulingConfig) return null;
-    const schedulingApplicants = activeScheduleId
-      ? joinedApplicants.filter(applicant => applicant.scheduleId === activeScheduleId)
-      : joinedApplicants.filter(applicant => applicant.scheduleId === null);
-    const openChangeRequestApplicantIds = new Set(changeRequests.filter(item => item.status === 'open').map(item => item.applicantId));
-    const result = generateAutoAssignment({
-      applicants: schedulingApplicants.map(applicant => ({
-        id: applicant.id, name: applicant.name, availability: applicant.access?.availability ?? [],
-        autoAssignmentTarget: isActiveInterviewApplicant(applicant)
-          && Boolean(applicant.access?.submittedAt)
-          && (mode !== 'unassigned' || !applicant.assignment),
-        lifecycle: applicant.lifecycle ?? 'active',
-        withdrawn: (applicant.applicationStatus ?? 'active') === 'withdrawn',
-        interviewStatus: openChangeRequestApplicantIds.has(applicant.id)
-          ? 'action_needed'
-          : getInterviewProgressStatus(applicant),
-        assignmentRevision: applicant.assignmentRevision ?? applicant.assignment?.confirmationRevision ?? 0,
-        existingAssignment: applicant.assignment?.slotId ? {
-          slotId: applicant.assignment.slotId, interviewerId: applicant.assignment.interviewerId,
-          interviewerName: applicant.assignment.interviewerName, locked: applicant.assignment.locked,
-          source: applicant.assignment.source, status: applicant.assignment.status,
-          confirmationCurrent: isAssignmentConfirmationCurrent(applicant),
-        } : null,
-      })),
-      interviewers: activeInterviewers.map(interviewer => ({
-        id: interviewer.interviewerId, name: interviewer.displayName, availability: interviewer.availability, active: interviewer.active,
-      })),
-      availabilitySlotMinutes: activeSchedulingConfig.availabilitySlotMinutes,
-      assignmentSlotMinutes: activeSchedulingConfig.assignmentSlotMinutes,
-      mode, ...(applicantId ? { applicantId } : {}),
-    });
-    setAutoDraft(result);
-    return result;
-  };
-
-  const applyAutoDraft = async () => {
-    if (!activeSchedulingConfig || !autoDraft) return false;
-    if (isPending('auto-draft-apply')) return false;
-    const result = await runAction('auto-draft-apply', async () => {
-      await applyInterviewAssignmentProposals(roundId, autoDraft.proposals.filter(proposal => !proposal.preserved).map(proposal => {
-        const parsed = parseSlotId(proposal.slotId)!;
-        const current = joinedApplicantById.get(proposal.applicantId)?.assignment;
-        return {
-          applicantId: proposal.applicantId, slotId: proposal.slotId,
-          startsAt: Timestamp.fromDate(new Date(`${parsed.date}T${parsed.time}:00+09:00`)),
-          durationMinutes: activeSchedulingConfig.assignmentSlotMinutes, interviewerId: proposal.interviewerId,
-          interviewerName: proposal.interviewerName, locked: proposal.locked,
-          source: proposal.preserved ? current?.source ?? 'manual' : 'automatic',
-          status: proposal.preserved ? current?.status ?? 'scheduled' : 'scheduled',
-          expectedAssignmentRevision: proposal.expectedAssignmentRevision,
-        };
-      }), activeSchedule?.id ?? null);
-      setAutoDraft(null);
-      return true;
-    }, {
-      successMessage: '검토한 자동 배정 초안을 반영했습니다.',
-      errorMessage: '자동 배정을 반영하지 못했습니다.',
-      onError: console.error,
-    });
-    return result.succeeded && (result.value ?? false);
-  };
-
-  const changeAssignmentState = async (applicantId: string, patch: Partial<Pick<InterviewAssignment, 'locked' | 'status'>>) => {
-    const key = `assignment-state:${applicantId}`;
-    if (isPending(key)) return false;
-    const previousApplicant = applicantById.get(applicantId);
-    if (!previousApplicant?.assignment) return false;
-    const optimisticApplicant = {
-      ...previousApplicant,
-      assignment: { ...previousApplicant.assignment, ...patch },
-    };
-    setApplicants(current => current.map(item => item.id === applicantId ? optimisticApplicant : item));
-    let actionError: unknown;
-    const result = await runAction(key, async () => {
-      const applicant = joinedApplicantById.get(applicantId);
-      await updateInterviewAssignmentState(
-        applicantId,
-        patch,
-        applicant?.assignmentRevision ?? applicant?.assignment?.confirmationRevision ?? 0,
-        applicant?.updatedAt?.toMillis(),
-      );
-      return true;
-    }, {
-      successMessage: '면접 상태를 변경했습니다.',
-      errorMessage: '면접 상태를 변경하지 못했습니다.',
-      onError: (error) => { actionError = error; console.error(error); },
-    });
-    if (!result.succeeded && !isInterviewRevisionConflict(actionError)) {
-      setApplicants(current => current.map(item => item.id === applicantId
-        ? rollbackOptimisticApplicant(item, optimisticApplicant, previousApplicant)
-        : item));
-    }
-    return result.succeeded && (result.value ?? false);
-  };
-
   const resolveChangeRequest = async (requestId: string, status: 'resolved' | 'dismissed') => {
-    await resolveInterviewChangeRequest(requestId, status); toast.success('변경 요청을 처리했습니다.');
+    await resolveInterviewChangeRequest(requestId, status);
+    toast.success('변경 요청을 처리했습니다.');
   };
 
   const resetApplicantSchedule = async (applicantId: string) => {
@@ -855,22 +547,18 @@ export function useInterviewRoundLogic(roundId: string) {
   };
 
   return {
+    ...assignments,
     round,
     applicants: joinedApplicants,
     filteredApplicants,
-    access,
     interviewers,
     schedules,
     activeSchedule,
     activeScheduleId,
     setActiveScheduleId,
-    scheduleInterviewers: activeScheduleId ? activeInterviewers : [],
     roundScheduleInterviewers,
     activeInterviewers,
     changeRequests,
-    autoDraft,
-    setAutoDraft,
-    aggregateAvailability,
     loading,
     filter,
     setFilter,
@@ -888,21 +576,13 @@ export function useInterviewRoundLogic(roundId: string) {
     editApplicant,
     archiveApplicant,
     markSent,
-    getAssignmentConflict,
-    assignApplicant,
-    clearAssignment,
     applySettings,
     hasInterviewActivity,
     addInterviewer,
     editInterviewer,
     saveInterviewerAvailability,
-    saveInterviewerPhone,
     removeInterviewer,
     assignInterviewer,
-    runAutoAssignment,
-    applyAutoDraft,
-    autoDraftApplying: isPending('auto-draft-apply'),
-    changeAssignmentState,
     resolveChangeRequest,
     resetApplicantSchedule,
     setApplicantWithdrawn,

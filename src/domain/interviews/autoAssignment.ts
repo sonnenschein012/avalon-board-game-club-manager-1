@@ -1,6 +1,6 @@
 import { availabilityToAssignmentCandidates } from './scheduling';
 
-/** `applicant` is the V3 path; bulk modes remain for the existing V2 screen. */
+/** Reassign one applicant or generate a draft for the selected batch. */
 export type AutoAssignmentMode = 'all' | 'unassigned' | 'applicant';
 
 export interface AutoAssignmentExisting {

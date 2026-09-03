@@ -1,4 +1,5 @@
 import type { InterviewApplicant, InterviewProgressStatus } from '../../types';
+import { getApplicantAssignmentRevision } from './interviewTransitions';
 
 export function isActiveInterviewApplicant(applicant: Pick<InterviewApplicant, 'lifecycle' | 'applicationStatus'>) {
   return (applicant.lifecycle ?? 'active') === 'active'
@@ -10,8 +11,7 @@ export function isAssignmentConfirmationCurrent(applicant: Pick<
   'assignment' | 'assignmentRevision' | 'confirmationMessage'
 >) {
   if (!applicant.assignment || !applicant.confirmationMessage?.lastMarkedSentAt) return false;
-  const assignmentRevision = applicant.assignmentRevision ?? applicant.assignment.confirmationRevision ?? 0;
-  return assignmentRevision === (applicant.confirmationMessage.assignmentRevision ?? 0);
+  return getApplicantAssignmentRevision(applicant) === (applicant.confirmationMessage.assignmentRevision ?? 0);
 }
 
 export function getInterviewProgressStatus(applicant: Pick<InterviewApplicant, 'interviewStatus' | 'assignment'>): InterviewProgressStatus {

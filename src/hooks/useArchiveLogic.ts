@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useFirestore } from './useFirestore';
 import { Session, Game, Member } from '../types';
-import { orderBy } from 'firebase/firestore';
 import { getSemester } from '../domain/semester/getSemester';
 import { getAttendanceRanking } from '../domain/stats/getAttendanceRanking';
 import { getPopularGames } from '../domain/stats/getPopularGames';
@@ -12,8 +11,11 @@ import { getStagnationIndex } from '../domain/stats/getStagnationIndex';
 import { getGameMmi } from '../domain/stats/getGameMmi';
 import { getAvailableArchiveSemesters } from '../domain/semester/semesterSelection';
 
+export type ArchiveChartId = 'attendance' | 'newcomers' | 'stagnation';
+export type ArchiveFormulaId = 'newcomers' | 'stagnation' | 'gameMmi';
+
 export function useArchiveLogic() {
-  const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
+  const { data: sessions } = useFirestore<Session>('sessions', 'date', 'desc');
   const { data: games } = useFirestore<Game>('games');
   const { data: members } = useFirestore<Member>('members');
 
@@ -36,42 +38,72 @@ export function useArchiveLogic() {
   const activeMembersCount = activeMemberIds.size;
   const chronologicalSessions = useMemo(() => [...filteredSessions].reverse(), [filteredSessions]);
 
-  const [includeBoardMembers, setIncludeBoardMembers] = useState(false);
-  const [attendanceMetric, setAttendanceMetric] = useState<'count' | 'rate'>('count');
-  const w1Ranking = useMemo(() => getAttendanceRanking(filteredSessions, members, includeBoardMembers), [filteredSessions, members, includeBoardMembers]);
+  const [rankingIncludeBoardMembers, setRankingIncludeBoardMembers] = useState(false);
+  const [attendanceRankingMetric, setAttendanceRankingMetric] = useState<'count' | 'rate'>('count');
+  const attendanceRanking = useMemo(
+    () => getAttendanceRanking(filteredSessions, members, rankingIncludeBoardMembers),
+    [filteredSessions, members, rankingIncludeBoardMembers],
+  );
 
-  const [w2Genres, setW2Genres] = useState<string[]>([]);
-  const [w2Difficulties, setW2Difficulties] = useState<string[]>([]);
-  const w2PopularGames = useMemo(() => getPopularGames(filteredSessions, games, activeMembersCount, w2Genres, w2Difficulties), [filteredSessions, games, activeMembersCount, w2Genres, w2Difficulties]);
+  const [popularGameGenres, setPopularGameGenres] = useState<string[]>([]);
+  const [popularGameDifficulties, setPopularGameDifficulties] = useState<string[]>([]);
+  const popularGames = useMemo(
+    () => getPopularGames(filteredSessions, games, activeMembersCount, popularGameGenres, popularGameDifficulties),
+    [filteredSessions, games, activeMembersCount, popularGameGenres, popularGameDifficulties],
+  );
 
-  const [w3Genres, setW3Genres] = useState<string[]>([]);
-  const [w3Difficulties, setW3Difficulties] = useState<string[]>([]);
-  const [w3IncludeBoardMembers, setW3IncludeBoardMembers] = useState(false);
-  const [w3TargetGames, setW3TargetGames] = useState<string[]>([]);
-  const [w3GameSearchQuery, setW3GameSearchQuery] = useState('');
-  const w3CorePlayers = useMemo(() => getCorePlayers(filteredSessions, games, members, w3Genres, w3Difficulties, w3IncludeBoardMembers, w3TargetGames), [filteredSessions, games, members, w3Genres, w3Difficulties, w3IncludeBoardMembers, w3TargetGames]);
+  const [corePlayerGenres, setCorePlayerGenres] = useState<string[]>([]);
+  const [corePlayerDifficulties, setCorePlayerDifficulties] = useState<string[]>([]);
+  const [corePlayerIncludeBoardMembers, setCorePlayerIncludeBoardMembers] = useState(false);
+  const [corePlayerGameIds, setCorePlayerGameIds] = useState<string[]>([]);
+  const [corePlayerGameSearch, setCorePlayerGameSearch] = useState('');
+  const corePlayers = useMemo(
+    () => getCorePlayers(
+      filteredSessions, games, members, corePlayerGenres, corePlayerDifficulties,
+      corePlayerIncludeBoardMembers, corePlayerGameIds,
+    ),
+    [filteredSessions, games, members, corePlayerGenres, corePlayerDifficulties, corePlayerIncludeBoardMembers, corePlayerGameIds],
+  );
 
-  const [expandedChart, setExpandedChart] = useState<'w4' | 'w5' | 'w6' | null>(null);
-  const [formulaModal, setFormulaModal] = useState<'w5' | 'w6' | 'w7' | null>(null);
+  const [expandedChart, setExpandedChart] = useState<ArchiveChartId | null>(null);
+  const [formulaModal, setFormulaModal] = useState<ArchiveFormulaId | null>(null);
 
-  const [w4Metric, setW4Metric] = useState<'count' | 'rate'>('count');
+  const [attendanceTrendMetric, setAttendanceTrendMetric] = useState<'count' | 'rate'>('count');
   const isAllSemesters = selectedSemester === '전체';
-  const w4Data = useMemo(() => getAttendanceTrend(chronologicalSessions, members, isAllSemesters), [chronologicalSessions, members, isAllSemesters]);
+  const attendanceTrend = useMemo(
+    () => getAttendanceTrend(chronologicalSessions, members, isAllSemesters),
+    [chronologicalSessions, members, isAllSemesters],
+  );
 
-  const [w5Normalize, setW5Normalize] = useState<boolean>(false);
-  const w5Data = useMemo(() => getNewcomerTrend(chronologicalSessions, members, w5Normalize, isAllSemesters), [chronologicalSessions, members, w5Normalize, isAllSemesters]);
+  const [normalizeNewcomerTrend, setNormalizeNewcomerTrend] = useState(false);
+  const newcomerTrend = useMemo(
+    () => getNewcomerTrend(chronologicalSessions, members, normalizeNewcomerTrend, isAllSemesters),
+    [chronologicalSessions, members, normalizeNewcomerTrend, isAllSemesters],
+  );
 
-  const w6Data = useMemo(() => getStagnationIndex(chronologicalSessions, isAllSemesters), [chronologicalSessions, isAllSemesters]);
-  const w7MMI = useMemo(() => getGameMmi(filteredSessions, activeMembersCount, games), [filteredSessions, activeMembersCount, games]);
+  const stagnationTrend = useMemo(
+    () => getStagnationIndex(chronologicalSessions, isAllSemesters),
+    [chronologicalSessions, isAllSemesters],
+  );
+  const gameMmi = useMemo(
+    () => getGameMmi(filteredSessions, activeMembersCount, games),
+    [filteredSessions, activeMembersCount, games],
+  );
 
   return {
     sessions, games, members,
     selectedSemester, setSelectedSemester, availableSemesters, filteredSessions,
-    includeBoardMembers, setIncludeBoardMembers, attendanceMetric, setAttendanceMetric, w1Ranking,
-    w2Genres, setW2Genres, w2Difficulties, setW2Difficulties, w2PopularGames,
-    w3Genres, setW3Genres, w3Difficulties, setW3Difficulties, w3IncludeBoardMembers, setW3IncludeBoardMembers, w3TargetGames, setW3TargetGames, w3GameSearchQuery, setW3GameSearchQuery, w3CorePlayers,
+    rankingIncludeBoardMembers, setRankingIncludeBoardMembers,
+    attendanceRankingMetric, setAttendanceRankingMetric, attendanceRanking,
+    popularGameGenres, setPopularGameGenres,
+    popularGameDifficulties, setPopularGameDifficulties, popularGames,
+    corePlayerGenres, setCorePlayerGenres,
+    corePlayerDifficulties, setCorePlayerDifficulties,
+    corePlayerIncludeBoardMembers, setCorePlayerIncludeBoardMembers,
+    corePlayerGameIds, setCorePlayerGameIds,
+    corePlayerGameSearch, setCorePlayerGameSearch, corePlayers,
     expandedChart, setExpandedChart, formulaModal, setFormulaModal,
-    w4Metric, setW4Metric, w4Data,
-    w5Normalize, setW5Normalize, w5Data, w6Data, w7MMI,
+    attendanceTrendMetric, setAttendanceTrendMetric, attendanceTrend,
+    normalizeNewcomerTrend, setNormalizeNewcomerTrend, newcomerTrend, stagnationTrend, gameMmi,
   };
 }

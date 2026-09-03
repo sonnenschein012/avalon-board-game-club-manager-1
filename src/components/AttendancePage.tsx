@@ -17,7 +17,6 @@ interface AttendancePageProps {
 export default function AttendancePage({ onMoveToRecord, isAdminModeActive = false }: AttendancePageProps) {
   const {
     attendees,
-    members,
     importing,
     activeRequestId,
     setActiveRequestId,
@@ -43,10 +42,10 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
     isDeleteModalOpen,
     setIsDeleteModalOpen,
 
+    getMember,
     getMemberFromInfo,
     memberAttendanceCount,
-    memberPairLastSession,
-    memberPairRecentCounts,
+    costContext,
     calculateGroupAverageAttendance,
     calculateGroupAverageStudentId,
     getReunionWarnings,
@@ -177,11 +176,8 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
         isOpen={isCostModalOpen} 
         onClose={() => setIsCostModalOpen(false)} 
         groups={groups} 
-        attendees={attendees} 
-        members={members} 
-        memberAttendanceCount={memberAttendanceCount} 
-        memberPairRecentCounts={memberPairRecentCounts} 
-        memberPairLastSession={memberPairLastSession}
+        getMember={getMember}
+        context={costContext}
       />
     </div>
   );

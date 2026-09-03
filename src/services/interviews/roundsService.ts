@@ -54,12 +54,6 @@ export function subscribeInterviewRounds(
   );
 }
 
-export async function getInterviewRound(roundId: string): Promise<InterviewRound | null> {
-  if (!isSingleDocumentId(roundId)) return null;
-  const snapshot = await getDoc(doc(db, 'interviewRounds', roundId));
-  return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as InterviewRound) : null;
-}
-
 export function subscribeInterviewRound(
   roundId: string,
   onData: (round: InterviewRound | null) => void,

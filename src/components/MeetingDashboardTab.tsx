@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { AlertCircle, Settings2, RefreshCw } from 'lucide-react';
-import { SessionGroup, Member, Game, Attendee } from '../types';
+import { Member, Game, Attendee } from '../types';
+import type { DailyPlanning } from '../domain/attendance/dailyPlanning';
 import { Reason, RecMode } from '../domain/recommendation/recommendGames';
 
 interface MeetingDashboardTabProps {
-  dailyPlanning: {name: string, date: string, groups: SessionGroup[]};
+  dailyPlanning: DailyPlanning;
   members: Member[];
   games: Game[];
   editingGroupId: string | null;

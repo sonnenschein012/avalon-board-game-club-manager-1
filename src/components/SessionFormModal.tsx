@@ -1,7 +1,7 @@
 import React from 'react';
 import { Loader2, Save, Plus, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Member, Game, SessionGroup } from '../types';
+import { Member, Game, StoredSessionGroup } from '../types';
 import { cn } from '../lib/utils';
 import { DndContext, useDraggable, useDroppable, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -25,8 +25,8 @@ export interface SessionData {
 export interface CoreData {
   members: Member[];
   games: Game[];
-  groups: SessionGroup[];
-  setGroups: React.Dispatch<React.SetStateAction<SessionGroup[]>>;
+  groups: StoredSessionGroup[];
+  setGroups: React.Dispatch<React.SetStateAction<StoredSessionGroup[]>>;
   unassignedIds: string[];
 }
 

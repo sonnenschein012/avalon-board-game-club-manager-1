@@ -12,15 +12,16 @@ import {
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import { commitBatchesInChunks } from '../../lib/chunkBatch';
-import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
-import { getAssignmentScheduleImpact } from '../../domain/interviews/scheduling';
-import { compareInterviewSchedules } from '../../domain/interviews/scheduleOrder';
+import { getInterviewProgressStatus } from '../../domain/interviews/interviewPolicy';
+import { getApplicantAssignmentRevision } from '../../domain/interviews/interviewTransitions';
 import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
-import type { InterviewAccess, InterviewApplicant, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../../types';
+import { compareInterviewSchedules } from '../../domain/interviews/scheduleOrder';
+import { getAssignmentScheduleImpact } from '../../domain/interviews/scheduling';
+import { commitBatchesInChunks } from '../../lib/chunkBatch';
+import { db } from '../../lib/firebase';
+import type { InterviewAccess, InterviewApplicant, InterviewRoundInterviewer, InterviewSchedule } from '../../types';
 import type { InterviewScheduleDraft } from './models';
-import { actorEmail, adminScheduleData, currentAssignmentRevision, getAssignmentLockId, mapSnapshot, publicScheduleData } from './shared';
+import { actorEmail, adminScheduleData, getAssignmentLockId, mapSnapshot, publicScheduleData } from './shared';
 
 const MAX_APPLICANTS_PER_SCHEDULE_MOVE = 100;
 
@@ -34,16 +35,6 @@ export function subscribeInterviewSchedules(
     snapshot => onData(mapSnapshot<InterviewSchedule>(snapshot).sort(compareInterviewSchedules)),
     onError,
   );
-}
-
-export function subscribeScheduleInterviewers(
-  scheduleId: string,
-  onData: (items: InterviewScheduleInterviewer[]) => void,
-  onError: (error: Error) => void,
-): Unsubscribe {
-  return onSnapshot(query(collection(db, 'interviewScheduleInterviewers'), where('scheduleId', '==', scheduleId)), snapshot => {
-    onData(mapSnapshot<InterviewScheduleInterviewer>(snapshot).sort((left, right) => left.displayName.localeCompare(right.displayName)));
-  }, onError);
 }
 
 export async function assignRoundInterviewerToSchedule(
@@ -120,19 +111,6 @@ export async function createInterviewSchedule(roundId: string, draft: InterviewS
   return scheduleRef.id;
 }
 
-export async function updateInterviewSchedule(schedule: InterviewSchedule, draft: InterviewScheduleDraft): Promise<void> {
-  const scheduleRef = doc(db, 'interviewSchedules', schedule.id);
-  await runTransaction(db, async transaction => {
-    const snapshot = await transaction.get(scheduleRef);
-    if (!snapshot.exists()) throw new Error('면접 일정을 찾을 수 없습니다.');
-    const current = snapshot.data() as InterviewSchedule;
-    assertExpectedRevision(current.scheduleRevision, schedule.scheduleRevision, '면접 일정 설정');
-    const nextRevision = current.scheduleRevision + 1;
-    transaction.update(scheduleRef, adminScheduleData(schedule.roundId, draft, current.order, nextRevision));
-    transaction.set(doc(db, 'interviewPublicSchedules', schedule.id), publicScheduleData(schedule.roundId, draft, nextRevision));
-  });
-}
-
 /** Applies a schedule edit while removing responses and assignments that no
  * longer fit the edited slots. The transaction prevents overwriting a public
  * response submitted at the same time as the admin save. */
@@ -190,7 +168,7 @@ export async function applyConcreteInterviewScheduleChange(
     assignmentImpact.affectedAssignments.forEach(impact => {
       const item = applicantsById.get(impact.applicantId);
       if (!item) return;
-      const currentRevision = currentAssignmentRevision(item.applicant);
+      const currentRevision = getApplicantAssignmentRevision(item.applicant);
       if (item.assignment?.slotId) transaction.delete(doc(db, 'interviewAssignmentLocks', getAssignmentLockId(roundId, item.assignment)));
       transaction.update(item.ref, {
         assignment: null,
@@ -308,7 +286,7 @@ export async function assignApplicantsToInterviewSchedule(
       moved += 1;
       const accessRef = doc(db, 'interviewAccess', applicant.accessToken);
       const previousAssignment = applicant.assignment ?? null;
-      const previousRevision = currentAssignmentRevision(applicant);
+      const previousRevision = getApplicantAssignmentRevision(applicant);
       const nextRevision = previousAssignment ? previousRevision + 1 : previousRevision;
       const nextScheduleRevision = (applicant.scheduleAssignmentRevision ?? 0) + 1;
       if (previousAssignment?.slotId) transaction.delete(doc(db, 'interviewAssignmentLocks', getAssignmentLockId(roundId, previousAssignment)));

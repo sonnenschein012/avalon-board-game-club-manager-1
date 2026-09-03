@@ -1,5 +1,5 @@
-import type { InterviewAccess, InterviewApplicant } from '../../types';
-import { getInterviewProgressStatus, isAssignmentConfirmationCurrent } from './interviewV3Policy';
+import type { InterviewAccess,InterviewApplicant } from '../../types';
+import { getInterviewProgressStatus,isAssignmentConfirmationCurrent } from './interviewPolicy';
 
 export const APPLICANT_JOURNEY_STATIONS = [
   { id: 'notice', label: '안내', fullLabel: '조사 안내' },

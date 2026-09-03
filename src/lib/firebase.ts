@@ -15,7 +15,7 @@ import { connectFirestoreEmulator, getFirestore, doc, getDocFromServer } from 'f
 import firebaseConfig from '@firebase-config';
 
 export const isDemoMode = import.meta.env.MODE === 'demo';
-export const DEMO_ADMIN_EMAIL = 'demo.admin@avalon.local';
+const DEMO_ADMIN_EMAIL = 'demo.admin@avalon.local';
 const DEMO_ADMIN_PASSWORD = 'local-demo-only';
 
 if (isDemoMode && firebaseConfig.projectId !== 'demo-avalon-manager') {
@@ -27,7 +27,7 @@ export const db = firebaseConfig.firestoreDatabaseId === '(default)'
   ? getFirestore(app)
   : getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+const googleProvider = new GoogleAuthProvider();
 
 if (isDemoMode) {
   connectFirestoreEmulator(db, '127.0.0.1', 8080);
@@ -141,18 +141,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo, null, 2));
-}
-
-// Connection test
-export async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log("Firebase connection successful");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration or network status.");
-    }
-  }
 }
 
 export async function checkAdminStatus(email: string): Promise<{ isAdmin: boolean; isMaster: boolean }> {

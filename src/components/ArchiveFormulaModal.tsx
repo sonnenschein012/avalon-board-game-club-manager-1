@@ -1,10 +1,11 @@
 import React from 'react';
+import type { ArchiveFormulaId } from '../hooks/useArchiveLogic';
 import { Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ArchiveFormulaModalProps {
-  formulaModal: 'w5' | 'w6' | 'w7' | null;
-  setFormulaModal: (m: 'w5' | 'w6' | 'w7' | null) => void;
+  formulaModal: ArchiveFormulaId | null;
+  setFormulaModal: (m: ArchiveFormulaId | null) => void;
 }
 
 export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: ArchiveFormulaModalProps) {
@@ -28,9 +29,9 @@ export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: A
             <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50">
               <h3 className="font-bold text-xl text-navy flex items-center gap-2">
                 <Info className="text-blue-500" size={24} />
-                {formulaModal === 'w5' && '신입 유입 및 정착 지수 (보정 시)'}
-                {formulaModal === 'w6' && '모임 고착화 지수'}
-                {formulaModal === 'w7' && '경험 독점 지수'}
+                {formulaModal === 'newcomers' && '신입 유입 및 정착 지수 (보정 시)'}
+                {formulaModal === 'stagnation' && '모임 고착화 지수'}
+                {formulaModal === 'gameMmi' && '경험 독점 지수'}
               </h3>
               <button 
                 onClick={() => setFormulaModal(null)} 
@@ -40,7 +41,7 @@ export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: A
               </button>
             </div>
             <div className="p-6 md:p-8 space-y-8 bg-white min-h-0">
-              {formulaModal === 'w5' && (
+              {formulaModal === 'newcomers' && (
                 <>
                   <div className="space-y-4">
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest">연산 공식</h4>
@@ -61,7 +62,7 @@ export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: A
                   </div>
                 </>
               )}
-              {formulaModal === 'w6' && (
+              {formulaModal === 'stagnation' && (
                 <>
                   <div className="space-y-4">
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest">연산 공식</h4>
@@ -81,7 +82,7 @@ export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: A
                   </div>
                 </>
               )}
-              {formulaModal === 'w7' && (
+              {formulaModal === 'gameMmi' && (
                 <>
                   <div className="space-y-4">
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest">연산 공식</h4>

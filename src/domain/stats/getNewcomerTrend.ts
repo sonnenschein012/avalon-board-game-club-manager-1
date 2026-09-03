@@ -5,7 +5,7 @@ import { getActiveMembersAtSemester, getNewbieMembersAtSemester } from './getSem
 export function getNewcomerTrend(
   chronologicalSessions: Session[],
   members: Member[],
-  w5Normalize: boolean,
+  normalize: boolean,
   includeYear = false
 ) {
   const activeCounts = new Map<string, number>();
@@ -32,7 +32,7 @@ export function getNewcomerTrend(
     const existingCount = totalSessionAttendees - newbieCount;
     const dailyNewbieRate = newbieCount / totalSessionAttendees;
     
-    if (w5Normalize) {
+    if (normalize) {
       const totalActiveMembersScope = activeCounts.get(sSemester) ?? getActiveMembersAtSemester(members, sSemester);
       activeCounts.set(sSemester, totalActiveMembersScope);
       const totalActiveNewbiesScope = newbieCounts.get(sSemester) ?? getNewbieMembersAtSemester(members, sSemester);

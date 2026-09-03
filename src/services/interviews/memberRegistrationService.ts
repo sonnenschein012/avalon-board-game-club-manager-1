@@ -4,12 +4,12 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import {
   defaultMemberNickname,
   formatMemberPhone,
   normalizeStudentYear,
-} from '../../domain/interviews/memberRegistration';
+} from '../../domain/members/memberIdentity';
+import { db } from '../../lib/firebase';
 import type { InterviewApplicant, Member } from '../../types';
 import { actorEmail } from './shared';
 

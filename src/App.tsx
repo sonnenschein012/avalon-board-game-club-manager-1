@@ -1,5 +1,5 @@
 import React, { Component, useState, useEffect } from 'react';
-import { auth, signInWithGoogle, logout, testConnection, checkAdminStatus, initializeDemoSession, isDemoMode } from './lib/firebase';
+import { auth, signInWithGoogle, logout, checkAdminStatus, initializeDemoSession, isDemoMode } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Users, Dices, FileSpreadsheet, History, ChevronRight, PlayCircle, Settings, BarChart, CalendarClock, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -111,10 +111,6 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!isDemoMode && !isPublicInterviewRoute) {
-      testConnection();
-    }
-    
     const handleAdminModeToggle = () => {
       setIsAdminModeActive(prev => {
         const next = !prev;
@@ -140,9 +136,6 @@ export default function App() {
           await initializeDemoSession();
         }
         if (cancelled) return;
-        if (isDemoMode && !isPublicInterviewRoute) {
-          await testConnection();
-        }
       } catch (error) {
         console.error('Local demo sign-in failed.', error);
         if (!cancelled) {

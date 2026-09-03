@@ -15,7 +15,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
   const {
     filteredGames,
     isAdding, setIsAdding,
-    editingId, setEditingId,
+    editingId,
     formData, setFormData,
     importing,
     itemToDelete, setItemToDelete,
@@ -31,6 +31,8 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
     handleSubmit,
     handleDelete,
     handleDeleteAll,
+    startAdding,
+    startEditing,
     gameSaving,
     gameDeleting,
     gamesDeletingAll,
@@ -42,7 +44,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
         title="게임 라이브러리" 
         subtitle="Database / Games Catalog" 
         icon={Dices}
-        stats={{ label: "총 게임 수", value: filteredGames.length }} // Or pass total games if unfiltered length is needed
+        stats={{ label: "총 게임 수", value: filteredGames.length }}
         actions={
           <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto justify-end">
             {isAdminModeActive && (
@@ -62,7 +64,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
               </button>
             )}
             <button 
-              onClick={() => { setIsAdding(true); setEditingId(null); setFormData({ title: '', minPlayers: 2, maxPlayers: 4, bestMinPlayers: 2, bestMaxPlayers: 4, complexity: 1.0, memo: '', genres: [] as string[] }); }}
+              onClick={startAdding}
               className="flex items-center gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-navy hover:bg-gold text-white rounded-xl transition-all shadow-lg text-xs font-bold"
             >
               <Plus size={16} className="shrink-0" /> <span className="hidden sm:inline">게임 추가</span><span className="sm:hidden">추가</span>
@@ -99,9 +101,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
       <GameList
         filteredGames={filteredGames}
         getPlayCount={getPlayCount}
-        setEditingId={setEditingId}
-        setFormData={setFormData}
-        setIsAdding={setIsAdding}
+        onEdit={startEditing}
         setItemToDelete={setItemToDelete}
       />
       

@@ -1,5 +1,5 @@
 import { Archive, CalendarDays, CircleAlert, Clock3, Pencil, Users } from 'lucide-react';
-import { getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
+import { getInterviewProgressStatus } from '../domain/interviews/interviewPolicy';
 import { getInterviewScheduleEndDate, getInterviewScheduleStartDate } from '../domain/interviews/scheduleOrder';
 import type { InterviewApplicantWithAccess, InterviewSchedule } from '../types';
 

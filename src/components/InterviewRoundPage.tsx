@@ -1,33 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Archive, ArrowDownAZ, ArrowLeft, ArrowUpAZ, CalendarClock, Copy, Download, FileUp, Loader2, MessageSquare, RotateCcw, Search, Settings, UserMinus, UserPlus, Users } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
 import Papa from 'papaparse';
+import { Archive, ArrowDownAZ, ArrowLeft, ArrowUpAZ, CalendarClock, Copy, Download, FileUp, Loader2, MessageSquare, RotateCcw, Search, Settings, UserMinus, UserPlus, Users } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import PageHeader from './PageHeader';
+import type { InterviewApplicantFilter } from '../domain/interviews/applicantFilter';
+import { getApplicantJourney } from '../domain/interviews/applicantJourney';
+import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interviews/applicantSort';
+import { isActiveInterviewApplicant } from '../domain/interviews/interviewPolicy';
+import { haveInterviewQuestionsChanged } from '../domain/interviews/interviewQuestions';
+import { parseSlotId } from '../domain/interviews/scheduling';
+import { useEdgeAutoScroll } from '../hooks/useEdgeAutoScroll';
+import { useInterviewRoundLogic } from '../hooks/useInterviewRoundLogic';
+import { downloadCsv } from '../lib/downloadCsv';
+import type { InterviewRoundDraft, InterviewScheduleDraft } from '../services/interviewsService';
+import type { InterviewApplicantWithAccess } from '../types';
 import ApplicantCsvImportModal from './ApplicantCsvImportModal';
 import ApplicantDetailModal from './ApplicantDetailModal';
-import InterviewRoundFormModal from './InterviewRoundFormModal';
-import InterviewRoundDeleteModal from './InterviewRoundDeleteModal';
 import ApplicantFormModal from './ApplicantFormModal';
-import InterviewersPanel from './InterviewersPanel';
-import InterviewerDashboard from './InterviewerDashboard';
-import InterviewSchedulePanel from './InterviewSchedulePanel';
-import InterviewSchedulesOverview from './InterviewSchedulesOverview';
-import InterviewScheduleFormModal from './InterviewScheduleFormModal';
-import InterviewScheduleAssignmentModal from './InterviewScheduleAssignmentModal';
-import InterviewScheduleSelector from './InterviewScheduleSelector';
-import SelectionPanel from './SelectionPanel';
-import MemberRegistrationPanel from './MemberRegistrationPanel';
-import { useInterviewRoundLogic, type InterviewApplicantFilter } from '../hooks/useInterviewRoundLogic';
-import { parseSlotId } from '../domain/interviews/scheduling';
-import type { InterviewRoundDraft, InterviewScheduleDraft } from '../services/interviewsService';
-import { haveInterviewQuestionsChanged } from '../domain/interviews/interviewQuestions';
-import type { InterviewApplicantWithAccess } from '../types';
-import { sortInterviewApplicants, type ApplicantSortKey } from '../domain/interviews/applicantSort';
-import { getApplicantJourney } from '../domain/interviews/applicantJourney';
-import { isActiveInterviewApplicant } from '../domain/interviews/interviewV3Policy';
 import ApplicantJourney from './ApplicantJourney';
-import { useEdgeAutoScroll } from '../hooks/useEdgeAutoScroll';
+import InterviewerDashboard from './InterviewerDashboard';
+import InterviewersPanel from './InterviewersPanel';
+import InterviewRoundDeleteModal from './InterviewRoundDeleteModal';
+import InterviewRoundFormModal from './InterviewRoundFormModal';
+import InterviewScheduleAssignmentModal from './InterviewScheduleAssignmentModal';
+import InterviewScheduleFormModal from './InterviewScheduleFormModal';
+import InterviewSchedulePanel from './InterviewSchedulePanel';
+import InterviewScheduleSelector from './InterviewScheduleSelector';
+import InterviewSchedulesOverview from './InterviewSchedulesOverview';
+import MemberRegistrationPanel from './MemberRegistrationPanel';
+import PageHeader from './PageHeader';
+import SelectionPanel from './SelectionPanel';
 
 type Tab = 'overview' | 'applicants' | 'schedule' | 'interviewers' | 'progress' | 'selection' | 'member-registration' | 'settings';
 const TABS: Array<{ id: Tab; label: string }> = [
@@ -68,16 +70,6 @@ function formatAssignment(applicant: InterviewApplicantWithAccess) {
   if (!applicant.assignment) return '';
   return applicant.assignment.slotId ? `${formatSlot(applicant.assignment.slotId)} · ${applicant.assignment.interviewerName}` : applicant.assignment.startsAt.toDate().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 }
-function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
-  const csv = Papa.unparse(rows, { escapeFormulae: true });
-  const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function InterviewRoundPage({ isAdminModeActive = false }: { isAdminModeActive?: boolean }) {
   const { roundId = '' } = useParams();
   const navigate = useNavigate();
@@ -157,14 +149,14 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
   const round = logic.round;
   const scheduleViewRound: typeof round = activeSchedule
     ? {
-        ...round,
-        ...activeSchedule,
-        id: round.id,
-        status: activeSchedule.status === 'archived' ? 'closed' : activeSchedule.status,
-        schemaVersion: round.schemaVersion,
-        messageTemplates: round.messageTemplates,
-        interviewQuestions: round.interviewQuestions,
-      }
+      ...round,
+      ...activeSchedule,
+      id: round.id,
+      status: activeSchedule.status === 'archived' ? 'closed' : activeSchedule.status,
+      schemaVersion: round.schemaVersion,
+      messageTemplates: round.messageTemplates,
+      interviewQuestions: round.interviewQuestions,
+    }
     : round;
   const toggleApplicantSelection = (applicantId: string, selected: boolean) =>
     setSelectedApplicantIds((current) => {
@@ -250,7 +242,7 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
     setExporting(true);
     try {
       const { filename, rows } = await logic.getApplicantExport();
-      downloadCsv(filename, rows);
+      downloadCsv(filename, Papa.unparse(rows, { escapeFormulae: true }));
       toast.success(`${rows.length}명의 지원자 정보를 내보냈습니다.`);
     } catch (error) {
       console.error(error);

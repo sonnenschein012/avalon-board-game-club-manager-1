@@ -1,18 +1,12 @@
 import { Session, Game } from '../../types';
-
-export const DIFFICULTY_RANGES = [
-  { label: '1점대', match: (c: number) => c >= 1 && c < 2 },
-  { label: '2점대', match: (c: number) => c >= 2 && c < 3 },
-  { label: '3점대', match: (c: number) => c >= 3 && c < 4 },
-  { label: '4점대 이상', match: (c: number) => c >= 4 }
-];
+import { matchesArchiveGameFilters } from './archiveGameFilters';
 
 export function getPopularGames(
   filteredSessions: Session[],
   games: Game[],
   activeMembersCount: number,
-  w2Genres: string[],
-  w2Difficulties: string[]
+  genres: string[],
+  difficulties: string[]
 ) {
   const playCounts: Record<string, number> = {};
   const uniquePlayers: Record<string, Set<string>> = {};
@@ -27,7 +21,7 @@ export function getPopularGames(
     });
   });
 
-  let result = Object.entries(playCounts)
+  return Object.entries(playCounts)
     .map(([gameId, count]) => {
       const game = games.find(g => g.id === gameId);
       const uniqueCount = uniquePlayers[gameId]?.size || 0;
@@ -35,20 +29,6 @@ export function getPopularGames(
       const fixation = Math.round(fixationRaw * 10) / 10;
       return { gameId, count, uniqueCount, fixation, game };
     })
-    .filter(x => x.game);
-
-  if (w2Genres.length > 0) {
-    result = result.filter(x => x.game?.genres?.some(g => w2Genres.includes(g)));
-  }
-  if (w2Difficulties.length > 0) {
-    result = result.filter(x => {
-      const diff = x.game?.complexity || 0;
-      return w2Difficulties.some(diffLabel => {
-        const range = DIFFICULTY_RANGES.find(r => r.label === diffLabel);
-        return range ? range.match(diff) : false;
-      });
-    });
-  }
-
-  return result.sort((a, b) => b.count - a.count);
+    .filter(({ game }) => game && matchesArchiveGameFilters(game, genres, difficulties))
+    .sort((a, b) => b.count - a.count);
 }

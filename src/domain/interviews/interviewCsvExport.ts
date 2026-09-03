@@ -1,3 +1,4 @@
+import { INTERVIEW_RATING_LABELS } from './interviewRatings';
 import type {
   InterviewApplicant,
   InterviewApplicantWithAccess,
@@ -9,6 +10,7 @@ import type {
   InterviewRecordEvent,
   InterviewRound,
 } from '../../types';
+import { isAssignmentConfirmationCurrent } from './interviewPolicy';
 
 export interface InterviewCsvExportInput {
   round: InterviewRound;
@@ -21,14 +23,6 @@ export interface InterviewCsvExportInput {
 }
 
 type CsvRow = Record<string, string>;
-
-const RATING_LABELS: Record<InterviewOverallRating, string> = {
-  strongly_recommend: '적극 추천',
-  recommend: '추천',
-  neutral: '중립',
-  not_recommend: '비추천',
-  strongly_not_recommend: '적극 비추천',
-};
 
 const ASSIGNMENT_STATUS_LABELS: Record<NonNullable<InterviewAssignment>['status'], string> = {
   scheduled: '시간 지정 · 안내 전',
@@ -65,7 +59,7 @@ function formatSlot(slot: string | undefined) {
 }
 
 function formatRating(value: InterviewOverallRating | null | undefined) {
-  return value ? RATING_LABELS[value] : '';
+  return value ? INTERVIEW_RATING_LABELS[value] : '';
 }
 
 function serialize(value: unknown): string {
@@ -139,9 +133,7 @@ export function buildInterviewCsvRows(input: InterviewCsvExportInput): CsvRow[] 
     const assignmentEvents = historyForApplicant(input.assignmentEvents, applicant.id, event => event.createdAt);
     const recordEvents = historyForApplicant(input.recordEvents, applicant.id, event => event.createdAt);
     const changeRequests = historyForApplicant(input.changeRequests, applicant.id, request => request.requestedAt);
-    const currentAssignment = applicant.assignment;
-    const currentConfirmation = Boolean(currentAssignment && applicant.confirmationMessage?.lastMarkedSentAt)
-      && (applicant.confirmationMessage.assignmentRevision ?? 0) === (applicant.assignmentRevision ?? currentAssignment?.confirmationRevision ?? 0);
+    const currentConfirmation = isAssignmentConfirmationCurrent(applicant);
 
     return {
       '회차명': input.round.name,

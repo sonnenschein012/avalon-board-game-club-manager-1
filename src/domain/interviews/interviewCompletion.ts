@@ -1,9 +1,6 @@
+import { OVERALL_RATINGS } from './interviewRatings';
 import type { InterviewApplicant, InterviewNote, InterviewOverallRating } from '../../types';
-import { getInterviewProgressStatus, isActiveInterviewApplicant } from './interviewV3Policy';
-
-const OVERALL_RATINGS: InterviewOverallRating[] = [
-  'strongly_recommend', 'recommend', 'neutral', 'not_recommend', 'strongly_not_recommend',
-];
+import { getInterviewProgressStatus, isActiveInterviewApplicant } from './interviewPolicy';
 
 export interface InterviewCompletionDraft {
   roundId: string;
@@ -13,7 +10,6 @@ export interface InterviewCompletionDraft {
   answers?: Record<string, string>;
   overallRating?: InterviewOverallRating | null;
 }
-
 export function prepareInterviewCompletion(
   applicant: InterviewApplicant,
   existingNote: InterviewNote | null,
@@ -54,5 +50,3 @@ export function prepareInterviewReopen(applicant: InterviewApplicant, confirmati
     },
   };
 }
-
-export { OVERALL_RATINGS };

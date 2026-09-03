@@ -14,7 +14,7 @@ import {
 import { AlertTriangle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Lock, RotateCcw, Trash2, Unlock } from 'lucide-react';
 import type { AutoAssignmentProposal, AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { availabilityToAssignmentCandidates, parseSlotId } from '../domain/interviews/scheduling';
-import { canAppearInSchedule, getInterviewProgressStatus } from '../domain/interviews/interviewV3Policy';
+import { canAppearInSchedule, getInterviewProgressStatus } from '../domain/interviews/interviewPolicy';
 import type { InterviewApplicantWithAccess } from '../types';
 import type { InterviewAssignment, InterviewChangeRequest, InterviewRound, InterviewRoundInterviewer } from '../types';
 import AutoAssignmentPanel from './AutoAssignmentPanel';

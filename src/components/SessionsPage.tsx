@@ -41,9 +41,11 @@ export default function SessionsPage({ isAdminModeActive = false }: SessionsPage
     handleSave,
     handleEdit,
     handleDelete,
+    handleSaveGroupGames,
     handleClose,
     sessionSaving,
     sessionDeleting,
+    groupGamesSaving,
   } = useSessionsLogic();
 
   return (
@@ -129,6 +131,8 @@ export default function SessionsPage({ isAdminModeActive = false }: SessionsPage
           group={editingGroupInfo.group}
           games={games}
           onClose={() => setEditingGroupInfo(null)}
+          onSave={gameIds => handleSaveGroupGames(editingGroupInfo.session.id, editingGroupInfo.group.id, gameIds)}
+          isSaving={groupGamesSaving}
         />
       )}
 

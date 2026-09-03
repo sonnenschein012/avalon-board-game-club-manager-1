@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Award, CheckCircle2, Copy, Loader2, MessageSquare, MessageSquareText, RotateCcw, X, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useInterviewNoteLogic } from '../hooks/useInterviewNoteLogic';
 import { renderInterviewMessage, resolveInterviewMessageTemplates } from '../domain/interviews/messages';
-import type { InterviewApplicantWithAccess } from '../types';
-import type { InterviewOverallRating, InterviewRound, InterviewSelectionStatus } from '../types';
+import { INTERVIEW_RATING_LABELS, OVERALL_RATINGS } from '../domain/interviews/interviewRatings';
+import type {
+  InterviewApplicantWithAccess,
+  InterviewOverallRating,
+  InterviewRound,
+  InterviewSelectionStatus,
+} from '../types';
+import { getSelectionDecisionButtonClass, type SelectionDecision } from './selectionDecisionStyles';
 
 export interface SelectionDetailModalProps {
   applicant: InterviewApplicantWithAccess | null;
@@ -16,32 +22,19 @@ export interface SelectionDetailModalProps {
   onReopenCompletedInterview: (applicantId: string) => Promise<boolean>;
 }
 
-const RATINGS: Record<InterviewOverallRating, { label: string; className: string }> = {
-  strongly_recommend: { label: '적극 추천', className: 'border-slate-200 bg-white text-navy' },
-  recommend: { label: '추천', className: 'border-slate-200 bg-white text-navy' },
-  neutral: { label: '중립', className: 'border-slate-200 bg-slate-50 text-slate-700' },
-  not_recommend: { label: '비추천', className: 'border-slate-200 bg-white text-slate-700' },
-  strongly_not_recommend: { label: '적극 비추천', className: 'border-slate-200 bg-white text-slate-700' },
+const RATING_STYLES: Record<InterviewOverallRating, string> = {
+  strongly_recommend: 'border-slate-200 bg-white text-navy',
+  recommend: 'border-slate-200 bg-white text-navy',
+  neutral: 'border-slate-200 bg-slate-50 text-slate-700',
+  not_recommend: 'border-slate-200 bg-white text-slate-700',
+  strongly_not_recommend: 'border-slate-200 bg-white text-slate-700',
 };
 
-const SELECTIONS: Record<InterviewSelectionStatus, string> = { pending: '미결정', selected: '선발', rejected: '미선발' };
-
-export type SelectionDecision = Exclude<InterviewSelectionStatus, 'pending'>;
-
-const DECISION_BUTTON_STYLES: Record<SelectionDecision, { active: string; inactive: string }> = {
-  rejected: {
-    active: 'border-red-600 bg-red-600 text-white hover:bg-red-700',
-    inactive: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-  },
-  selected: {
-    active: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700',
-    inactive: 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-  },
+const SELECTION_LABELS: Record<InterviewSelectionStatus, string> = {
+  pending: '미결정',
+  selected: '선발',
+  rejected: '미선발',
 };
-
-export function getSelectionDecisionButtonClass(selection: InterviewSelectionStatus, decision: SelectionDecision): string {
-  return selection === decision ? DECISION_BUTTON_STYLES[decision].active : DECISION_BUTTON_STYLES[decision].inactive;
-}
 
 async function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
@@ -59,17 +52,26 @@ async function copyText(text: string) {
   if (!copied) throw new Error('Clipboard API is unavailable.');
 }
 
-export default function SelectionDetailModal({ applicant, round, onClose, onUpdateSelectionStatus, onUpdateOverallRating, onReopenCompletedInterview }: SelectionDetailModalProps) {
+export default function SelectionDetailModal({
+  applicant,
+  round,
+  onClose,
+  onUpdateSelectionStatus,
+  onUpdateOverallRating,
+  onReopenCompletedInterview,
+}: SelectionDetailModalProps) {
   const [updating, setUpdating] = useState(false);
   const [ratingUpdating, setRatingUpdating] = useState(false);
   const [reopening, setReopening] = useState(false);
   // Passing null keeps this modal read-only while still using the existing note subscription path.
   const note = useInterviewNoteLogic(round.id, applicant?.id ?? null, null);
+
   if (!applicant) return null;
-  const noteRating = (note as unknown as { overallRating?: InterviewOverallRating | null }).overallRating;
-  const rating = applicant.overallRating ?? noteRating ?? null;
+
+  const rating = applicant.overallRating ?? note.overallRating ?? null;
   const selection = applicant.selectionStatus ?? 'pending';
   const interviewAssignment = applicant.assignment ?? applicant.previousAssignment;
+  const questions = round.interviewQuestions ?? [];
   const selectionNotice = selection === 'pending'
     ? null
     : renderInterviewMessage(resolveInterviewMessageTemplates(round.messageTemplates)[selection], { name: applicant.name });
@@ -78,16 +80,28 @@ export default function SelectionDetailModal({ applicant, round, onClose, onUpda
     if (next === selection || updating) return;
     setUpdating(true);
     try {
-      if (await onUpdateSelectionStatus(applicant.id, next)) toast.success(`${applicant.name} 지원자를 ${SELECTIONS[next]} 처리했습니다.`);
-    } catch { toast.error('선발 상태를 저장하지 못했습니다.'); } finally { setUpdating(false); }
+      if (await onUpdateSelectionStatus(applicant.id, next)) {
+        toast.success(`${applicant.name} 지원자를 ${SELECTION_LABELS[next]} 처리했습니다.`);
+      }
+    } catch {
+      toast.error('선발 상태를 저장하지 못했습니다.');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const updateRating = async (next: InterviewOverallRating) => {
     if (next === rating || ratingUpdating) return;
     setRatingUpdating(true);
     try {
-      if (await onUpdateOverallRating(applicant.id, next)) toast.success(`${applicant.name} 지원자의 종합평가를 수정했습니다.`);
-    } catch { toast.error('종합평가를 수정하지 못했습니다.'); } finally { setRatingUpdating(false); }
+      if (await onUpdateOverallRating(applicant.id, next)) {
+        toast.success(`${applicant.name} 지원자의 종합평가를 수정했습니다.`);
+      }
+    } catch {
+      toast.error('종합평가를 수정하지 못했습니다.');
+    } finally {
+      setRatingUpdating(false);
+    }
   };
 
   const reopenInterview = async () => {
@@ -106,17 +120,170 @@ export default function SelectionDetailModal({ applicant, round, onClose, onUpda
     }
   };
 
-  return <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm md:p-5">
-    <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-slate-50 shadow-2xl">
-      <header className="flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-lg font-black text-navy">{applicant.name}</h2><span className="text-xs text-slate-400">{applicant.applicantNumber}</span>{rating ? <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${RATINGS[rating].className}`}>{RATINGS[rating].label}</span> : <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">평가 미입력</span>}</div><p className="mt-1 text-xs text-slate-500">담당 면접관: {interviewAssignment?.interviewerName ?? '미지정'}</p></div><button type="button" onClick={onClose} aria-label="모달 닫기" className="rounded-xl bg-slate-100 p-2 text-slate-500"><X size={18} /></button></header>
-      <main className="grid flex-1 gap-4 overflow-y-auto p-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-6">
-        <section className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><Award size={16} className="text-gold" />면접관 종합평가</h3><p className="mt-1 text-xs text-slate-500">완료 후 정정이 필요한 경우 아래 평가를 선택하면 기록과 지원자 상태가 함께 갱신됩니다.</p><div className="mt-3 grid grid-cols-2 gap-2">{Object.entries(RATINGS).map(([value, info]) => <button key={value} type="button" disabled={ratingUpdating} onClick={() => void updateRating(value as InterviewOverallRating)} className={`rounded-xl border px-2 py-2.5 text-xs font-black disabled:opacity-50 ${rating === value ? 'border-navy bg-navy text-white' : info.className}`}>{info.label}</button>)}</div><div className="mt-3 rounded-xl bg-white p-3"><p className="text-xs font-bold text-slate-400">종합 노트</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.generalNotes || '기록 없음'}</p></div></section>
-        <section className="rounded-2xl bg-white p-5 shadow-sm"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><MessageSquareText size={16} className="text-gold" />질문별 면접 기록</h3><div className="mt-4 space-y-3">{(round.interviewQuestions ?? []).map((question, index) => <div key={question.id} className="rounded-xl bg-slate-50 p-3"><p className="whitespace-pre-wrap text-xs font-black text-navy">{index + 1}. {question.text}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.answers[question.id] || '기록 없음'}</p></div>)}{!(round.interviewQuestions ?? []).length && <p className="text-sm text-slate-400">등록된 면접 질문이 없습니다.</p>}</div></section>
-        {selectionNotice && <section className="rounded-2xl bg-white p-5 shadow-sm md:col-span-2"><h3 className="flex items-center gap-2 text-sm font-black text-navy"><MessageSquare size={16} className="text-gold" />{selection === 'selected' ? '선발 안내' : '미선발 안내'}</h3><p className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">{selectionNotice}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => void copyText(selectionNotice).then(() => toast.success('메시지 문구를 복사했습니다.')).catch(() => toast.error('메시지 문구를 복사하지 못했습니다.'))} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy"><Copy size={14} />문구 복사</button><button type="button" onClick={() => { window.location.href = `sms:${encodeURIComponent(applicant.phone)}?body=${encodeURIComponent(selectionNotice)}`; }} className="inline-flex items-center gap-1.5 rounded-xl bg-navy px-3 py-2 text-xs font-bold text-white"><MessageSquare size={14} />문자 앱 열기</button></div></section>}
-      </main>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4"><div><p className="text-xs font-bold text-slate-500">현재 선발 상태: <span className="text-navy">{SELECTIONS[selection]}</span></p><button type="button" disabled={reopening} onClick={() => void reopenInterview()} className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-navy disabled:opacity-50">{reopening ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}면접 완료 취소</button></div><div className="flex gap-2"><DecisionButton label="미선발" decision="rejected" selection={selection} disabled={updating || reopening} onClick={() => void updateStatus('rejected')} icon={<XCircle size={14} />} /><DecisionButton label="선발" decision="selected" selection={selection} disabled={updating || reopening} onClick={() => void updateStatus('selected')} icon={updating ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} /></div></footer>
+  const copySelectionNotice = async () => {
+    if (!selectionNotice) return;
+    try {
+      await copyText(selectionNotice);
+      toast.success('메시지 문구를 복사했습니다.');
+    } catch {
+      toast.error('메시지 문구를 복사하지 못했습니다.');
+    }
+  };
+
+  const openMessageApp = () => {
+    if (!selectionNotice) return;
+    window.location.href = `sms:${encodeURIComponent(applicant.phone)}?body=${encodeURIComponent(selectionNotice)}`;
+  };
+
+  return (
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm md:p-5">
+      <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-slate-50 shadow-2xl">
+        <header className="flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-black text-navy">{applicant.name}</h2>
+              <span className="text-xs text-slate-400">{applicant.applicantNumber}</span>
+              {rating ? (
+                <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${RATING_STYLES[rating]}`}>
+                  {INTERVIEW_RATING_LABELS[rating]}
+                </span>
+              ) : (
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] text-slate-500">평가 미입력</span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">담당 면접관: {interviewAssignment?.interviewerName ?? '미지정'}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="모달 닫기" className="rounded-xl bg-slate-100 p-2 text-slate-500">
+            <X size={18} />
+          </button>
+        </header>
+
+        <main className="grid flex-1 gap-4 overflow-y-auto p-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:p-6">
+          <section className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-5">
+            <h3 className="flex items-center gap-2 text-sm font-black text-navy">
+              <Award size={16} className="text-gold" />면접관 종합평가
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              완료 후 정정이 필요한 경우 아래 평가를 선택하면 기록과 지원자 상태가 함께 갱신됩니다.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {OVERALL_RATINGS.map(value => (
+                <button
+                  key={value}
+                  type="button"
+                  disabled={ratingUpdating}
+                  onClick={() => void updateRating(value)}
+                  className={`rounded-xl border px-2 py-2.5 text-xs font-black disabled:opacity-50 ${rating === value ? 'border-navy bg-navy text-white' : RATING_STYLES[value]}`}
+                >
+                  {INTERVIEW_RATING_LABELS[value]}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 rounded-xl bg-white p-3">
+              <p className="text-xs font-bold text-slate-400">종합 노트</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.generalNotes || '기록 없음'}</p>
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-5 shadow-sm">
+            <h3 className="flex items-center gap-2 text-sm font-black text-navy">
+              <MessageSquareText size={16} className="text-gold" />질문별 면접 기록
+            </h3>
+            <div className="mt-4 space-y-3">
+              {questions.map((question, index) => (
+                <div key={question.id} className="rounded-xl bg-slate-50 p-3">
+                  <p className="whitespace-pre-wrap text-xs font-black text-navy">{index + 1}. {question.text}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{note.answers[question.id] || '기록 없음'}</p>
+                </div>
+              ))}
+              {!questions.length && <p className="text-sm text-slate-400">등록된 면접 질문이 없습니다.</p>}
+            </div>
+          </section>
+
+          {selectionNotice && (
+            <section className="rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
+              <h3 className="flex items-center gap-2 text-sm font-black text-navy">
+                <MessageSquare size={16} className="text-gold" />{selection === 'selected' ? '선발 안내' : '미선발 안내'}
+              </h3>
+              <p className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+                {selectionNotice}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copySelectionNotice()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-navy"
+                >
+                  <Copy size={14} />문구 복사
+                </button>
+                <button
+                  type="button"
+                  onClick={openMessageApp}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-navy px-3 py-2 text-xs font-bold text-white"
+                >
+                  <MessageSquare size={14} />문자 앱 열기
+                </button>
+              </div>
+            </section>
+          )}
+        </main>
+
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
+          <div>
+            <p className="text-xs font-bold text-slate-500">
+              현재 선발 상태: <span className="text-navy">{SELECTION_LABELS[selection]}</span>
+            </p>
+            <button
+              type="button"
+              disabled={reopening}
+              onClick={() => void reopenInterview()}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-navy disabled:opacity-50"
+            >
+              {reopening ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}면접 완료 취소
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <DecisionButton
+              label="미선발"
+              decision="rejected"
+              selection={selection}
+              disabled={updating || reopening}
+              onClick={() => void updateStatus('rejected')}
+              icon={<XCircle size={14} />}
+            />
+            <DecisionButton
+              label="선발"
+              decision="selected"
+              selection={selection}
+              disabled={updating || reopening}
+              onClick={() => void updateStatus('selected')}
+              icon={updating ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+            />
+          </div>
+        </footer>
+      </div>
     </div>
-  </div>;
+  );
 }
 
-function DecisionButton({ label, decision, selection, disabled, onClick, icon }: { label: string; decision: SelectionDecision; selection: InterviewSelectionStatus; disabled: boolean; onClick: () => void; icon: React.ReactNode }) { return <button type="button" disabled={disabled} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-50 ${getSelectionDecisionButtonClass(selection, decision)}`}>{icon}{label}</button>; }
+interface DecisionButtonProps {
+  label: string;
+  decision: SelectionDecision;
+  selection: InterviewSelectionStatus;
+  disabled: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+}
+
+function DecisionButton({ label, decision, selection, disabled, onClick, icon }: DecisionButtonProps) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-50 ${getSelectionDecisionButtonClass(selection, decision)}`}
+    >
+      {icon}{label}
+    </button>
+  );
+}

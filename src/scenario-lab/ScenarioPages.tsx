@@ -1,6 +1,5 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
 import { CalendarClock, ClipboardList, Plus, Users } from 'lucide-react';
-import AttendancePageHeader from '../components/PageHeader';
 import GroupsCanvas from '../components/GroupsCanvas';
 import InterviewSchedulePanel from '../components/InterviewSchedulePanel';
 import MemberFilters from '../components/MemberFilters';
@@ -8,7 +7,7 @@ import MemberList from '../components/MemberList';
 import PageHeader from '../components/PageHeader';
 import UnassignedPool from '../components/UnassignedPool';
 import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
-import type { MemberFormData } from '../domain/members/memberForm';
+import { createMemberFormData, type MemberFormData } from '../domain/members/memberForm';
 import type { Attendee, InterviewAssignment, Member, SessionGroup } from '../types';
 import {
   createAttendanceFixture,
@@ -72,7 +71,12 @@ export function MembersScenario({ state }: { state: MembersScenarioState }) {
     />
     <MemberList
       filteredMembers={filteredMembers}
-      editingId={editingId} setEditingId={setEditingId}
+      editingId={editingId}
+      onEdit={member => {
+        setFormData(createMemberFormData(member));
+        setEditingId(member.id);
+        setIsAdding(false);
+      }}
       setViewingMember={() => undefined}
       setItemToDelete={({ id }) => setMembers(current => current.filter(member => member.id !== id))}
       setFormData={setFormData} setIsAdding={setIsAdding} formData={formData}
@@ -205,7 +209,7 @@ export function AttendanceScenario({ state }: { state: AttendanceScenarioState }
   const removeFromGroups = (attendeeId: string) => setGroups(current => current.map(group => ({ ...group, memberIds: group.memberIds.filter(id => id !== attendeeId) })));
 
   return <div className="space-y-6" data-scenario-page="attendance">
-    <AttendancePageHeader
+    <PageHeader
       title="일일 조 편성"
       subtitle="Operations / Team Formation"
       icon={ClipboardList}

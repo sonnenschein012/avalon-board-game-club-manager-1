@@ -1,4 +1,4 @@
-import type { InterviewAccess, InterviewAssignment, InterviewDaySchedule } from '../../types';
+import type { InterviewAccess,InterviewAssignment,InterviewDaySchedule } from '../../types';
 export type { InterviewDaySchedule } from '../../types';
 
 const SLOT_ID_SEPARATOR = '|';
@@ -34,12 +34,6 @@ export function isAssignmentOutsideAvailability(
     availabilitySlotMinutes,
     assignmentSlotMinutes,
   ).includes(assignmentSlotId);
-}
-
-export interface AvailabilityAggregate {
-  slotId: string;
-  count: number;
-  applicantIds: string[];
 }
 
 export interface AffectedScheduleResponse {
@@ -306,26 +300,6 @@ export function validateAvailability(
     invalidSlots,
     duplicateSlots,
   };
-}
-
-export function aggregateAvailability(responses: readonly AvailabilityResponse[]): AvailabilityAggregate[] {
-  const applicantsBySlot = new Map<string, Set<string>>();
-
-  for (const response of responses) {
-    for (const slotId of unique(response.availability)) {
-      const applicantIds = applicantsBySlot.get(slotId) ?? new Set<string>();
-      applicantIds.add(response.applicantId);
-      applicantsBySlot.set(slotId, applicantIds);
-    }
-  }
-
-  return [...applicantsBySlot.entries()]
-    .sort(([left], [right]) => compareSlotIds(left, right))
-    .map(([slotId, applicantIds]) => ({
-      slotId,
-      count: applicantIds.size,
-      applicantIds: [...applicantIds],
-    }));
 }
 
 export function getScheduleChangeImpact(

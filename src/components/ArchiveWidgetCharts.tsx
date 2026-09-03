@@ -1,39 +1,40 @@
 import React from 'react';
+import type { ArchiveChartId, ArchiveFormulaId } from '../hooks/useArchiveLogic';
 import { TrendingUp, Users, Activity, Crown, Info } from 'lucide-react';
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar, Legend } from 'recharts';
+import { AttendanceTrendChart, NewcomerTrendChart, StagnationChart } from './ArchiveCharts';
 import { cn } from '../lib/utils';
 import { Game } from '../types';
 
 interface ArchiveWidgetChartsProps {
   selectedSemester: string;
-  w4Metric: 'count' | 'rate';
-  setW4Metric: (m: 'count' | 'rate') => void;
-  w4Data: Record<string, unknown>[];
-  setExpandedChart: (c: 'w4' | 'w5' | 'w6' | null) => void;
-  w5Normalize: boolean;
-  setW5Normalize: (b: boolean) => void;
-  w5Data: Record<string, unknown>[];
-  setFormulaModal: (m: 'w5' | 'w6' | 'w7' | null) => void;
-  w6Data: Record<string, unknown>[];
-  w7MMI: {gameId: string, mmi: number, game?: Game | undefined}[];
+  attendanceTrendMetric: 'count' | 'rate';
+  setAttendanceTrendMetric: (m: 'count' | 'rate') => void;
+  attendanceTrend: Record<string, unknown>[];
+  setExpandedChart: (c: ArchiveChartId | null) => void;
+  normalizeNewcomerTrend: boolean;
+  setNormalizeNewcomerTrend: (b: boolean) => void;
+  newcomerTrend: Record<string, unknown>[];
+  setFormulaModal: (m: ArchiveFormulaId | null) => void;
+  stagnationTrend: Record<string, unknown>[];
+  gameMmi: {gameId: string, mmi: number, game?: Game | undefined}[];
 }
 
 export default function ArchiveWidgetCharts({
   selectedSemester,
-  w4Metric,
-  setW4Metric,
-  w4Data,
+  attendanceTrendMetric,
+  setAttendanceTrendMetric,
+  attendanceTrend,
   setExpandedChart,
-  w5Normalize,
-  setW5Normalize,
-  w5Data,
+  normalizeNewcomerTrend,
+  setNormalizeNewcomerTrend,
+  newcomerTrend,
   setFormulaModal,
-  w6Data,
-  w7MMI
+  stagnationTrend,
+  gameMmi
 }: ArchiveWidgetChartsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* Widget 4: 시계열 참석 트렌드 */}
+      {/* 시계열 참석 트렌드 */}
       <div className="glass-panel p-6 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2 min-w-max">
@@ -42,14 +43,14 @@ export default function ArchiveWidgetCharts({
           </h3>
           <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
             <button 
-              onClick={() => setW4Metric('count')}
-              className={cn("px-3 py-1 rounded text-[10px] font-bold transition-colors", w4Metric === 'count' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
+              onClick={() => setAttendanceTrendMetric('count')}
+              className={cn("px-3 py-1 rounded text-[10px] font-bold transition-colors", attendanceTrendMetric === 'count' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
             >
               인원 (명)
             </button>
             <button 
-              onClick={() => setW4Metric('rate')}
-              className={cn("px-3 py-1 rounded text-[10px] font-bold transition-colors", w4Metric === 'rate' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
+              onClick={() => setAttendanceTrendMetric('rate')}
+              className={cn("px-3 py-1 rounded text-[10px] font-bold transition-colors", attendanceTrendMetric === 'rate' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
             >
               참석률 (%)
             </button>
@@ -58,26 +59,18 @@ export default function ArchiveWidgetCharts({
         
         <div 
           className="w-full h-64 bg-slate-50 p-4 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-300 transition-colors"
-          onDoubleClick={() => setExpandedChart('w4')}
+          onDoubleClick={() => setExpandedChart('attendance')}
           title="더블클릭하여 확대"
         >
-          {w4Data.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsLineChart data={w4Data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="dateStr" tick={{fontSize: 10}} tickMargin={10} stroke="#94a3b8" />
-                <YAxis tick={{fontSize: 10}} stroke="#94a3b8" />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} labelStyle={{ fontWeight: 'bold', color: '#1e293b' }} />
-                <Line type="monotone" dataKey={w4Metric} stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} name={w4Metric === 'count' ? '인원 (명)' : '참석률 (%)'} />
-              </RechartsLineChart>
-            </ResponsiveContainer>
+          {attendanceTrend.length > 0 ? (
+            <AttendanceTrendChart data={attendanceTrend} metric={attendanceTrendMetric} />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-sm font-bold">데이터가 부족합니다.</div>
           )}
         </div>
       </div>
 
-      {/* Widget 5: 신입 유입 및 정착 지수 */}
+      {/* 신입 유입 및 정착 지수 */}
       <div className="glass-panel p-6 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2 min-w-max">
@@ -85,14 +78,14 @@ export default function ArchiveWidgetCharts({
             {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 신입 유입 및 정착 지수
             <Info 
               className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" 
-              onClick={() => setFormulaModal('w5')} 
+              onClick={() => setFormulaModal('newcomers')}
             />
           </h3>
           <label className="flex items-center gap-2 cursor-pointer shrink-0">
             <input 
               type="checkbox" 
-              checked={w5Normalize}
-              onChange={e => setW5Normalize(e.target.checked)}
+              checked={normalizeNewcomerTrend}
+              onChange={e => setNormalizeNewcomerTrend(e.target.checked)}
               className="rounded border-slate-300 text-navy focus:ring-navy cursor-pointer"
             />
             <span className="text-[10px] font-bold text-slate-500">전체 명부 기준 보정</span>
@@ -101,38 +94,18 @@ export default function ArchiveWidgetCharts({
         
         <div 
           className="w-full h-64 bg-slate-50 p-4 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-300 transition-colors"
-          onDoubleClick={() => setExpandedChart('w5')}
+          onDoubleClick={() => setExpandedChart('newcomers')}
           title="더블클릭하여 확대"
         >
-          {w5Data.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              {w5Normalize ? (
-                <RechartsLineChart data={w5Data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="dateStr" tick={{fontSize: 10}} tickMargin={10} stroke="#94a3b8" />
-                  <YAxis tick={{fontSize: 10}} stroke="#94a3b8" />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} labelStyle={{ fontWeight: 'bold', color: '#1e293b' }} />
-                  <Line type="monotone" dataKey="보정지수" stroke="#6366f1" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </RechartsLineChart>
-              ) : (
-                <RechartsBarChart data={w5Data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="dateStr" tick={{fontSize: 10}} tickMargin={10} stroke="#94a3b8" />
-                  <YAxis tick={{fontSize: 10}} stroke="#94a3b8" />
-                  <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} labelStyle={{ fontWeight: 'bold', color: '#1e293b' }} />
-                  <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                  <Bar dataKey="신입" stackId="a" fill="#3b82f6" />
-                  <Bar dataKey="기존" stackId="a" fill="#cbd5e1" />
-                </RechartsBarChart>
-              )}
-            </ResponsiveContainer>
+          {newcomerTrend.length > 0 ? (
+            <NewcomerTrendChart data={newcomerTrend} normalize={normalizeNewcomerTrend} />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-sm font-bold">데이터가 부족합니다.</div>
           )}
         </div>
       </div>
 
-      {/* Widget 6: 모임 고착화 지수 */}
+      {/* 모임 고착화 지수 */}
       <div className="glass-panel p-6 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2">
@@ -140,33 +113,25 @@ export default function ArchiveWidgetCharts({
             {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 모임 고착화 지수
             <Info 
               className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" 
-              onClick={() => setFormulaModal('w6')} 
+              onClick={() => setFormulaModal('stagnation')}
             />
           </h3>
         </div>
         
         <div 
           className="w-full h-64 bg-slate-50 p-4 rounded-xl border border-slate-100 cursor-pointer hover:border-slate-300 transition-colors"
-          onDoubleClick={() => setExpandedChart('w6')}
+          onDoubleClick={() => setExpandedChart('stagnation')}
           title="더블클릭하여 확대"
         >
-          {w6Data.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsLineChart data={w6Data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="dateStr" tick={{fontSize: 10}} tickMargin={10} stroke="#94a3b8" />
-                <YAxis tick={{fontSize: 10}} stroke="#94a3b8" />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} labelStyle={{ fontWeight: 'bold', color: '#1e293b' }} />
-                <Line type="monotone" dataKey="정체성지수" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </RechartsLineChart>
-            </ResponsiveContainer>
+          {stagnationTrend.length > 0 ? (
+            <StagnationChart data={stagnationTrend} />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400 text-sm font-bold">데이터가 부족합니다.</div>
           )}
         </div>
       </div>
 
-      {/* Widget 7: 경험 독점 지수 */}
+      {/* 경험 독점 지수 */}
       <div className="glass-panel p-6 space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
           <h3 className="text-lg font-bold text-navy flex items-center gap-2">
@@ -174,12 +139,12 @@ export default function ArchiveWidgetCharts({
             {selectedSemester === '전체' ? '전체 학기' : selectedSemester} 경험 독점 지수
             <Info 
               className="w-4 h-4 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors" 
-              onClick={() => setFormulaModal('w7')} 
+              onClick={() => setFormulaModal('gameMmi')}
             />
           </h3>
         </div>
         <div className="space-y-2 h-[256px] overflow-y-auto pr-2 custom-scrollbar">
-          {w7MMI.map((item, idx) => (
+          {gameMmi.map((item, idx) => (
             <div key={item.gameId} className="flex justify-between items-center p-3 bg-white border border-slate-50 rounded-xl hover:border-slate-100 transition-colors">
               <div className="flex items-center gap-4">
                 <span className={cn("w-6 text-center font-bold text-lg", idx === 0 ? "text-purple-500" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-purple-300" : "text-slate-300 text-sm")}>
@@ -194,7 +159,7 @@ export default function ArchiveWidgetCharts({
               </div>
             </div>
           ))}
-          {w7MMI.length === 0 && <p className="text-center text-slate-400 text-sm py-8 font-bold">조건을 충족하는 데이터가 없습니다.</p>}
+          {gameMmi.length === 0 && <p className="text-center text-slate-400 text-sm py-8 font-bold">조건을 충족하는 데이터가 없습니다.</p>}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { Timestamp, serverTimestamp, type DocumentData } from 'firebase/firestore';
-import { auth } from '../../lib/firebase';
-import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
+import { getInterviewProgressStatus } from '../../domain/interviews/interviewPolicy';
 import { getApplicantAssignmentRevision } from '../../domain/interviews/interviewTransitions';
+import { auth } from '../../lib/firebase';
 import type {
   InterviewApplicant,
   InterviewAssignment,
@@ -13,21 +13,6 @@ import type { InterviewRoundDraft, InterviewScheduleDraft } from './models';
 
 export function mapSnapshot<T extends { id: string }>(snapshot: { docs: Array<{ id: string; data(): DocumentData }> }): T[] {
   return snapshot.docs.map(item => ({ id: item.id, ...item.data() } as T));
-}
-
-export function isActiveApplicant(applicant: InterviewApplicant) {
-  return (applicant.lifecycle ?? 'active') === 'active'
-    && (applicant.applicationStatus ?? 'active') === 'active';
-}
-
-export function currentAssignmentRevision(applicant: InterviewApplicant) {
-  return getApplicantAssignmentRevision(applicant);
-}
-
-export function isCurrentConfirmationSent(applicant: InterviewApplicant) {
-  return Boolean(applicant.assignment)
-    && applicant.confirmationMessage?.lastMarkedSentAt != null
-    && (applicant.confirmationMessage.assignmentRevision ?? 0) === currentAssignmentRevision(applicant);
 }
 
 export function getAssignmentLockId(roundId: string, assignment: Pick<InterviewAssignment, 'interviewerId' | 'slotId'>) {
@@ -125,7 +110,7 @@ export function publicScheduleData(roundId: string, draft: InterviewScheduleDraf
 export function interviewRecordSnapshot(applicant: InterviewApplicant, note?: InterviewNote) {
   const overallRating = note?.overallRating ?? applicant.overallRating ?? null;
   return {
-    assignmentRevision: currentAssignmentRevision(applicant),
+    assignmentRevision: getApplicantAssignmentRevision(applicant),
     assignment: applicant.assignment ?? null,
     interviewStatus: getInterviewProgressStatus(applicant),
     overallRating,

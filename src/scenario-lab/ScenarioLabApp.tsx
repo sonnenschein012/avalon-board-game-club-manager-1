@@ -140,7 +140,7 @@ function ScenarioRoute() {
   </div>;
 }
 
-export default function DesignLabApp() {
+export default function ScenarioLabApp() {
   return <Routes>
     <Route path="/:page/:state" element={<ScenarioRoute />} />
     <Route path="*" element={<Navigate to="/members/default" replace />} />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, Filter } from 'lucide-react';
-import { AVAILABLE_GENRES } from '../hooks/useGamesLogic';
+import { GAME_GENRES } from '../domain/games/gameCatalog';
 
 interface GameFiltersProps {
   searchTerm: string;
@@ -50,7 +50,7 @@ export default function GameFilters({
           onChange={e => setGenreFilter(e.target.value)}
           className="bg-white border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:outline-none"
         >
-          {['전체', ...AVAILABLE_GENRES].map(g => <option key={g} value={g}>{g === '전체' ? '장르 전체' : g}</option>)}
+          {['전체', ...GAME_GENRES].map(g => <option key={g} value={g}>{g === '전체' ? '장르 전체' : g}</option>)}
         </select>
         <select 
           value={difficultyFilter}  

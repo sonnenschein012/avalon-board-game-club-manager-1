@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Search, Plus, Loader2 } from 'lucide-react';
 import { Session, StoredSessionGroup, Game } from '../types';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { useAsyncActionState } from '../hooks/useAsyncActionState';
 
 interface GroupGamesEditModalProps {
   session: Session;
   group: StoredSessionGroup;
   games: Game[];
   onClose: () => void;
+  onSave: (gameIds: string[]) => Promise<boolean>;
+  isSaving: boolean;
 }
 
-export default function GroupGamesEditModal({ session, group, games, onClose }: GroupGamesEditModalProps) {
+export default function GroupGamesEditModal({ session, group, games, onClose, onSave, isSaving }: GroupGamesEditModalProps) {
   const [selectedGameIds, setSelectedGameIds] = useState<string[]>(group.gameIds || []);
   const [searchTerm, setSearchTerm] = useState('');
-  const { runAction, isPending } = useAsyncActionState();
-  const isSaving = isPending('group-games-save');
 
   useEffect(() => {
     setSelectedGameIds(group.gameIds || []);
@@ -32,35 +29,7 @@ export default function GroupGamesEditModal({ session, group, games, onClose }: 
 
   const handleSave = async () => {
     if (isSaving) return;
-    const result = await runAction('group-games-save', async () => {
-      const docRef = doc(db, 'sessions', session.id);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const currentData = docSnap.data() as Session;
-        const currentGroups = currentData.groups || [];
-
-        const groupIndex = currentGroups.findIndex(g => g.id === group.id);
-        const existing = currentGroups[groupIndex];
-        if (groupIndex !== -1 && existing) {
-          currentGroups[groupIndex] = {
-            ...existing,
-            gameIds: selectedGameIds
-          };
-
-          await updateDoc(docRef, { groups: currentGroups });
-        } else {
-          throw new Error('해당 조를 찾을 수 없습니다.');
-        }
-      } else {
-        throw new Error('세션을 찾을 수 없습니다.');
-      }
-    }, {
-      successMessage: '조 게임 기록이 성공적으로 수정되었습니다.',
-      errorMessage: '저장 중 오류가 발생했습니다.',
-      onError: (error) => handleFirestoreError(error, OperationType.UPDATE, `sessions/${session.id}`),
-    });
-    if (result.succeeded) {
+    if (await onSave(selectedGameIds)) {
       onClose();
     }
   };

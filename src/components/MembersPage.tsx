@@ -14,7 +14,7 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
     members,
     games,
     isAdding, setIsAdding,
-    editingId, setEditingId,
+    editingId,
     viewingMember, setViewingMember,
     searchTerm, setSearchTerm,
     genderFilter, setGenderFilter,
@@ -34,6 +34,8 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
     memberDeleting,
     memberBulkPending,
     resetForm,
+    startAdding,
+    toggleEditing,
     filteredMembers,
     semesters,
     selectedDocs,
@@ -70,7 +72,7 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
               </>
             )}
             <button 
-              onClick={() => { setIsAdding(true); setEditingId(null); resetForm(); }}
+              onClick={startAdding}
               className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-navy hover:bg-gold text-white rounded-xl transition-all shadow-lg text-xs font-bold whitespace-nowrap"
             >
               <Plus size={16} className="shrink-0" /> <span className="hidden sm:inline">멤버 추가</span><span className="sm:hidden">추가</span>
@@ -110,7 +112,7 @@ export default function MembersPage({ isAdminModeActive }: { isAdminModeActive?:
       <MemberList
         filteredMembers={filteredMembers}
         editingId={editingId}
-        setEditingId={setEditingId}
+        onEdit={toggleEditing}
         setViewingMember={setViewingMember}
         setItemToDelete={setItemToDelete}
         setFormData={setFormData}

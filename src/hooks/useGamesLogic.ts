@@ -6,8 +6,6 @@ import {
   deleteDoc, 
   doc, 
   collection,
-  orderBy,
-  writeBatch
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Game, Session } from '../types';
@@ -15,16 +13,16 @@ import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { useAsyncActionState } from './useAsyncActionState';
-
-export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
+import { createGameFormData, type GameFormData } from '../domain/games/gameForm';
+import { parseGameCsv } from '../domain/games/gameCsv';
 
 export function useGamesLogic() {
-  const { data: games } = useFirestore<Game>('games', orderBy('title', 'asc'));
-  const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
+  const { data: games } = useFirestore<Game>('games', 'title');
+  const { data: sessions } = useFirestore<Session>('sessions', 'date', 'desc');
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ title: '', minPlayers: 2, maxPlayers: 4, bestMinPlayers: 2, bestMaxPlayers: 4, complexity: 1.0, memo: '', genres: [] as string[] });
+  const [formData, setFormData] = useState<GameFormData>(() => createGameFormData());
   const [importing, setImporting] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string, title: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,97 +94,26 @@ export function useGamesLogic() {
     if (!file) return;
 
     setImporting(true);
-    Papa.parse(file, {
+    Papa.parse<string[]>(file, {
       header: false,
       skipEmptyLines: true,
       complete: async (results) => {
         try {
-          if (results.data.length < 2) {
-            toast.error('데이터가 없습니다.');
-            setImporting(false);
+          const { games: importedGames, skippedCount, error } = parseGameCsv(results.data, games);
+          if (error) {
+            toast.error(error === 'empty' ? '데이터가 없습니다.' : '게임명(또는 이름), 최소인원, 최대인원 열은 필수입니다.');
             return;
           }
 
-          const headers = results.data[0] as string[];
-          const titleIdx = headers.indexOf('이름') !== -1 ? headers.indexOf('이름') : headers.indexOf('게임명');
-          const minIdx = headers.indexOf('최소인원');
-          const maxIdx = headers.indexOf('최대인원');
-          const diffIdx = headers.indexOf('난이도(1~5)') !== -1 ? headers.indexOf('난이도(1~5)') : headers.indexOf('난이도');
-          const genreIdx = headers.indexOf('장르');
-          const bestIdx = headers.indexOf('추천인원');
-          const recMinIdx = headers.indexOf('추천최소인원');
-          const recMaxIdx = headers.indexOf('추천최대인원');
-          const memoIdx = headers.indexOf('메모');
-
-          if (titleIdx === -1 || minIdx === -1 || maxIdx === -1) {
-            toast.error('게임명(또는 이름), 최소인원, 최대인원 열은 필수입니다.');
-            setImporting(false);
-            return;
-          }
-
-          const operations: Parameters<typeof commitBatchesInChunks>[1] = [];
-          let addedCount = 0;
-          let skippedCount = 0;
-          const currentTitles = new Set(games.map(g => g.title));
-
-          for (let i = 1; i < results.data.length; i++) {
-            const row = results.data[i] as string[];
-            const titleRaw = row[titleIdx];
-            if (!titleRaw) continue;
-
-            const title = titleRaw.trim();
-            if (!title || currentTitles.has(title)) {
-              skippedCount++;
-              continue;
-            }
-
-            const minPlayers = parseInt(row[minIdx] || '') || 0;
-            const maxPlayers = parseInt(row[maxIdx] || '') || 0;
-            const complexity = parseFloat(row[diffIdx] || '') || 0;
-            const rawGenre = row[genreIdx] || '';
-            const genres = rawGenre.includes('/') ? rawGenre.split('/').map(g => g.trim()).filter(Boolean) : rawGenre.split(',').map(g => g.trim()).filter(Boolean);
-            const memo = memoIdx !== -1 ? (row[memoIdx] || '').trim() : '';
-
-            let bestMinPlayers = minPlayers;
-            let bestMaxPlayers = maxPlayers;
-
-            if (recMinIdx !== -1 && recMaxIdx !== -1 && row[recMinIdx] && row[recMaxIdx]) {
-              bestMinPlayers = parseInt(row[recMinIdx] || '') || minPlayers;
-              bestMaxPlayers = parseInt(row[recMaxIdx] || '') || maxPlayers;
-            } else if (bestIdx !== -1 && row[bestIdx]) {
-              const bestRaw = row[bestIdx] || '';
-              const matchRange = bestRaw.match(/(\d+)\s*~\s*(\d+)/);
-              if (matchRange) {
-                bestMinPlayers = parseInt(matchRange[1] || '');
-                bestMaxPlayers = parseInt(matchRange[2] || '');
-              } else {
-                const numbersMatch = bestRaw.match(/\d+/g);
-                if (numbersMatch) {
-                  const numbers = numbersMatch.map(m => parseInt(m || ''));
-                  if (numbers.length === 1 && numbers[0] !== undefined) {
-                    bestMinPlayers = numbers[0];
-                    bestMaxPlayers = numbers[0];
-                  } else if (numbers.length > 1) {
-                    bestMinPlayers = Math.min(...numbers);
-                    bestMaxPlayers = Math.max(...numbers);
-                  }
-                }
-              }
-            }
-
-            const docRef = doc(collection(db, 'games'));
-            operations.push({
-              type: 'set',
-              ref: docRef,
-              data: { title, minPlayers, maxPlayers, bestMinPlayers, bestMaxPlayers, complexity, genres, memo }
-            });
-            currentTitles.add(title);
-            addedCount++;
-          }
+          const operations: Parameters<typeof commitBatchesInChunks>[1] = importedGames.map(game => ({
+            type: 'set',
+            ref: doc(collection(db, 'games')),
+            data: game,
+          }));
 
           if (operations.length > 0) {
             await commitBatchesInChunks(db, operations);
-            toast.success(`총 ${addedCount}개의 게임이 라이브러리에 추가되었습니다.`);
+            toast.success(`총 ${importedGames.length}개의 게임이 라이브러리에 추가되었습니다.`);
           } else {
             toast.info(skippedCount > 0 ? '이미 모든 게임이 라이브러리에 있습니다.' : '추가할 데이터가 없습니다.');
           }
@@ -207,13 +134,13 @@ export function useGamesLogic() {
     const isEditing = Boolean(editingId);
     await runAction('game-save', async () => {
       if (editingId) {
-        await updateDoc(doc(db, 'games', editingId), formData);
+        await updateDoc(doc(db, 'games', editingId), { ...formData });
         setEditingId(null);
       } else {
         await addDoc(collection(db, 'games'), formData);
       }
       setIsAdding(false);
-      setFormData({ title: '', minPlayers: 2, maxPlayers: 4, bestMinPlayers: 2, bestMaxPlayers: 4, complexity: 1.0, memo: '', genres: [] });
+      setFormData(createGameFormData());
     }, {
       successMessage: isEditing ? '게임 정보가 수정되었습니다.' : '신규 게임이 등록되었습니다.',
       errorMessage: '게임을 저장하지 못했습니다.',
@@ -240,15 +167,10 @@ export function useGamesLogic() {
     if (isPending('game-delete-all')) return;
     try {
       await runAction('game-delete-all', async () => {
-      const chunkSize = 500;
-      for (let i = 0; i < games.length; i += chunkSize) {
-        const chunk = games.slice(i, i + chunkSize);
-        const batch = writeBatch(db);
-        chunk.forEach(game => {
-          batch.delete(doc(db, 'games', game.id));
-        });
-        await batch.commit();
-      }
+        await commitBatchesInChunks(db, games.map(game => ({
+          type: 'delete',
+          ref: doc(db, 'games', game.id),
+        })), 500);
       }, {
         successMessage: '모든 게임이 삭제되었습니다.',
         errorMessage: '전체 게임을 삭제하지 못했습니다.',
@@ -259,11 +181,22 @@ export function useGamesLogic() {
     }
   };
 
+  const startAdding = () => {
+    setEditingId(null);
+    setFormData(createGameFormData());
+    setIsAdding(true);
+  };
+
+  const startEditing = (game: Game) => {
+    setEditingId(game.id);
+    setFormData(createGameFormData(game));
+    setIsAdding(true);
+  };
+
   return {
-    games,
     filteredGames,
     isAdding, setIsAdding,
-    editingId, setEditingId,
+    editingId,
     formData, setFormData,
     importing,
     itemToDelete, setItemToDelete,
@@ -279,6 +212,8 @@ export function useGamesLogic() {
     handleSubmit,
     handleDelete,
     handleDeleteAll,
+    startAdding,
+    startEditing,
     gameSaving: isPending('game-save'),
     gameDeleting: isPending('game-delete'),
     gamesDeletingAll: isPending('game-delete-all'),

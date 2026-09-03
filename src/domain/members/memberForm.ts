@@ -1,12 +1,7 @@
-export const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
+import type { Member } from '../../types';
+import { getSemester } from '../semester/getSemester';
 
-const today = new Date();
-const currentYear = today.getFullYear();
-const currentMonth = today.getMonth() + 1;
-
-export const defaultSemester = (currentMonth >= 3 && currentMonth <= 8)
-  ? `${currentYear}-1`
-  : (currentMonth >= 9 ? `${currentYear}-2` : `${currentYear - 1}-2`);
+export const defaultSemester = getSemester(new Date());
 
 export const defaultDormantSemester = defaultSemester.endsWith('-1')
   ? `${defaultSemester.split('-')[0]}-2`
@@ -23,4 +18,21 @@ export interface MemberFormData {
   memo: string;
   isBoardMember: boolean;
   dormantSemester: string;
+}
+
+export function createMemberFormData(member?: Member): MemberFormData {
+  return {
+    name: member?.name || '',
+    nickname: member?.nickname || '',
+    studentId: member?.studentId || '',
+    phone: member?.phone || '',
+    gender: member?.gender || '남',
+    semester: member?.semester || defaultSemester,
+    preferredGenre: Array.isArray(member?.preferredGenre)
+      ? member.preferredGenre
+      : (member?.preferredGenre ? [member.preferredGenre as unknown as string] : []),
+    memo: member?.memo || '',
+    isBoardMember: member?.isBoardMember || false,
+    dormantSemester: member?.dormantSemester || '',
+  };
 }

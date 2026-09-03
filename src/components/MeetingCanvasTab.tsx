@@ -1,7 +1,8 @@
 import React from 'react';
 import { LayoutDashboard, Download, Send, Settings2 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { SessionGroup, Member, Attendee } from '../types';
+import { Member, Attendee } from '../types';
+import type { DailyPlanning } from '../domain/attendance/dailyPlanning';
 import { cn } from '../lib/utils';
 import DiamondSvg from './icons/DiamondSvg';
 import RookSvg from './icons/RookSvg';
@@ -19,7 +20,7 @@ interface MeetingCanvasTabProps {
   selectedDate: string;
   guides: {x: number | null, y: number | null};
   setGuides: (g: {x: number | null, y: number | null}) => void;
-  dailyPlanning: {groups: SessionGroup[]};
+  dailyPlanning: Pick<DailyPlanning, 'groups'>;
   cardStyles: Record<string, {bgColor: string}>;
   colors: string[];
   members: Member[];

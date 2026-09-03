@@ -2,27 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { InterviewApplicant, Member } from '../../types';
 import {
   findMemberRegistrationMatches,
-  formatMemberPhone,
   getRegistrationSemester,
-  normalizeStudentYear,
   requiresDistinctMemberNickname,
 } from './memberRegistration';
 
 describe('interview member registration', () => {
-  it.each([
-    ['25', '25'],
-    ['2025110909', '25'],
-    ['25110909', '25'],
-    ['20-24-123456', '24'],
-  ])('normalizes %s to student year %s', (value, expected) => {
-    expect(normalizeStudentYear(value)).toBe(expected);
-  });
-
-  it('formats common Korean phone number variants', () => {
-    expect(formatMemberPhone('010 1234 5678')).toBe('010-1234-5678');
-    expect(formatMemberPhone('010-123-4567')).toBe('010-123-4567');
-  });
-
   it('uses the interview registration semester windows', () => {
     expect(getRegistrationSemester(new Date(2026, 0, 15))).toBe('2025-2');
     expect(getRegistrationSemester(new Date(2026, 1, 1))).toBe('2026-1');

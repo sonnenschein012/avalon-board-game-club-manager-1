@@ -30,7 +30,7 @@ describe('groupCostFunction', () => {
     ...overrides,
   });
 
-  it('calculates age (semester) variance penalty correctly', () => {
+  it('calculates student-year variance penalty correctly', () => {
     // Both 21 numbers logic: 21 and 21 => vGroup = 0.
     // vPool = 2.0, so penalty = ((0 - 2) / 2) * 2 = -2
     const mem1 = createMember({ id: '1', studentId: '20210001', semester: '1' });
@@ -38,8 +38,48 @@ describe('groupCostFunction', () => {
     const ctx = createContext({ vPool: 2.0, overallGenderRatio: 0.0 });
     const result = getGroupCostDets([mem1, mem2], ctx);
     
-    // cost should be around -2 form ageVarCost + 0 sem penalty + 0 from other
+    // The student-year variance term reduces the total cost for this group.
     expect(result.costWithoutReward).toBeLessThan(0);
+  });
+
+  it('exposes the scored terms used by diagnostics without changing the total or pair rewards', () => {
+    const members = [createMember({ id: 'm1' }), createMember({ id: 'm2' })];
+    const ctx = createContext({
+      overallGenderRatio: 0,
+      vPool: 2,
+      memberExperience: { m1: 0.1, m2: 0.3 },
+      memberActivity: { m1: 0.6, m2: 0.8 },
+      overallExperienceAverage: 0.5,
+      overallActivityAverage: 0.5,
+      memberPairRecentCounts: { 'm1|m2': 2 },
+      memberPairLastSession: { 'm1|m2': true },
+      requestedPairs: [{ a: 'm1', b: 'm2' }, { a: 'm2', b: 'm1' }],
+    });
+    const result = getGroupCostDets(members, ctx);
+
+    expect(result.ageVarianceCost).toBe(-2);
+    expect(result.experienceCost).toBeCloseTo(0.09);
+    expect(result.activityCost).toBeCloseTo(0.04);
+    expect(result.genderCost).toBe(0);
+    expect(result.reunionPenalty).toBe(2.1);
+    expect(result.costWithoutReward).toBeCloseTo(0.23);
+    expect(result.costWithoutReward).toBe(
+      result.ageVarianceCost + result.experienceCost + result.activityCost + result.genderCost + result.reunionPenalty
+    );
+    expect(result.requestReward).toBe(100);
+  });
+
+  it('returns zero for every scored term in an empty group', () => {
+    const result = getGroupCostDets([], createContext());
+    expect(result).toEqual({
+      ageVarianceCost: 0,
+      experienceCost: 0,
+      activityCost: 0,
+      genderCost: 0,
+      reunionPenalty: 0,
+      costWithoutReward: 0,
+      requestReward: 0,
+    });
   });
 
   it('calculates gender ratio penalty correctly', () => {

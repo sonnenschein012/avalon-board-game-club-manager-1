@@ -73,13 +73,6 @@ export interface Session {
   boardMemberIds?: string[];
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write';
-  path: string | null;
-  authInfo: Record<string, unknown>;
-}
-
 export interface Admin {
   id: string; // The email
   email: string;

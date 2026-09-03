@@ -11,11 +11,16 @@ import {
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
-import type { InterviewChangeRequest, InterviewRoundInterviewer, InterviewScheduleInterviewer, InterviewerProfile } from '../../types';
-import type { RoundInterviewerDraft } from './models';
-import { formatMemberPhone } from '../../domain/interviews/memberRegistration';
 import { assertExpectedUpdatedAt } from '../../domain/interviews/revisionConflict';
+import { formatMemberPhone } from '../../domain/members/memberIdentity';
+import { db } from '../../lib/firebase';
+import type {
+  InterviewChangeRequest,
+  InterviewRoundInterviewer,
+  InterviewScheduleInterviewer,
+  InterviewerProfile,
+} from '../../types';
+import type { RoundInterviewerDraft } from './models';
 import { actorEmail, mapSnapshot } from './shared';
 
 export function subscribeRoundInterviewers(
@@ -73,17 +78,6 @@ export async function updateRoundInterviewerAvailability(participantId: string, 
 
 export async function updateScheduleInterviewerAvailability(participantId: string, availability: string[], expectedUpdatedAtMillis?: number): Promise<void> {
   await updateInterviewerAvailability('interviewScheduleInterviewers', participantId, availability, expectedUpdatedAtMillis);
-}
-
-export async function updateInterviewerPhone(participant: InterviewRoundInterviewer, phone: string): Promise<void> {
-  const normalizedPhone = formatMemberPhone(phone) || null;
-  const scheduleParticipants = await getDocs(query(collection(db, 'interviewScheduleInterviewers'), where('interviewerId', '==', participant.interviewerId)));
-  if (scheduleParticipants.size > 490) throw new Error('연락처를 한 번에 반영할 수 있는 일정 수를 초과했습니다.');
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'interviewerProfiles', participant.interviewerId), { phone: normalizedPhone, updatedAt: serverTimestamp() });
-  batch.update(doc(db, 'interviewRoundInterviewers', `${participant.roundId}__${participant.interviewerId}`), { phone: normalizedPhone, updatedAt: serverTimestamp() });
-  scheduleParticipants.docs.forEach(snapshot => batch.update(snapshot.ref, { phone: normalizedPhone, updatedAt: serverTimestamp() }));
-  await batch.commit();
 }
 
 export async function updateInterviewerProfile(

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Filter } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { AVAILABLE_GENRES } from '../domain/members/memberForm';
+import { GAME_GENRES } from '../domain/games/gameCatalog';
 
 export interface MemberFiltersProps {
   currentTab: '활동' | '휴면';
@@ -89,7 +89,7 @@ export default function MemberFilters({
             aria-label="선호 장르 필터"
             className="bg-white border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:outline-none"
           >
-            {['전체', ...AVAILABLE_GENRES].map(g => <option key={g} value={g}>{g === '전체' ? '선호 장르' : g}</option>)}
+            {['전체', ...GAME_GENRES].map(g => <option key={g} value={g}>{g === '전체' ? '선호 장르' : g}</option>)}
           </select>
         </div>
       </div>

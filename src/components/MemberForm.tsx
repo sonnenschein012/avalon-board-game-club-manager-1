@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
-import { AVAILABLE_GENRES, defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
+import { defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
+import { GAME_GENRES } from '../domain/games/gameCatalog';
 
 export interface MemberFormProps {
   formData: MemberFormData;
@@ -77,7 +78,7 @@ export default function MemberForm({
           <div className="space-y-1 md:col-span-4 mt-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">선호 장르 (다중 선택)</label>
             <div className="flex flex-wrap gap-2">
-              {AVAILABLE_GENRES.map(genre => {
+              {GAME_GENRES.map(genre => {
                 const isSelected = formData.preferredGenre.includes(genre);
                 return (
                   <button

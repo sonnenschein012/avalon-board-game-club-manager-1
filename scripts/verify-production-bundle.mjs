@@ -8,8 +8,8 @@ const forbiddenMarkers = [
   'AVALON_SCENARIO_LAB',
   'avalon-design-tester@scenario.invalid',
   'scenario-member-',
-  'src/design-lab',
-  'src\\design-lab',
+  'src/scenario-lab',
+  'src\\scenario-lab',
 ];
 const textExtensions = new Set(['.css', '.html', '.js', '.json', '.map', '.mjs', '.txt']);
 

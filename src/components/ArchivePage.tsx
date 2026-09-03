@@ -2,6 +2,8 @@ import React from 'react';
 import PageHeader from './PageHeader';
 import { BarChart } from 'lucide-react';
 import { useArchiveLogic } from '../hooks/useArchiveLogic';
+import { GAME_GENRES as AVAILABLE_GENRES } from '../domain/games/gameCatalog';
+import { ARCHIVE_DIFFICULTY_RANGES } from '../domain/stats/archiveGameFilters';
 
 import ArchiveWidgetRanking from './ArchiveWidgetRanking';
 import ArchiveWidgetPopularGames from './ArchiveWidgetPopularGames';
@@ -9,14 +11,6 @@ import ArchiveWidgetCorePlayers from './ArchiveWidgetCorePlayers';
 import ArchiveWidgetCharts from './ArchiveWidgetCharts';
 import ArchiveExpandedChartModal from './ArchiveExpandedChartModal';
 import ArchiveFormulaModal from './ArchiveFormulaModal';
-
-const AVAILABLE_GENRES = ['카드', '파티', '협상', '전략', '타일', '경매', '추리', '수학', '마피아', '심리', '협력', '주사위', '순발력', '퍼즐', '그림', '기억력', '배팅', '타이쿤', '퀴즈', '단어'];
-const DIFFICULTY_RANGES = [
-  { label: '1점대' },
-  { label: '2점대' },
-  { label: '3점대' },
-  { label: '4점대 이상' }
-];
 
 export default function ArchivePage() {
   const {
@@ -26,32 +20,32 @@ export default function ArchivePage() {
     availableSemesters,
     filteredSessions,
     
-    includeBoardMembers, setIncludeBoardMembers,
-    attendanceMetric, setAttendanceMetric,
-    w1Ranking,
+    rankingIncludeBoardMembers, setRankingIncludeBoardMembers,
+    attendanceRankingMetric, setAttendanceRankingMetric,
+    attendanceRanking,
 
-    w2Genres, setW2Genres,
-    w2Difficulties, setW2Difficulties,
-    w2PopularGames,
+    popularGameGenres, setPopularGameGenres,
+    popularGameDifficulties, setPopularGameDifficulties,
+    popularGames,
 
-    w3Genres, setW3Genres,
-    w3Difficulties, setW3Difficulties,
-    w3IncludeBoardMembers, setW3IncludeBoardMembers,
-    w3TargetGames, setW3TargetGames,
-    w3GameSearchQuery, setW3GameSearchQuery,
-    w3CorePlayers,
+    corePlayerGenres, setCorePlayerGenres,
+    corePlayerDifficulties, setCorePlayerDifficulties,
+    corePlayerIncludeBoardMembers, setCorePlayerIncludeBoardMembers,
+    corePlayerGameIds, setCorePlayerGameIds,
+    corePlayerGameSearch, setCorePlayerGameSearch,
+    corePlayers,
 
     expandedChart, setExpandedChart,
     formulaModal, setFormulaModal,
 
-    w4Metric, setW4Metric,
-    w4Data,
+    attendanceTrendMetric, setAttendanceTrendMetric,
+    attendanceTrend,
 
-    w5Normalize, setW5Normalize,
-    w5Data,
+    normalizeNewcomerTrend, setNormalizeNewcomerTrend,
+    newcomerTrend,
 
-    w6Data,
-    w7MMI,
+    stagnationTrend,
+    gameMmi,
   } = useArchiveLogic();
 
   return (
@@ -78,54 +72,54 @@ export default function ArchivePage() {
           <ArchiveWidgetRanking
             selectedSemester={selectedSemester}
             filteredSessionsLength={filteredSessions.length}
-            includeBoardMembers={includeBoardMembers}
-            setIncludeBoardMembers={setIncludeBoardMembers}
-            attendanceMetric={attendanceMetric}
-            setAttendanceMetric={setAttendanceMetric}
-            w1Ranking={w1Ranking}
+            rankingIncludeBoardMembers={rankingIncludeBoardMembers}
+            setRankingIncludeBoardMembers={setRankingIncludeBoardMembers}
+            attendanceRankingMetric={attendanceRankingMetric}
+            setAttendanceRankingMetric={setAttendanceRankingMetric}
+            attendanceRanking={attendanceRanking}
           />
 
           <ArchiveWidgetPopularGames
             selectedSemester={selectedSemester}
-            w2Genres={w2Genres}
-            setW2Genres={setW2Genres}
-            w2Difficulties={w2Difficulties}
-            setW2Difficulties={setW2Difficulties}
-            w2PopularGames={w2PopularGames}
-            AVAILABLE_GENRES={AVAILABLE_GENRES}
-            DIFFICULTY_RANGES={DIFFICULTY_RANGES}
+            popularGameGenres={popularGameGenres}
+            setPopularGameGenres={setPopularGameGenres}
+            popularGameDifficulties={popularGameDifficulties}
+            setPopularGameDifficulties={setPopularGameDifficulties}
+            popularGames={popularGames}
+            availableGenres={AVAILABLE_GENRES}
+            difficultyRanges={ARCHIVE_DIFFICULTY_RANGES}
           />
 
           <ArchiveWidgetCorePlayers
             selectedSemester={selectedSemester}
-            w3IncludeBoardMembers={w3IncludeBoardMembers}
-            setW3IncludeBoardMembers={setW3IncludeBoardMembers}
-            w3Genres={w3Genres}
-            setW3Genres={setW3Genres}
-            w3Difficulties={w3Difficulties}
-            setW3Difficulties={setW3Difficulties}
-            w3TargetGames={w3TargetGames}
-            setW3TargetGames={setW3TargetGames}
-            w3GameSearchQuery={w3GameSearchQuery}
-            setW3GameSearchQuery={setW3GameSearchQuery}
+            corePlayerIncludeBoardMembers={corePlayerIncludeBoardMembers}
+            setCorePlayerIncludeBoardMembers={setCorePlayerIncludeBoardMembers}
+            corePlayerGenres={corePlayerGenres}
+            setCorePlayerGenres={setCorePlayerGenres}
+            corePlayerDifficulties={corePlayerDifficulties}
+            setCorePlayerDifficulties={setCorePlayerDifficulties}
+            corePlayerGameIds={corePlayerGameIds}
+            setCorePlayerGameIds={setCorePlayerGameIds}
+            corePlayerGameSearch={corePlayerGameSearch}
+            setCorePlayerGameSearch={setCorePlayerGameSearch}
             games={games}
-            w3CorePlayers={w3CorePlayers}
-            AVAILABLE_GENRES={AVAILABLE_GENRES}
-            DIFFICULTY_RANGES={DIFFICULTY_RANGES}
+            corePlayers={corePlayers}
+            availableGenres={AVAILABLE_GENRES}
+            difficultyRanges={ARCHIVE_DIFFICULTY_RANGES}
           />
 
           <ArchiveWidgetCharts
             selectedSemester={selectedSemester}
-            w4Metric={w4Metric}
-            setW4Metric={setW4Metric}
-            w4Data={w4Data}
+            attendanceTrendMetric={attendanceTrendMetric}
+            setAttendanceTrendMetric={setAttendanceTrendMetric}
+            attendanceTrend={attendanceTrend}
             setExpandedChart={setExpandedChart}
-            w5Normalize={w5Normalize}
-            setW5Normalize={setW5Normalize}
-            w5Data={w5Data}
+            normalizeNewcomerTrend={normalizeNewcomerTrend}
+            setNormalizeNewcomerTrend={setNormalizeNewcomerTrend}
+            newcomerTrend={newcomerTrend}
             setFormulaModal={setFormulaModal}
-            w6Data={w6Data}
-            w7MMI={w7MMI}
+            stagnationTrend={stagnationTrend}
+            gameMmi={gameMmi}
           />
         </div>
       </div>
@@ -134,13 +128,13 @@ export default function ArchivePage() {
         selectedSemester={selectedSemester}
         expandedChart={expandedChart}
         setExpandedChart={setExpandedChart}
-        w4Metric={w4Metric}
-        setW4Metric={setW4Metric}
-        w4Data={w4Data}
-        w5Normalize={w5Normalize}
-        setW5Normalize={setW5Normalize}
-        w5Data={w5Data}
-        w6Data={w6Data}
+        attendanceTrendMetric={attendanceTrendMetric}
+        setAttendanceTrendMetric={setAttendanceTrendMetric}
+        attendanceTrend={attendanceTrend}
+        normalizeNewcomerTrend={normalizeNewcomerTrend}
+        setNormalizeNewcomerTrend={setNormalizeNewcomerTrend}
+        newcomerTrend={newcomerTrend}
+        stagnationTrend={stagnationTrend}
       />
 
       <ArchiveFormulaModal

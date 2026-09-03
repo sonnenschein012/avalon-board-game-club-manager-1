@@ -4,12 +4,12 @@ import { Search, Edit2, Trash2, Info, Loader2, UserCheck, UserMinus } from 'luci
 import { cn } from '../lib/utils';
 import { Member } from '../types';
 import MemberForm from './MemberForm';
-import { defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
+import { defaultDormantSemester, type MemberFormData } from '../domain/members/memberForm';
 
 interface MemberListProps {
   filteredMembers: Member[];
   editingId: string | null;
-  setEditingId: (id: string | null) => void;
+  onEdit: (member: Member) => void;
   setViewingMember: (member: Member | null) => void;
   setItemToDelete: (val: { id: string, name: string }) => void;
   setFormData: React.Dispatch<React.SetStateAction<MemberFormData>>;
@@ -31,7 +31,7 @@ interface MemberListProps {
 export default function MemberList({
   filteredMembers,
   editingId,
-  setEditingId,
+  onEdit,
   setViewingMember,
   setItemToDelete,
   setFormData,
@@ -179,26 +179,7 @@ export default function MemberList({
                       <Info size={16} />
                     </button>
                     <button 
-                      onClick={() => {
-                        if (editingId === member.id) {
-                          setEditingId(null);
-                        } else {
-                          setEditingId(member.id);
-                          setFormData({ 
-                            name: member.name || '', 
-                            nickname: member.nickname || '', 
-                            studentId: member.studentId || '', 
-                            phone: member.phone || '', 
-                            gender: member.gender || '남', 
-                            semester: member.semester || defaultSemester, 
-                            preferredGenre: Array.isArray(member.preferredGenre) ? member.preferredGenre : (member.preferredGenre ? [(member.preferredGenre as unknown as string)] : []), 
-                            memo: member.memo || '',
-                            isBoardMember: member.isBoardMember || false,
-                            dormantSemester: member.dormantSemester || ''
-                          });
-                          setIsAdding(false);
-                        }
-                      }}
+                      onClick={() => onEdit(member)}
                       className="p-1.5 text-slate-400 hover:text-gold transition-colors bg-white rounded border border-transparent hover:border-slate-100 shadow-sm"
                     >
                       <Edit2 size={16} />
@@ -258,26 +239,7 @@ export default function MemberList({
                       <Info size={16} />
                     </button>
                     <button 
-                      onClick={() => {
-                        if (editingId === member.id) {
-                          setEditingId(null);
-                        } else {
-                          setEditingId(member.id);
-                          setFormData({ 
-                            name: member.name || '', 
-                            nickname: member.nickname || '', 
-                            studentId: member.studentId || '', 
-                            phone: member.phone || '', 
-                            gender: member.gender || '남', 
-                            semester: member.semester || defaultSemester, 
-                            preferredGenre: Array.isArray(member.preferredGenre) ? member.preferredGenre : (member.preferredGenre ? [(member.preferredGenre as unknown as string)] : []), 
-                            memo: member.memo || '',
-                            isBoardMember: member.isBoardMember || false,
-                            dormantSemester: member.dormantSemester || ''
-                          });
-                          setIsAdding(false);
-                        }
-                      }}
+                      onClick={() => onEdit(member)}
                       className="p-1.5 text-slate-400 hover:text-gold transition-colors bg-white rounded border border-transparent hover:border-slate-100 shadow-sm"
                     >
                       <Edit2 size={16} />

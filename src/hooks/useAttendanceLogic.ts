@@ -2,13 +2,12 @@ import React, { useState, useMemo } from 'react';
 import {
   writeBatch,
   doc,
-  orderBy,
   serverTimestamp,
   getDoc,
   Timestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Attendee, Member, SessionGroup, StoredSessionGroup, Session, MemberId } from '../types';
+import { Attendee, Member, SessionGroup, Session } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
 import { useAsyncActionState } from './useAsyncActionState';
@@ -28,28 +27,9 @@ import {
   getReunionWarnings
 } from '../domain/attendance/attendanceHelpers';
 import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
-import { getActivity, getExperience } from '../domain/matching/groupCostFunction';
-import { getParticipationHistory } from '../domain/matching/participationHistory';
+import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
-
-export function convertAttendeeIdsToMemberIds(
-  groups: SessionGroup[],
-  attendees: Attendee[],
-  members: Member[]
-): StoredSessionGroup[] {
-  const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => {
-    return getMemberFromAttendee(members, name, studentIdPrefix);
-  };
-
-  return groups.map(g => ({
-    ...g,
-    memberIds: g.memberIds.map(aId => {
-      const a = attendees.find(x => x.id === aId);
-      const m = getMemberFromInfo(a?.name, a?.studentIdPrefix);
-      return (m ? m.id : aId) as MemberId;
-    })
-  }));
-}
+import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
 
 interface UseAttendanceLogicProps {
   onMoveToRecord?: () => void;
@@ -57,9 +37,9 @@ interface UseAttendanceLogicProps {
 
 export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) {
   const { runAction, isPending } = useAsyncActionState();
-  const { data: attendees } = useFirestore<Attendee>('attendees', orderBy('importDate', 'desc'));
+  const { data: attendees } = useFirestore<Attendee>('attendees', 'importDate', 'desc');
   const { data: members } = useFirestore<Member>('members');
-  const { data: sessions } = useFirestore<Session>('sessions', orderBy('date', 'desc'));
+  const { data: sessions } = useFirestore<Session>('sessions', 'date', 'desc');
 
   const [importing, setImporting] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
@@ -116,41 +96,13 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     return counts;
   }, [sessions, members]);
 
-  const memberPairLastSession = useMemo(() => {
-    const pairs: Record<string, boolean> = {};
-    if (sessions.length > 0 && sessions[0]) {
-      const lastSession = sessions[0];
-      lastSession.groups.forEach(g => {
-        for (let i = 0; i < g.memberIds.length; i++) {
-          for (let j = i + 1; j < g.memberIds.length; j++) {
-            const pairKey = [g.memberIds[i], g.memberIds[j]].sort().join('|');
-            pairs[pairKey] = true;
-          }
-        }
-      });
-    }
-    return pairs;
-  }, [sessions]);
-
-  const memberPairRecentCounts = useMemo(() => {
-    const pairs: Record<string, number> = {};
-    const recentSessions = sessions.slice(0, 3);
-    recentSessions.forEach(s => {
-      s.groups.forEach(g => {
-        for (let i = 0; i < g.memberIds.length; i++) {
-          for (let j = i + 1; j < g.memberIds.length; j++) {
-            const pairKey = [g.memberIds[i], g.memberIds[j]].sort().join('|');
-            pairs[pairKey] = (pairs[pairKey] || 0) + 1;
-          }
-        }
-      });
-    });
-    return pairs;
-  }, [sessions]);
+  const costContext = useMemo(() => buildGroupCostContext({
+    attendees, members, sessions, assignmentDate: sessionDate,
+  }), [attendees, members, sessions, sessionDate]);
 
   const calcGroupAvgAttendance = (attendeeIds: string[]) => calculateGroupAverageAttendance(attendeeIds, getMember, memberAttendanceCount);
   const calcGroupAvgStudentId = (attendeeIds: string[]) => calculateGroupAverageStudentId(attendeeIds, getMember, attendees);
-  const getWarnings = (attendeeIds: string[]) => getReunionWarnings(attendeeIds, getMember, memberPairRecentCounts);
+  const getWarnings = (attendeeIds: string[]) => getReunionWarnings(attendeeIds, getMember, costContext.memberPairRecentCounts);
 
   const assignedAttendeeIds = new Set(groups.flatMap(g => g.memberIds));
   const unassignedAttendees = attendees
@@ -223,62 +175,6 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, targetSize: size } : g));
   };
 
-  const getCostContext = () => {
-    const totalMems = attendees.map(a => getMember(a.id)).filter(Boolean) as Member[];
-    const totalCount = totalMems.length || 1;
-    const overallGenderRatio = totalCount > 0 ? totalMems.filter(m => m.gender === '여').length / totalCount : 0;
-    const globalYears = totalMems.map(m => parseInt(m.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x=>x) || '25'));
-    const globalAvgYear = globalYears.reduce((a, b) => a + b, 0) / (globalYears.length || 1);
-    let vPool = 0;
-    if (globalYears.length > 0) {
-      vPool = globalYears.reduce((a, b) => a + Math.pow(b - globalAvgYear, 2), 0) / globalYears.length;
-    }
-
-    const participationHistory = getParticipationHistory(totalMems, sessions, sessionDate);
-    const memberExperience: Record<string, number> = {};
-    const memberActivity: Record<string, number> = {};
-
-    totalMems.forEach(member => {
-      memberExperience[member.id] = getExperience(participationHistory.attendanceCounts[member.id] || 0);
-      memberActivity[member.id] = getActivity(
-        participationHistory.currentSemesterAttendanceCounts[member.id] || 0,
-        participationHistory.currentSemesterOpportunityCounts[member.id] || 0
-      );
-    });
-
-    const overallExperienceAverage = totalMems.length > 0
-      ? totalMems.reduce((sum, member) => sum + memberExperience[member.id]!, 0) / totalMems.length
-      : 0;
-    const overallActivityAverage = totalMems.length > 0
-      ? totalMems.reduce((sum, member) => sum + memberActivity[member.id]!, 0) / totalMems.length
-      : 0.5;
-
-    const requestedPairs: {a: string, b: string}[] = [];
-    attendees.forEach(attA => {
-      if (attA.request) {
-        const memA = getMember(attA.id);
-        if (!memA) return;
-        members.forEach(memB => {
-          if (memA.id !== memB.id && attA.request!.includes(memB.name)) {
-            requestedPairs.push({ a: memA.id, b: memB.id });
-          }
-        });
-      }
-    });
-
-    return {
-      overallGenderRatio,
-      vPool,
-      memberExperience,
-      memberActivity,
-      overallExperienceAverage,
-      overallActivityAverage,
-      memberPairRecentCounts,
-      memberPairLastSession,
-      requestedPairs,
-    };
-  };
-
   const handleAutoAssign = () => {
     const availableAttendees = attendees.filter(a => {
       const isAssigned = groups.some(g => g.memberIds.includes(a.id));
@@ -296,13 +192,11 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
       member: getMember(a.id)!
     }));
 
-    const ctx = getCostContext();
-
     const { updatedGroups } = simulateAutoAssign(
       availableMembers,
-      groups as SessionGroup[],
+      groups,
       getMember,
-      ctx,
+      costContext,
       false
     );
 
@@ -322,8 +216,6 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
 
     toast.info('시뮬레이션을 시작합니다. 브라우저가 잠시 멈출 수 있습니다...');
     setTimeout(() => {
-      const ctx = getCostContext();
-
       const availableAttendees = attendees.filter(a => {
         const isAssigned = groups.some(g => g.memberIds.includes(a.id));
         const m = getMember(a.id);
@@ -337,9 +229,9 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
 
       const { costLog, actualCost } = simulateAutoAssign(
         availableMembers,
-        groups as SessionGroup[],
+        groups,
         getMember,
-        ctx,
+        costContext,
         true
       );
 
@@ -510,8 +402,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     getMember,
     getMemberFromInfo,
     memberAttendanceCount,
-    memberPairLastSession,
-    memberPairRecentCounts,
+    costContext,
     calculateGroupAverageAttendance: calcGroupAvgAttendance,
     calculateGroupAverageStudentId: calcGroupAvgStudentId,
     getReunionWarnings: getWarnings,

@@ -6,7 +6,7 @@ import {
   canAppearInSelection,
   getInterviewProgressStatus,
   isAssignmentConfirmationCurrent,
-} from './interviewV3Policy';
+} from './interviewPolicy';
 
 function applicant(overrides: Partial<InterviewApplicant> = {}) {
   return {
@@ -18,7 +18,7 @@ function applicant(overrides: Partial<InterviewApplicant> = {}) {
   } as InterviewApplicant;
 }
 
-describe('Interview V3 policy', () => {
+describe('interview policy', () => {
   it('protects only a confirmation for the current assignment revision', () => {
     const assignment = { confirmationRevision: 3 } as InterviewApplicant['assignment'];
     const sent = {} as NonNullable<InterviewApplicant['confirmationMessage']['lastMarkedSentAt']>;
@@ -62,7 +62,7 @@ describe('Interview V3 policy', () => {
     expect(canAppearInSelection(actionNeeded)).toBe(false);
   });
 
-  it('shows only completed interviews in selection, including compatible V2 records', () => {
+  it('shows only completed interviews in selection, including legacy assignment-status records', () => {
     const completed = applicant({
       assignment: { status: 'completed' } as InterviewApplicant['assignment'],
     });
@@ -72,7 +72,7 @@ describe('Interview V3 policy', () => {
   });
 
   it.each(['change_requested', 'no_show', 'cancelled', 'needs_reschedule'] as const)(
-    'normalizes legacy V2 %s assignments to action-needed',
+    'normalizes legacy %s assignments to action-needed',
     status => {
       const legacy = applicant({ assignment: { status } as InterviewApplicant['assignment'] });
       expect(getInterviewProgressStatus(legacy)).toBe('action_needed');

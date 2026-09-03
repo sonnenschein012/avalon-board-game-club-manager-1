@@ -6,21 +6,21 @@ import { Member } from '../types';
 interface ArchiveWidgetRankingProps {
   selectedSemester: string;
   filteredSessionsLength: number;
-  includeBoardMembers: boolean;
-  setIncludeBoardMembers: (b: boolean) => void;
-  attendanceMetric: 'count' | 'rate';
-  setAttendanceMetric: (m: 'count' | 'rate') => void;
-  w1Ranking: {id: string, count: number, member?: Member | undefined}[];
+  rankingIncludeBoardMembers: boolean;
+  setRankingIncludeBoardMembers: (b: boolean) => void;
+  attendanceRankingMetric: 'count' | 'rate';
+  setAttendanceRankingMetric: (m: 'count' | 'rate') => void;
+  attendanceRanking: {id: string, count: number, member?: Member | undefined}[];
 }
 
 export default function ArchiveWidgetRanking({
   selectedSemester,
   filteredSessionsLength,
-  includeBoardMembers,
-  setIncludeBoardMembers,
-  attendanceMetric,
-  setAttendanceMetric,
-  w1Ranking
+  rankingIncludeBoardMembers,
+  setRankingIncludeBoardMembers,
+  attendanceRankingMetric,
+  setAttendanceRankingMetric,
+  attendanceRanking
 }: ArchiveWidgetRankingProps) {
   return (
     <div className="glass-panel p-6 space-y-6">
@@ -34,22 +34,22 @@ export default function ArchiveWidgetRanking({
           <label className="flex items-center gap-2 cursor-pointer shrink-0">
             <input 
               type="checkbox" 
-              checked={includeBoardMembers}
-              onChange={e => setIncludeBoardMembers(e.target.checked)}
+              checked={rankingIncludeBoardMembers}
+              onChange={e => setRankingIncludeBoardMembers(e.target.checked)}
               className="rounded border-slate-300 text-navy focus:ring-navy cursor-pointer"
             />
             <span className="text-[10px] md:text-xs font-bold text-slate-500">임원진 포함</span>
           </label>
           <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
             <button 
-              onClick={() => setAttendanceMetric('count')}
-              className={cn("px-2 py-1 md:px-3 md:py-1 rounded text-[10px] md:text-xs font-bold transition-colors", attendanceMetric === 'count' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
+              onClick={() => setAttendanceRankingMetric('count')}
+              className={cn("px-2 py-1 md:px-3 md:py-1 rounded text-[10px] md:text-xs font-bold transition-colors", attendanceRankingMetric === 'count' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
             >
               횟수(회)
             </button>
             <button 
-              onClick={() => setAttendanceMetric('rate')}
-              className={cn("px-2 py-1 md:px-3 md:py-1 rounded text-[10px] md:text-xs font-bold transition-colors", attendanceMetric === 'rate' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
+              onClick={() => setAttendanceRankingMetric('rate')}
+              className={cn("px-2 py-1 md:px-3 md:py-1 rounded text-[10px] md:text-xs font-bold transition-colors", attendanceRankingMetric === 'rate' ? "bg-white text-navy shadow-sm" : "text-slate-400")}
             >
               비율(%)
             </button>
@@ -57,7 +57,7 @@ export default function ArchiveWidgetRanking({
         </div>
       </div>
       <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-        {w1Ranking.map((item, idx) => (
+        {attendanceRanking.map((item, idx) => (
           <div key={item.id} className="flex justify-between items-center p-3 bg-white border border-slate-50 rounded-xl hover:border-slate-100 transition-colors">
             <div className="flex items-center gap-4">
               <span className={cn("w-6 text-center font-bold text-lg", idx === 0 ? "text-gold" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-orange-400" : "text-slate-300 text-sm")}>
@@ -72,13 +72,13 @@ export default function ArchiveWidgetRanking({
               </div>
             </div>
             <div className="font-bold text-navy bg-slate-50 px-3 py-1.5 rounded-lg text-sm border border-slate-100">
-              {attendanceMetric === 'count' 
+              {attendanceRankingMetric === 'count'
                 ? `${item.count}회` 
                 : `${filteredSessionsLength > 0 ? Math.round((item.count / filteredSessionsLength) * 1000)/10 : 0}%`}
             </div>
           </div>
         ))}
-        {w1Ranking.length === 0 && <p className="text-center text-slate-400 text-sm py-8 font-bold">표시할 데이터가 없습니다.</p>}
+        {attendanceRanking.length === 0 && <p className="text-center text-slate-400 text-sm py-8 font-bold">표시할 데이터가 없습니다.</p>}
       </div>
     </div>
   );

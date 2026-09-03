@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { InterviewAccess, InterviewApplicant, InterviewRound } from '../types';
-import { isActiveInterviewApplicant } from '../domain/interviews/interviewV3Policy';
+import { isActiveInterviewApplicant } from '../domain/interviews/interviewPolicy';
 import {
   createInterviewRound,
   subscribeAllInterviewAccess,

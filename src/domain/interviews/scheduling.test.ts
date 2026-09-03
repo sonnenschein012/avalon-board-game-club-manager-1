@@ -1,18 +1,17 @@
 import { Timestamp } from 'firebase/firestore';
-import { describe, expect, it } from 'vitest';
+import { describe,expect,it } from 'vitest';
 import {
-  aggregateAvailability,
-  assignmentsOverlap,
-  availabilityToAssignmentCandidates,
-  createSlotId,
-  generateAvailabilitySlots,
-  generateAvailabilitySlotsForSchedules,
-  getAssignmentScheduleImpact,
-  getScheduleChangeImpact,
-  getSurveyPhase,
-  isAssignmentOutsideAvailability,
-  parseSlotId,
-  validateAvailability,
+assignmentsOverlap,
+availabilityToAssignmentCandidates,
+createSlotId,
+generateAvailabilitySlots,
+generateAvailabilitySlotsForSchedules,
+getAssignmentScheduleImpact,
+getScheduleChangeImpact,
+getSurveyPhase,
+isAssignmentOutsideAvailability,
+parseSlotId,
+validateAvailability,
 } from './scheduling';
 
 describe('interview scheduling domain', () => {
@@ -115,17 +114,6 @@ describe('interview scheduling domain', () => {
       invalidSlots: ['2026-08-28|19:00'],
       duplicateSlots: ['2026-08-27|19:00'],
     });
-  });
-
-  it('aggregates each applicant once per availability cell', () => {
-    expect(aggregateAvailability([
-      { applicantId: 'a1', availability: ['2026-08-27|19:00', '2026-08-27|19:00'] },
-      { applicantId: 'a2', availability: ['2026-08-27|19:00', '2026-08-27|19:30'] },
-      { applicantId: 'a3', availability: ['2026-08-27|19:30'] },
-    ])).toEqual([
-      { slotId: '2026-08-27|19:00', count: 2, applicantIds: ['a1', 'a2'] },
-      { slotId: '2026-08-27|19:30', count: 2, applicantIds: ['a2', 'a3'] },
-    ]);
   });
 
   it('previews exactly which saved selections a schedule change would remove', () => {

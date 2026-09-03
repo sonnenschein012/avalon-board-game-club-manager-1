@@ -5,18 +5,14 @@ import { Game } from '../types';
 interface GameListProps {
   filteredGames: Game[];
   getPlayCount: (game: Game) => number;
-  setEditingId: (id: string | null) => void;
-  setFormData: React.Dispatch<React.SetStateAction<{ title: string, minPlayers: number, maxPlayers: number, bestMinPlayers: number, bestMaxPlayers: number, complexity: number, memo: string, genres: string[] }>>;
-  setIsAdding: (val: boolean) => void;
+  onEdit: (game: Game) => void;
   setItemToDelete: (val: { id: string, title: string }) => void;
 }
 
 export default function GameList({
   filteredGames,
   getPlayCount,
-  setEditingId,
-  setFormData,
-  setIsAdding,
+  onEdit,
   setItemToDelete
 }: GameListProps) {
   return (
@@ -69,7 +65,7 @@ export default function GameList({
           )}
           <div className="flex justify-end gap-3 mt-4">
             <button 
-              onClick={() => { setEditingId(game.id); setFormData({ title: game.title || '', minPlayers: game.minPlayers || 2, maxPlayers: game.maxPlayers || 4, bestMinPlayers: game.bestMinPlayers || game.minPlayers || 2, bestMaxPlayers: game.bestMaxPlayers || game.maxPlayers || 4, complexity: game.complexity || 1.0, memo: game.memo || '', genres: game.genres || [] }); setIsAdding(true); }}
+              onClick={() => onEdit(game)}
               className="p-1.5 bg-slate-50 border border-transparent rounded-lg text-slate-400 hover:bg-slate-100 hover:text-gold transition-colors"
             ><Edit2 size={14} /></button>
             <button onClick={() => setItemToDelete({ id: game.id, title: game.title })} className="p-1.5 bg-slate-50 border border-transparent rounded-lg text-slate-400 hover:bg-slate-100 hover:text-crimson transition-colors"><Trash2 size={14} /></button>

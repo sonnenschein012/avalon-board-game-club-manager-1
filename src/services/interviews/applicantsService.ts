@@ -5,21 +5,22 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  updateDoc,
   where,
   writeBatch,
-  type Unsubscribe,
+  type Unsubscribe
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import { normalizeApplicantNumber } from '../../domain/interviews/applicantMerge';
+import { isActiveInterviewApplicant } from '../../domain/interviews/interviewPolicy';
+import { getApplicantAssignmentRevision } from '../../domain/interviews/interviewTransitions';
 import { assertExpectedUpdatedAt, timestampMillis } from '../../domain/interviews/revisionConflict';
+import { db } from '../../lib/firebase';
 import type { InterviewAccess, InterviewApplicant } from '../../types';
 import {
+  generateInterviewToken,
   type ApplicantDraft,
   type ApplicantMergeCommitItem,
-  generateInterviewToken,
 } from './models';
-import { currentAssignmentRevision, isActiveApplicant, mapSnapshot } from './shared';
+import { mapSnapshot } from './shared';
 
 function getApplicantKeyId(roundId: string, applicantNumber: string) {
   return [roundId, normalizeApplicantNumber(applicantNumber)].map(encodeURIComponent).join('__');
@@ -76,11 +77,11 @@ export async function markInterviewMessageSent(
     const previous = applicant[kind] as InterviewApplicant[typeof kind] | undefined;
     const currentAssignment = applicant.assignment;
     if (kind === 'confirmationMessage' && markedSent) {
-      if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자에게는 확정 안내를 기록할 수 없습니다.');
+      if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자에게는 확정 안내를 기록할 수 없습니다.');
       if (!currentAssignment) throw new Error('현재 면접 배정이 없어 확정 안내를 기록할 수 없습니다.');
     }
 
-    const revision = currentAssignmentRevision(applicant);
+    const revision = getApplicantAssignmentRevision(applicant);
     const messagePatch = markedSent ? {
       [`${kind}.firstMarkedSentAt`]: previous?.firstMarkedSentAt ?? serverTimestamp(),
       [`${kind}.lastMarkedSentAt`]: serverTimestamp(),
@@ -103,10 +104,6 @@ export async function markInterviewMessageSent(
       });
     }
   });
-}
-
-export async function setInterviewAccessActive(token: string, active: boolean): Promise<void> {
-  await updateDoc(doc(db, 'interviewAccess', token), { active });
 }
 
 export async function createInterviewApplicant(roundId: string, draft: ApplicantDraft): Promise<string> {

@@ -1,3 +1,4 @@
+import { OVERALL_RATINGS } from '../../domain/interviews/interviewRatings';
 import {
   collection,
   doc,
@@ -6,14 +7,18 @@ import {
   serverTimestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
 import {
-  OVERALL_RATINGS,
   prepareInterviewCompletion,
   prepareInterviewReopen,
 } from '../../domain/interviews/interviewCompletion';
-import { getInterviewProgressStatus } from '../../domain/interviews/interviewV3Policy';
+import {
+  getInterviewProgressStatus,
+  isActiveInterviewApplicant,
+  isAssignmentConfirmationCurrent,
+} from '../../domain/interviews/interviewPolicy';
+import { getApplicantAssignmentRevision } from '../../domain/interviews/interviewTransitions';
 import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
+import { db } from '../../lib/firebase';
 import type {
   InterviewApplicant,
   InterviewNote,
@@ -24,10 +29,7 @@ import type {
 import type { CompleteInterviewInput } from './models';
 import {
   actorEmail,
-  currentAssignmentRevision,
   interviewRecordSnapshot,
-  isActiveApplicant,
-  isCurrentConfirmationSent,
 } from './shared';
 
 export function subscribeInterviewNote(
@@ -76,7 +78,7 @@ export async function saveInterviewNote(input: {
     const currentRevision = existingNote?.revision ?? 0;
     assertExpectedRevision(currentRevision, input.expectedRevision, '면접 기록');
     if (applicant.roundId !== input.roundId) throw new Error('다른 면접 회차의 지원자입니다.');
-    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 면접 기록은 수정할 수 없습니다.');
+    if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 면접 기록은 수정할 수 없습니다.');
     // A pending autosave that races the final completion transaction must not
     // overwrite the rating and notes that were atomically finalized there.
     if (getInterviewProgressStatus(applicant) === 'completed') {
@@ -111,7 +113,7 @@ export async function updateCompletedInterviewOverallRating(
     const applicantSnapshot = await transaction.get(applicantRef);
     if (!applicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = applicantSnapshot.data() as InterviewApplicant;
-    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 평가는 수정할 수 없습니다.');
+    if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자의 평가는 수정할 수 없습니다.');
     if (getInterviewProgressStatus(applicant) !== 'completed') throw new Error('완료된 면접의 평가만 이곳에서 수정할 수 있습니다.');
     const noteRef = doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`);
     const noteSnapshot = await transaction.get(noteRef);
@@ -165,7 +167,7 @@ export async function setInterviewActionNeeded(applicantId: string, reason = '')
     const snapshot = await transaction.get(applicantRef);
     if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = snapshot.data() as InterviewApplicant;
-    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 처리할 수 없습니다.');
+    if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 처리할 수 없습니다.');
     if (getInterviewProgressStatus(applicant) === 'completed') {
       throw new Error('이미 완료된 면접은 조치 필요로 변경할 수 없습니다.');
     }
@@ -183,12 +185,12 @@ export async function restoreScheduledInterview(applicantId: string): Promise<vo
     const snapshot = await transaction.get(applicantRef);
     if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = snapshot.data() as InterviewApplicant;
-    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 처리할 수 없습니다.');
+    if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 처리할 수 없습니다.');
     if (!applicant.assignment) throw new Error('현재 면접 배정이 없습니다.');
     if (getInterviewProgressStatus(applicant) === 'completed') throw new Error('이미 완료된 면접입니다.');
     const restoredAssignment = {
       ...applicant.assignment,
-      status: isCurrentConfirmationSent(applicant) ? 'confirmed' as const : 'scheduled' as const,
+      status: isAssignmentConfirmationCurrent(applicant) ? 'confirmed' as const : 'scheduled' as const,
     };
     transaction.update(applicantRef, {
       assignment: restoredAssignment,
@@ -252,8 +254,8 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
       type: 'status_changed',
       previousAssignment: applicant.assignment,
       nextAssignment: completion.completedAssignment,
-      previousRevision: currentAssignmentRevision(applicant),
-      nextRevision: currentAssignmentRevision(applicant),
+      previousRevision: getApplicantAssignmentRevision(applicant),
+      nextRevision: getApplicantAssignmentRevision(applicant),
       reason: '면접 완료',
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
@@ -298,8 +300,8 @@ export async function reopenCompletedInterview(applicantId: string): Promise<voi
     const noteRef = doc(db, 'interviewNotes', `${applicant.roundId}__${applicantId}`);
     const noteSnapshot = await transaction.get(noteRef);
     const note = noteSnapshot.data() as InterviewNote | undefined;
-    const { reopenedAssignment } = prepareInterviewReopen(applicant, isCurrentConfirmationSent(applicant));
-    const previousRevision = currentAssignmentRevision(applicant);
+    const { reopenedAssignment } = prepareInterviewReopen(applicant, isAssignmentConfirmationCurrent(applicant));
+    const previousRevision = getApplicantAssignmentRevision(applicant);
 
     transaction.update(applicantRef, {
       assignment: reopenedAssignment,
@@ -351,7 +353,7 @@ export async function updateInterviewSelectionStatus(
     const snapshot = await transaction.get(applicantRef);
     if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
     const applicant = snapshot.data() as InterviewApplicant;
-    if (!isActiveApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 선발 대상으로 처리할 수 없습니다.');
+    if (!isActiveInterviewApplicant(applicant)) throw new Error('지원 철회 또는 보관된 지원자는 선발 대상으로 처리할 수 없습니다.');
     if (getInterviewProgressStatus(applicant) !== 'completed') {
       throw new Error('면접 완료자만 선발 상태를 변경할 수 있습니다.');
     }

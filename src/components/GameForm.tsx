@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AVAILABLE_GENRES } from '../hooks/useGamesLogic';
+import { GAME_GENRES } from '../domain/games/gameCatalog';
+import type { GameFormData } from '../domain/games/gameForm';
 import { Loader2 } from 'lucide-react';
 
 interface GameFormProps {
-  formData: { title: string, minPlayers: number, maxPlayers: number, bestMinPlayers: number, bestMaxPlayers: number, complexity: number, memo: string, genres: string[] };
-  setFormData: React.Dispatch<React.SetStateAction<{ title: string, minPlayers: number, maxPlayers: number, bestMinPlayers: number, bestMaxPlayers: number, complexity: number, memo: string, genres: string[] }>>;
+  formData: GameFormData;
+  setFormData: React.Dispatch<React.SetStateAction<GameFormData>>;
   handleSubmit: (e: React.FormEvent) => void;
   isAdding: boolean;
   setIsAdding: (val: boolean) => void;
@@ -61,7 +62,7 @@ export default function GameForm({
             <div className="md:col-span-6">
               <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">장르 (다중 선택)</label>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_GENRES.map(genre => {
+                {GAME_GENRES.map(genre => {
                   const isSelected = formData.genres.includes(genre);
                   return (
                     <button

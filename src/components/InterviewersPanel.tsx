@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pencil, Plus, Save, Trash2, UserRound, X } from 'lucide-react';
-import type { InterviewApplicant, InterviewRound, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../types';
-import { formatMemberPhone } from '../domain/interviews/memberRegistration';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { countActiveInterviewerSchedules } from '../domain/interviews/interviewerParticipation';
+import { formatMemberPhone } from '../domain/members/memberIdentity';
+import type { InterviewApplicant, InterviewRound, InterviewRoundInterviewer, InterviewSchedule, InterviewScheduleInterviewer } from '../types';
 import AvailabilityGrid from './AvailabilityGrid';
 
 interface Props {
