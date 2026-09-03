@@ -20,19 +20,27 @@ Avalon 보드게임 동아리의 회원, 게임, 정기 모임, 면접을 관리
 
 ### 요구 사항
 
-- Node.js 및 npm
-- Firebase 프로젝트 접근 권한
+- Node.js 22 이상 및 npm (CI는 Node.js 22 사용)
+- Emulator Design Lab과 규칙 테스트는 Java 21 이상
+- 운영/staging 데이터에 연결할 때만 Firebase 프로젝트 접근 권한 필요
 
 ### 설치 및 실행
 
 ```bash
-git clone <repository-url>
-cd avalon-board-game-club-manager
-npm.cmd install
+git clone https://github.com/sonnenschein012/avalon-board-game-club-manager-1.git
+cd avalon-board-game-club-manager-1
+npm.cmd ci
 npm.cmd run dev
 ```
 
 개발 서버는 기본적으로 `http://localhost:3000`에서 실행됩니다.
+
+`dev`는 운영 Firebase에 연결합니다. UI 확인은 아래 Scenario Lab을, 데이터 변경을 포함한 로컬 개발은 Emulator Design Lab을 사용하세요. macOS/Linux에서는 `npm.cmd` 대신 `npm`을 사용합니다.
+
+## 개발 안내
+
+- [개발 가이드](docs/development.md): 기능별 코드 위치, 데이터 흐름, 확장 방법과 검증 선택
+- [운영·인수인계](docs/operations.md): 환경별 Firebase 대상, 배포, 데이터 보관과 접근 권한
 
 ### Scenario Lab
 
@@ -50,8 +58,8 @@ npm.cmd run scenario-lab:test  # canonical scenario와 390/768/1440px 검증
 Emulator Design Lab은 실제 앱 UI와 hook/service를 그대로 사용하면서 Authentication과 Firestore를 로컬 Emulator에만 연결합니다. 실제 Firebase 프로젝트 접근 권한 없이 통합 동작과 보안 규칙을 검증할 수 있으며, 시작할 때 Mock 데이터를 새로 구성합니다.
 
 ```bash
-npm.cmd install
-npm.cmd run demo:setup       # 최초 1회: 로컬 Java 21 런타임 준비
+npm.cmd ci
+npm.cmd run demo:setup       # Windows 최초 1회: 로컬 Java 21 런타임 준비
 npm.cmd run design-lab       # http://127.0.0.1:3000
 npm.cmd run design-lab:test  # Emulator 기동부터 Chromium 검증까지 자동 실행
 ```
@@ -62,7 +70,7 @@ npm.cmd run design-lab:test  # Emulator 기동부터 Chromium 검증까지 자�
 
 Firebase 연결 설정은 `firebase-applet-config.json`에 포함되어 있습니다. 별도의 `.env` 파일은 필요하지 않습니다.
 
-최초 마스터 관리자는 Firestore `admins` 컬렉션에서 이메일을 문서 ID로 생성하고 `role: "master"`를 지정합니다. 이후 일반 관리자는 앱의 설정 페이지에서 추가할 수 있습니다.
+마스터 관리자는 Firestore `admins` 컬렉션에서 정규화한 이메일을 문서 ID로 사용하고 `role: "master"`를 지정합니다. 일반 관리자는 앱의 설정 페이지에서 추가할 수 있습니다. 초기 운영자에 대한 bootstrap master 예외가 클라이언트와 보안 규칙에 함께 남아 있으므로 계정 이관 시 [운영·인수인계](docs/operations.md)를 확인하세요.
 
 ## 검증
 
@@ -86,6 +94,6 @@ npm.cmd run test:rules
 
 면접 기능을 변경하거나 배포할 때는 Hosting 빌드와 `firestore.rules`를 함께 검토하세요. 이 프로젝트는 기본 Firestore 데이터베이스가 아닌 named database를 사용합니다.
 
-staging은 backend와 Hosting 대상이 분리되어 있습니다. `npm.cmd run deploy:staging`은 Rules를 `avalon-manager-staging`에, 정적 앱을 `avalon-manager-stg-260813` Hosting site에 순서대로 배포합니다.
+staging은 운영과 분리된 `avalon-manager-staging` 프로젝트를 사용합니다. `npm.cmd run deploy:staging`은 이 프로젝트의 기본 데이터베이스에 Rules/인덱스를, 같은 이름의 Hosting site에 정적 앱을 순서대로 배포합니다. 정확한 대상과 운영 배포 명령은 [운영·인수인계](docs/operations.md)에 정리되어 있습니다.
 
 일반 및 staging 빌드는 `index.html`만 진입점으로 사용합니다. 빌드 후 검증 스크립트가 `design.html`, Scenario fixture, 가짜 사용자 식별자가 `dist`에 들어오면 배포 전에 실패시킵니다.
