@@ -17,10 +17,13 @@ import {
 import { assertExpectedRevision, assertExpectedUpdatedAt } from '../../domain/interviews/revisionConflict';
 import { availabilityToAssignmentCandidates } from '../../domain/interviews/scheduling';
 import { db } from '../../lib/firebase';
+import { addAuditEventToTransaction } from '../auditService';
+import type { AuditChange } from '../../domain/audit/auditEvent';
 import type {
   InterviewAccess,
   InterviewApplicant,
   InterviewAssignment,
+  InterviewAssignmentStatus,
   InterviewNote,
   InterviewProgressStatus,
   InterviewRound,
@@ -35,6 +38,22 @@ import {
   hasInterviewRecord,
   interviewRecordSnapshot
 } from './shared';
+
+const ASSIGNMENT_STATUS_LABELS: Record<InterviewAssignmentStatus, string> = {
+  scheduled: '시간 지정 · 안내 전',
+  confirmed: '안내 완료',
+  change_requested: '일정 변경 요청',
+  completed: '완료',
+  no_show: '불참',
+  cancelled: '취소',
+  needs_reschedule: '재조율 필요',
+};
+
+function assignmentAuditLabel(assignment: InterviewAssignment | null | undefined): string {
+  if (!assignment) return '배정 없음';
+  const startsAt = assignment.startsAt?.toDate?.().toLocaleString('ko-KR') ?? assignment.slotId ?? '시간 미정';
+  return `${startsAt} · ${assignment.interviewerName} · ${ASSIGNMENT_STATUS_LABELS[assignment.status]}${assignment.locked ? ' · 잠금' : ''}`;
+}
 
 export async function saveInterviewAssignment(
   applicantId: string,
@@ -139,6 +158,18 @@ export async function saveInterviewAssignment(
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: nextAssignment ? 'interview.assignment_saved' : 'interview.assignment_cleared',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      changes: [{
+        field: 'assignment',
+        label: '면접 배정',
+        before: assignmentAuditLabel(currentAssignment),
+        after: assignmentAuditLabel(nextAssignment),
+      }],
+    });
   });
 }
 
@@ -147,6 +178,7 @@ export async function applyInterviewAssignmentProposals(
   proposals: AssignmentProposalWrite[],
   scheduleId: string | null = null,
 ): Promise<number> {
+  if (proposals.length === 0) return 0;
   const resourceKeys = proposals.map(proposal => `${proposal.interviewerId}|${proposal.slotId}`);
   if (new Set(resourceKeys).size !== resourceKeys.length) throw new Error('초안 안에 면접관 시간 충돌이 있습니다.');
   if (new Set(proposals.map(proposal => proposal.applicantId)).size !== proposals.length) throw new Error('한 지원자가 초안에 두 번 포함되어 있습니다.');
@@ -190,6 +222,7 @@ export async function applyInterviewAssignmentProposals(
       const currentLockRef = doc(db, 'interviewAssignmentLocks', getAssignmentLockId(roundId, current));
       if (currentLockRef.path !== nextLockRefs[index]?.path) transaction.delete(currentLockRef);
     });
+    const auditChanges: AuditChange[] = [];
     proposals.forEach((proposal, index) => {
       const applicantSnapshot = applicantSnapshots[index];
       if (!applicantSnapshot?.exists()) throw new Error('지원자를 찾을 수 없습니다.');
@@ -251,6 +284,12 @@ export async function applyInterviewAssignmentProposals(
         source: proposal.source,
         confirmationRevision: revision,
       };
+      auditChanges.push({
+        field: proposal.applicantId,
+        label: applicant.name,
+        before: assignmentAuditLabel(current),
+        after: assignmentAuditLabel(next),
+      });
       transaction.set(nextLockRefs[index]!, {
         roundId,
         scheduleId,
@@ -285,6 +324,18 @@ export async function applyInterviewAssignmentProposals(
         createdAt: serverTimestamp(),
         createdBy: actorEmail(),
       });
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.auto_assignment_applied',
+      targetId: scheduleId ?? roundId,
+      targetLabel: scheduleId && 'name' in scheduleConfig ? scheduleConfig.name : '면접 회차 자동 배정',
+      count: proposals.length,
+      changes: auditChanges,
+      detail: applicantSnapshots
+        .map(snapshot => (snapshot.data() as InterviewApplicant | undefined)?.name)
+        .filter((name): name is string => Boolean(name))
+        .join(', '),
     });
   });
   return proposals.length;
@@ -343,6 +394,29 @@ export async function updateInterviewAssignmentState(
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
+    const changes = [
+      ...('locked' in patch && patch.locked !== undefined && patch.locked !== applicant.assignment.locked ? [{
+        field: 'locked',
+        label: '배정 잠금',
+        before: applicant.assignment.locked ? '잠금' : '해제',
+        after: patch.locked ? '잠금' : '해제',
+      }] : []),
+      ...('status' in patch && patch.status !== undefined && patch.status !== applicant.assignment.status ? [{
+        field: 'status',
+        label: '배정 상태',
+        before: ASSIGNMENT_STATUS_LABELS[applicant.assignment.status],
+        after: ASSIGNMENT_STATUS_LABELS[patch.status],
+      }] : []),
+    ];
+    if (changes.length > 0) {
+      addAuditEventToTransaction(transaction, {
+        category: 'interview',
+        action: 'interview.assignment_state_updated',
+        targetId: applicantId,
+        targetLabel: applicant.name,
+        changes,
+      });
+    }
   });
 }
 
@@ -406,6 +480,18 @@ export async function resetInterviewApplicantSchedule(applicantId: string): Prom
         createdBy: actorEmail(),
       });
     }
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.applicant_schedule_reset',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      changes: [{
+        field: 'assignment',
+        label: '면접 배정',
+        before: assignmentAuditLabel(previousAssignment),
+        after: '배정 없음',
+      }],
+    });
   });
 }
 
@@ -470,5 +556,12 @@ export async function setInterviewApplicantWithdrawn(applicantId: string, withdr
         createdBy: actorEmail(),
       });
     }
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: withdrawn ? 'interview.applicant_withdrawn' : 'interview.applicant_withdrawal_restored',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      ...(withdrawn && activeAssignment ? { detail: `기존 배정: ${assignmentAuditLabel(activeAssignment)}` } : {}),
+    });
   });
 }

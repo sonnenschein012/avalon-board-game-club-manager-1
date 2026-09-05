@@ -3,6 +3,7 @@ import { useSettingsAdmins } from '../hooks/useSettingsAdmins';
 import { useClubExports } from '../hooks/useClubExports';
 import SettingsAdminPanel from './SettingsAdminPanel';
 import SettingsExportPanel from './SettingsExportPanel';
+import SettingsAuditPanel from './SettingsAuditPanel';
 
 export default function SettingsPage({
   isAdminModeActive,
@@ -50,6 +51,7 @@ export default function SettingsPage({
       )}
 
       <SettingsAdminPanel isMasterAdmin={isMasterAdmin} {...adminSettings} />
+      {isMasterAdmin && isAdminModeActive && <SettingsAuditPanel />}
       <SettingsExportPanel {...clubExports} />
     </div>
   );

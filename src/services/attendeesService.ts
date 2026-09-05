@@ -1,4 +1,4 @@
-import { writeBatch, doc, collection, serverTimestamp, setDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { writeBatch, doc, collection, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Attendee, Member } from '../types';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import { getMemberFromAttendee } from '../domain/matching/getMemberFromAttendee'
 import { isSameName } from '../domain/matching/isSameName';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { parseAttendeeCsvRow } from '../domain/attendance/csvParser';
+import { addAuditEventToBatch, createAuditEventOperation } from './auditService';
 
 export async function deleteAttendeeRecord(attendeeToDelete: Attendee) {
   try {
@@ -35,6 +36,13 @@ export async function quickAddMemberRecord(attendee: Attendee) {
       gender: '남',
       semester: '2025-1',
       createdAt: serverTimestamp()
+    });
+    addAuditEventToBatch(batch, {
+      category: 'member',
+      action: 'member.created_from_attendance',
+      targetId: memberRef.id,
+      targetLabel: attendee.name,
+      detail: `출석 명단에서 빠른 등록 · 학번 ${studentId}`,
     });
     await batch.commit();
     toast.success(`${attendee.name}님이 멤버로 추가되었습니다.`);
@@ -97,12 +105,25 @@ export async function manualAddAttendeeRecord(
       status: '대기' as const
     };
 
-    await setDoc(docRef, newAttendeeData);
+    const batch = writeBatch(db);
+    batch.set(docRef, newAttendeeData);
+    if (member && member.status === '휴면') {
+      batch.update(doc(db, 'members', member.id), { status: '활동', dormantSemester: '' });
+      addAuditEventToBatch(batch, {
+        category: 'member',
+        action: 'member.bulk_active',
+        targetId: member.id,
+        targetLabel: member.name,
+        changes: [
+          { field: 'status', label: '활동 상태', before: '휴면', after: '활동' },
+          { field: 'dormantSemester', label: '휴면 학기', before: member.dormantSemester || '없음', after: '없음' },
+        ],
+        detail: '출석 명단에 추가되어 자동으로 활동 상태로 복원했습니다.',
+      });
+    }
+    await batch.commit();
 
     if (member && member.status === '휴면') {
-      const batch = writeBatch(db);
-      batch.update(doc(db, 'members', member.id), { status: '활동', dormantSemester: '' });
-      await batch.commit();
       toast.success(`휴면 멤버 ${member.name}님이 출석하여 활동 상태로 자동 전환되었습니다.`);
     } else {
        toast.success(`${name}님이 출석 명단에 추가되었습니다.`);
@@ -164,6 +185,13 @@ export function importAttendeesFile(
           }
         });
 
+        operations.push(createAuditEventOperation({
+          category: 'attendance',
+          action: 'attendance.imported',
+          targetLabel: `출석 명단 ${count}명`,
+          count,
+          detail: `기존 ${attendees.length}명 교체${wokenUpNames.length > 0 ? ` · 휴면 해제 ${Array.from(new Set(wokenUpNames)).join(', ')}` : ''}`,
+        }));
         await commitBatchesInChunks(db, operations);
         toast.success(`이전 목록이 삭제되고 ${count}명의 명단이 새로 임포트되었습니다.`);
 
@@ -187,6 +215,15 @@ export async function clearAllAttendees(attendees: Attendee[]) {
   try {
     const batch = writeBatch(db);
     attendees.forEach(a => batch.delete(doc(db, 'attendees', a.id)));
+    if (attendees.length > 0) {
+      addAuditEventToBatch(batch, {
+        category: 'attendance',
+        action: 'attendance.cleared',
+        targetLabel: `출석 명단 ${attendees.length}명`,
+        count: attendees.length,
+        detail: attendees.map(attendee => attendee.name).join(', '),
+      });
+    }
     await batch.commit();
     toast.success('모든 대기 기록이 초기화되었습니다.');
     return true;

@@ -3,6 +3,7 @@ import { db } from '../lib/firebase';
 import type { DailyPlanning } from '../domain/attendance/dailyPlanning';
 import { isSingleDocumentId } from '../domain/shared/documentId';
 import type { Session } from '../types';
+import { addAuditEventToTransaction } from './auditService';
 
 /** Renames a shared group without replacing independently edited session records. */
 export async function renameDailyPlanningGroup(planningId: string, groupId: string, name: string) {
@@ -27,6 +28,22 @@ export async function renameDailyPlanningGroup(planningId: string, groupId: stri
       const session = sessionSnapshot.data() as Session;
       transaction.update(sessionRef, {
         groups: session.groups.map(group => group.id === groupId ? { ...group, name } : group),
+      });
+    }
+    const group = planning.groups.find(item => item.id === groupId);
+    const previousName = group?.name || '이름 없음';
+    if (previousName !== name) {
+      addAuditEventToTransaction(transaction, {
+        category: 'session',
+        action: 'session.group_renamed',
+        targetId: planning.sessionId ?? planningId,
+        targetLabel: planning.name,
+        changes: [{
+          field: 'groupName',
+          label: '조 이름',
+          before: previousName,
+          after: name,
+        }],
       });
     }
   });

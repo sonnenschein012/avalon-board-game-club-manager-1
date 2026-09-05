@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renameDailyPlanningGroup } from './dailyPlanningService';
 
 const transaction = vi.hoisted(() => ({ get: vi.fn(), update: vi.fn() }));
+const addAuditEventToTransaction = vi.hoisted(() => vi.fn());
 vi.mock('../lib/firebase', () => ({ db: {} }));
+vi.mock('./auditService', () => ({ addAuditEventToTransaction }));
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, collection: string, id: string) => `${collection}/${id}`,
   runTransaction: (_db: unknown, action: (value: typeof transaction) => Promise<void>) => action(transaction),
@@ -36,6 +38,9 @@ describe('daily planning group rename', () => {
     expect(transaction.update).toHaveBeenCalledWith('sessions/linked', {
       groups: [{ ...recorded, name: 'New' }, recordedOther],
     });
+    expect(addAuditEventToTransaction).toHaveBeenCalledWith(transaction, expect.objectContaining({
+      action: 'session.group_renamed',
+    }));
     expect(recorded.name).toBe('Old');
   });
 

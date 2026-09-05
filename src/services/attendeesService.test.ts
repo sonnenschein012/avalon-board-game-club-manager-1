@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { manualAddAttendeeRecord } from './attendeesService';
 import { Member } from '../types';
 import type { Timestamp } from 'firebase/firestore';
-import { setDoc } from 'firebase/firestore';
+
+const batch = vi.hoisted(() => ({
+  set: vi.fn(),
+  update: vi.fn(),
+  commit: vi.fn().mockResolvedValue(undefined),
+}));
+const addAuditEventToBatch = vi.hoisted(() => vi.fn());
 
 // Mock dependencies
 vi.mock('../lib/firebase', () => ({
@@ -14,11 +20,15 @@ vi.mock('../lib/firebase', () => ({
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   doc: vi.fn(),
-  setDoc: vi.fn(),
-  writeBatch: vi.fn(),
+  writeBatch: vi.fn(() => batch),
   serverTimestamp: vi.fn(),
   deleteDoc: vi.fn(),
   Timestamp: { fromDate: vi.fn() }
+}));
+
+vi.mock('./auditService', () => ({
+  addAuditEventToBatch,
+  createAuditEventOperation: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -44,7 +54,7 @@ describe('attendeesService', () => {
       []
     );
     expect(result).toBe(true);
-    expect(setDoc).toHaveBeenCalledWith(undefined, expect.objectContaining({
+    expect(batch.set).toHaveBeenCalledWith(undefined, expect.objectContaining({
       name: '김철수',
       studentIdPrefix: '23',
       status: '대기',
@@ -70,6 +80,6 @@ describe('attendeesService', () => {
       [{ id: 'a1', name: '김철수', studentIdPrefix: '23' } as never],
     );
     expect(result).toBe(false);
-    expect(setDoc).not.toHaveBeenCalled();
+    expect(batch.set).not.toHaveBeenCalled();
   });
 });

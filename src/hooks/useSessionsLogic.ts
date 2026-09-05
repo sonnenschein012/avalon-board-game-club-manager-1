@@ -206,7 +206,7 @@ export function useSessionsLogic() {
     if (isPending('session-delete')) return;
     const session = itemToDelete;
     try {
-      await runAction('session-delete', () => deleteSessionRecord(session.id), {
+      await runAction('session-delete', () => deleteSessionRecord(session.id, session.name), {
         successMessage: '세션 기록이 삭제되었습니다.',
         errorMessage: '세션 기록을 삭제하지 못했습니다.',
         onError: (error) => handleFirestoreError(error, OperationType.DELETE, `sessions/${session.id}`),
@@ -217,7 +217,8 @@ export function useSessionsLogic() {
   };
 
   const handleSaveGroupGames = async (sessionId: string, groupId: string, gameIds: string[]) => {
-    const result = await runAction('group-games-save', () => updateSessionGroupGames(sessionId, groupId, gameIds), {
+    const gameTitlesById = new Map(games.map(game => [game.id, game.title]));
+    const result = await runAction('group-games-save', () => updateSessionGroupGames(sessionId, groupId, gameIds, gameTitlesById), {
       successMessage: '조 게임 기록이 성공적으로 수정되었습니다.',
       errorMessage: '저장 중 오류가 발생했습니다.',
       onError: (error) => handleFirestoreError(error, OperationType.UPDATE, `sessions/${sessionId}`),

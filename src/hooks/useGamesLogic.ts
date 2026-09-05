@@ -1,11 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import Papa from 'papaparse';
 import { 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
   doc, 
   collection,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Game, Session } from '../types';
@@ -15,6 +13,19 @@ import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { useAsyncActionState } from './useAsyncActionState';
 import { createGameFormData, type GameFormData } from '../domain/games/gameForm';
 import { parseGameCsv } from '../domain/games/gameCsv';
+import { collectAuditChanges, type AuditFieldDefinition } from '../domain/audit/auditEvent';
+import { addAuditEventToBatch, createAuditEventOperation } from '../services/auditService';
+
+const GAME_AUDIT_FIELDS = [
+  { key: 'title', label: '게임명' },
+  { key: 'minPlayers', label: '최소 인원' },
+  { key: 'maxPlayers', label: '최대 인원' },
+  { key: 'bestMinPlayers', label: '추천 최소 인원' },
+  { key: 'bestMaxPlayers', label: '추천 최대 인원' },
+  { key: 'complexity', label: '난이도' },
+  { key: 'genres', label: '장르' },
+  { key: 'memo', label: '메모' },
+] satisfies ReadonlyArray<AuditFieldDefinition<Game>>;
 
 export function useGamesLogic() {
   const { data: games } = useFirestore<Game>('games', 'title');
@@ -112,6 +123,13 @@ export function useGamesLogic() {
           }));
 
           if (operations.length > 0) {
+            operations.push(createAuditEventOperation({
+              category: 'game',
+              action: 'game.imported',
+              targetLabel: `게임 ${importedGames.length}개`,
+              count: importedGames.length,
+              detail: `중복으로 제외 ${skippedCount}개`,
+            }));
             await commitBatchesInChunks(db, operations);
             toast.success(`총 ${importedGames.length}개의 게임이 라이브러리에 추가되었습니다.`);
           } else {
@@ -134,10 +152,33 @@ export function useGamesLogic() {
     const isEditing = Boolean(editingId);
     await runAction('game-save', async () => {
       if (editingId) {
-        await updateDoc(doc(db, 'games', editingId), { ...formData });
+        const previous = games.find(game => game.id === editingId);
+        if (!previous) throw new Error('수정할 게임을 찾을 수 없습니다.');
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'games', editingId), { ...formData });
+        const changes = collectAuditChanges(previous, { ...previous, ...formData }, GAME_AUDIT_FIELDS);
+        if (changes.length > 0) {
+          addAuditEventToBatch(batch, {
+            category: 'game',
+            action: 'game.updated',
+            targetId: editingId,
+            targetLabel: formData.title,
+            changes,
+          });
+        }
+        await batch.commit();
         setEditingId(null);
       } else {
-        await addDoc(collection(db, 'games'), formData);
+        const gameRef = doc(collection(db, 'games'));
+        const batch = writeBatch(db);
+        batch.set(gameRef, formData);
+        addAuditEventToBatch(batch, {
+          category: 'game',
+          action: 'game.created',
+          targetId: gameRef.id,
+          targetLabel: formData.title,
+        });
+        await batch.commit();
       }
       setIsAdding(false);
       setFormData(createGameFormData());
@@ -153,7 +194,17 @@ export function useGamesLogic() {
     if (isPending('game-delete')) return;
     const game = itemToDelete;
     try {
-      await runAction('game-delete', () => deleteDoc(doc(db, 'games', game.id)), {
+      await runAction('game-delete', async () => {
+        const batch = writeBatch(db);
+        batch.delete(doc(db, 'games', game.id));
+        addAuditEventToBatch(batch, {
+          category: 'game',
+          action: 'game.deleted',
+          targetId: game.id,
+          targetLabel: game.title,
+        });
+        await batch.commit();
+      }, {
         successMessage: '게임이 삭제되었습니다.',
         errorMessage: '게임을 삭제하지 못했습니다.',
         onError: (error) => handleFirestoreError(error, OperationType.DELETE, `games/${game.id}`),
@@ -167,10 +218,18 @@ export function useGamesLogic() {
     if (isPending('game-delete-all')) return;
     try {
       await runAction('game-delete-all', async () => {
-        await commitBatchesInChunks(db, games.map(game => ({
+        const operations: Parameters<typeof commitBatchesInChunks>[1] = games.map(game => ({
           type: 'delete',
           ref: doc(db, 'games', game.id),
-        })), 500);
+        }));
+        operations.push(createAuditEventOperation({
+          category: 'game',
+          action: 'game.deleted_all',
+          targetLabel: `게임 ${games.length}개`,
+          count: games.length,
+          detail: games.map(game => game.title).join(', '),
+        }));
+        await commitBatchesInChunks(db, operations, 400);
       }, {
         successMessage: '모든 게임이 삭제되었습니다.',
         errorMessage: '전체 게임을 삭제하지 못했습니다.',

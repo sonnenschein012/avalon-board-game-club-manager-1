@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
-  addDoc, 
-  updateDoc, 
   doc, 
   serverTimestamp,
   collection,
@@ -21,6 +19,22 @@ import { useAsyncActionState } from './useAsyncActionState';
 import { createMemberFormData, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
 import { parseMemberCsv } from '../domain/members/memberCsv';
 import { sortDormantMembers } from '../domain/members/dormantMemberOrder';
+import { collectAuditChanges, type AuditFieldDefinition } from '../domain/audit/auditEvent';
+import { addAuditEventToBatch, createAuditEventOperation } from '../services/auditService';
+
+const MEMBER_AUDIT_FIELDS = [
+  { key: 'name', label: '이름' },
+  { key: 'nickname', label: '닉네임' },
+  { key: 'studentId', label: '학번' },
+  { key: 'phone', label: '연락처' },
+  { key: 'gender', label: '성별' },
+  { key: 'semester', label: '가입 학기' },
+  { key: 'status', label: '활동 상태' },
+  { key: 'dormantSemester', label: '휴면 학기' },
+  { key: 'isBoardMember', label: '임원 여부' },
+  { key: 'preferredGenre', label: '선호 장르' },
+  { key: 'memo', label: '메모' },
+] satisfies ReadonlyArray<AuditFieldDefinition<Member>>;
 
 export function useMembersLogic() {
   const { data: members } = useFirestore<Member>('members', 'name');
@@ -50,11 +64,21 @@ export function useMembersLogic() {
     }
     if (isPending('member-bulk')) return;
     const count = selectedDocs.size;
+    const selectedMembers = members.filter(member => selectedDocs.has(member.id));
     await runAction('member-bulk', async () => {
-      await Promise.all(Array.from(selectedDocs).map(id => updateDoc(doc(db, 'members', id), {
-        status: '휴면',
-        dormantSemester,
-      })));
+      const operations: Parameters<typeof commitBatchesInChunks>[1] = Array.from(selectedDocs).map(id => ({
+        type: 'update',
+        ref: doc(db, 'members', id),
+        data: { status: '휴면', dormantSemester },
+      }));
+      operations.push(createAuditEventOperation({
+        category: 'member',
+        action: 'member.bulk_dormant',
+        targetLabel: `동아리원 ${count}명`,
+        count,
+        detail: `${selectedMembers.map(member => member.name).join(', ')} · 휴면 학기 ${dormantSemester}`,
+      }));
+      await commitBatchesInChunks(db, operations);
       setSelectedDocs(new Set());
     }, {
       successMessage: `${count}명의 동아리원이 휴면 명부로 전환되었습니다.`,
@@ -71,10 +95,21 @@ export function useMembersLogic() {
     }
     if (isPending('member-bulk')) return;
     const count = selectedDocs.size;
+    const selectedMembers = members.filter(member => selectedDocs.has(member.id));
     await runAction('member-bulk', async () => {
-      await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
-        dormantSemester,
-      })));
+      const operations: Parameters<typeof commitBatchesInChunks>[1] = Array.from(selectedDocs).map((id: string) => ({
+        type: 'update',
+        ref: doc(db, 'members', id),
+        data: { dormantSemester },
+      }));
+      operations.push(createAuditEventOperation({
+        category: 'member',
+        action: 'member.bulk_dormant_semester',
+        targetLabel: `동아리원 ${count}명`,
+        count,
+        detail: `${selectedMembers.map(member => member.name).join(', ')} · ${dormantSemester}`,
+      }));
+      await commitBatchesInChunks(db, operations);
       setSelectedDocs(new Set());
     }, {
       successMessage: `${count}명의 휴면 학기가 변경되었습니다.`,
@@ -87,11 +122,21 @@ export function useMembersLogic() {
     if (selectedDocs.size === 0) return;
     if (isPending('member-bulk')) return;
     const count = selectedDocs.size;
+    const selectedMembers = members.filter(member => selectedDocs.has(member.id));
     await runAction('member-bulk', async () => {
-      await Promise.all(Array.from(selectedDocs).map((id: string) => updateDoc(doc(db, 'members', id), {
-        status: '활동',
-        dormantSemester: '',
-      })));
+      const operations: Parameters<typeof commitBatchesInChunks>[1] = Array.from(selectedDocs).map((id: string) => ({
+        type: 'update',
+        ref: doc(db, 'members', id),
+        data: { status: '활동', dormantSemester: '' },
+      }));
+      operations.push(createAuditEventOperation({
+        category: 'member',
+        action: 'member.bulk_active',
+        targetLabel: `동아리원 ${count}명`,
+        count,
+        detail: selectedMembers.map(member => member.name).join(', '),
+      }));
+      await commitBatchesInChunks(db, operations);
       setSelectedDocs(new Set());
     }, {
       successMessage: `${count}명의 동아리원이 활동 명부로 복원되었습니다.`,
@@ -120,6 +165,13 @@ export function useMembersLogic() {
             data: { ...member, createdAt: serverTimestamp() },
           }));
           if (operations.length > 0) {
+            operations.push(createAuditEventOperation({
+              category: 'member',
+              action: 'member.imported',
+              targetLabel: `동아리원 ${importedMembers.length}명`,
+              count: importedMembers.length,
+              detail: `중복 및 누락으로 제외 ${skippedCount}명`,
+            }));
             await commitBatchesInChunks(db, operations);
             toast.success(`${importedMembers.length}명의 멤버가 추가되었습니다.${skippedCount > 0 ? ` (중복 및 누락 제외 ${skippedCount}명)` : ''}`);
           } else {
@@ -158,16 +210,40 @@ export function useMembersLogic() {
     const isEditing = Boolean(editingId);
     await runAction('member-save', async () => {
       const dormantSemester = formData.dormantSemester || '';
-      const status = dormantSemester ? '휴면' : '활동';
+      const status: Member['status'] = dormantSemester ? '휴면' : '활동';
       const dataToSave = { ...formData, studentId, phone: formatMemberPhone(formData.phone), nickname, status, dormantSemester };
 
       if (editingId) {
-        await updateDoc(doc(db, 'members', editingId), dataToSave);
+        const previous = members.find(member => member.id === editingId);
+        if (!previous) throw new Error('수정할 동아리원을 찾을 수 없습니다.');
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'members', editingId), dataToSave);
+        const changes = collectAuditChanges(previous, { ...previous, ...dataToSave }, MEMBER_AUDIT_FIELDS);
+        if (changes.length > 0) {
+          addAuditEventToBatch(batch, {
+            category: 'member',
+            action: 'member.updated',
+            targetId: editingId,
+            targetLabel: dataToSave.name,
+            changes,
+          });
+        }
+        await batch.commit();
       } else {
-        await addDoc(collection(db, 'members'), {
+        const memberRef = doc(collection(db, 'members'));
+        const batch = writeBatch(db);
+        batch.set(memberRef, {
           ...dataToSave,
           createdAt: serverTimestamp(),
         });
+        addAuditEventToBatch(batch, {
+          category: 'member',
+          action: 'member.created',
+          targetId: memberRef.id,
+          targetLabel: dataToSave.name,
+          detail: `${dataToSave.nickname} · ${dataToSave.studentId}`,
+        });
+        await batch.commit();
       }
       setIsAdding(false);
       resetForm();
@@ -193,6 +269,13 @@ export function useMembersLogic() {
           memberRegisteredBy: null,
           updatedAt: serverTimestamp(),
         }));
+        addAuditEventToBatch(batch, {
+          category: 'member',
+          action: 'member.deleted',
+          targetId: member.id,
+          targetLabel: member.name,
+          ...(linkedApplicants.size > 0 ? { detail: `연결된 지원자 ${linkedApplicants.size}명의 동아리원 연결을 함께 해제했습니다.` } : {}),
+        });
         await batch.commit();
       }, {
         successMessage: '멤버가 삭제되었습니다.',

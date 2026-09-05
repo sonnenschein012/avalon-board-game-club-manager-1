@@ -1,4 +1,4 @@
-import { OVERALL_RATINGS } from '../../domain/interviews/interviewRatings';
+import { INTERVIEW_RATING_LABELS, OVERALL_RATINGS } from '../../domain/interviews/interviewRatings';
 import {
   collection,
   doc,
@@ -19,6 +19,7 @@ import {
 import { getApplicantAssignmentRevision } from '../../domain/interviews/interviewTransitions';
 import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
 import { db } from '../../lib/firebase';
+import { addAuditEventToTransaction } from '../auditService';
 import type {
   InterviewApplicant,
   InterviewNote,
@@ -31,6 +32,12 @@ import {
   actorEmail,
   interviewRecordSnapshot,
 } from './shared';
+
+const SELECTION_LABELS: Record<InterviewSelectionStatus, string> = {
+  pending: '미결정',
+  selected: '선발',
+  rejected: '미선발',
+};
 
 export function subscribeInterviewNote(
   roundId: string,
@@ -158,6 +165,20 @@ export async function updateCompletedInterviewOverallRating(
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
+    if (previousOverallRating !== overallRating) {
+      addAuditEventToTransaction(transaction, {
+        category: 'interview',
+        action: 'interview.rating_updated',
+        targetId: applicantId,
+        targetLabel: applicant.name,
+        changes: [{
+          field: 'overallRating',
+          label: '종합평가',
+          before: previousOverallRating ? INTERVIEW_RATING_LABELS[previousOverallRating] : '없음',
+          after: INTERVIEW_RATING_LABELS[overallRating],
+        }],
+      });
+    }
   });
 }
 
@@ -175,6 +196,13 @@ export async function setInterviewActionNeeded(applicantId: string, reason = '')
       interviewStatus: 'action_needed' satisfies InterviewProgressStatus,
       actionNeededReason: reason.trim().slice(0, 500) || null,
       updatedAt: serverTimestamp(),
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.action_needed',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      detail: reason.trim().slice(0, 500) || '사유 미입력',
     });
   });
 }
@@ -200,6 +228,13 @@ export async function restoreScheduledInterview(applicantId: string): Promise<vo
     });
     transaction.update(doc(db, 'interviewAccess', applicant.accessToken), {
       'assignmentSummary.status': restoredAssignment.status,
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.restored_to_scheduled',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      ...(applicant.actionNeededReason ? { detail: applicant.actionNeededReason } : {}),
     });
   });
 }
@@ -283,6 +318,13 @@ export async function completeInterviewAtomically(input: CompleteInterviewInput)
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.completed',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      detail: `${completion.interviewerName} · ${INTERVIEW_RATING_LABELS[completion.overallRating]}`,
+    });
   });
 }
 
@@ -339,6 +381,13 @@ export async function reopenCompletedInterview(applicantId: string): Promise<voi
       createdAt: serverTimestamp(),
       createdBy: actorEmail(),
     });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.reopened',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      detail: `기존 선발 상태: ${SELECTION_LABELS[applicant.selectionStatus ?? 'pending']}`,
+    });
   });
 }
 
@@ -363,5 +412,20 @@ export async function updateInterviewSelectionStatus(
       selectionDecidedBy: selectionStatus === 'pending' ? null : actorEmail(),
       updatedAt: serverTimestamp(),
     });
+    const previousStatus = applicant.selectionStatus ?? 'pending';
+    if (previousStatus !== selectionStatus) {
+      addAuditEventToTransaction(transaction, {
+        category: 'interview',
+        action: 'interview.selection_updated',
+        targetId: applicantId,
+        targetLabel: applicant.name,
+        changes: [{
+          field: 'selectionStatus',
+          label: '선발 상태',
+          before: SELECTION_LABELS[previousStatus],
+          after: SELECTION_LABELS[selectionStatus],
+        }],
+      });
+    }
   });
 }

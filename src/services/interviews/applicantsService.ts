@@ -10,10 +10,12 @@ import {
   type Unsubscribe
 } from 'firebase/firestore';
 import { normalizeApplicantNumber } from '../../domain/interviews/applicantMerge';
+import { collectAuditChanges } from '../../domain/audit/auditEvent';
 import { isActiveInterviewApplicant } from '../../domain/interviews/interviewPolicy';
 import { getApplicantAssignmentRevision } from '../../domain/interviews/interviewTransitions';
 import { assertExpectedUpdatedAt, timestampMillis } from '../../domain/interviews/revisionConflict';
 import { db } from '../../lib/firebase';
+import { addAuditEventToBatch, addAuditEventToTransaction } from '../auditService';
 import type { InterviewAccess, InterviewApplicant } from '../../types';
 import {
   generateInterviewToken,
@@ -25,6 +27,28 @@ import { mapSnapshot } from './shared';
 function getApplicantKeyId(roundId: string, applicantNumber: string) {
   return [roundId, normalizeApplicantNumber(applicantNumber)].map(encodeURIComponent).join('__');
 }
+
+function applicantAuditView(applicant: InterviewApplicant | ApplicantDraft) {
+  return {
+    applicantNumber: applicant.applicantNumber.trim(),
+    name: applicant.name.trim(),
+    phone: applicant.phone.trim(),
+    applicationData: applicant.applicationData.map(field => `${field.header}: ${field.value}`).join('\n'),
+  };
+}
+
+const APPLICANT_AUDIT_FIELDS = [
+  { key: 'applicantNumber', label: '지원번호' },
+  { key: 'name', label: '이름' },
+  { key: 'phone', label: '전화번호' },
+  { key: 'applicationData', label: '지원서 내용' },
+] as const;
+
+const MESSAGE_KIND_LABELS = {
+  availabilityMessage: '가능시간 조사 문자',
+  reminderMessage: '응답 독촉 문자',
+  confirmationMessage: '면접 확정 문자',
+} as const;
 
 export function subscribeInterviewApplicants(
   roundId: string,
@@ -103,6 +127,13 @@ export async function markInterviewMessageSent(
         'assignmentSummary.status': markedSent ? 'confirmed' : 'scheduled',
       });
     }
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: markedSent ? 'interview.message_marked' : 'interview.message_unmarked',
+      targetId: applicantId,
+      targetLabel: applicant.name,
+      detail: MESSAGE_KIND_LABELS[kind],
+    });
   });
 }
 
@@ -169,6 +200,13 @@ export async function createInterviewApplicant(roundId: string, draft: Applicant
       changeRequestStatus: 'none',
       createdAt: serverTimestamp(),
     });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.applicant_created',
+      targetId: applicantRef.id,
+      targetLabel: draft.name.trim(),
+      detail: `지원번호 ${draft.applicantNumber.trim()}`,
+    });
   });
   return applicantRef.id;
 }
@@ -183,7 +221,8 @@ export async function updateInterviewApplicant(applicant: InterviewApplicant, dr
       transaction.get(applicantRef),
     ]);
     if (!currentApplicantSnapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
-    assertExpectedUpdatedAt(currentApplicantSnapshot.data().updatedAt, timestampMillis(applicant.updatedAt) ?? undefined, '지원자 정보');
+    const currentApplicant = currentApplicantSnapshot.data() as InterviewApplicant;
+    assertExpectedUpdatedAt(currentApplicant.updatedAt, timestampMillis(applicant.updatedAt) ?? undefined, '지원자 정보');
     if (newKeySnapshot.exists() && newKeySnapshot.data().applicantId !== applicant.id) throw new Error('이미 등록된 지원번호입니다.');
     if (oldKeyRef.path !== newKeyRef.path) transaction.delete(oldKeyRef);
     transaction.set(newKeyRef, { roundId: applicant.roundId, applicantId: applicant.id, applicantNumber: normalizeApplicantNumber(draft.applicantNumber), updatedAt: serverTimestamp() });
@@ -195,6 +234,20 @@ export async function updateInterviewApplicant(applicant: InterviewApplicant, dr
       updatedAt: serverTimestamp(),
     });
     transaction.update(doc(db, 'interviewAccess', applicant.accessToken), { displayName: draft.name.trim() });
+    const changes = collectAuditChanges(
+      applicantAuditView(currentApplicant),
+      applicantAuditView(draft),
+      APPLICANT_AUDIT_FIELDS,
+    );
+    if (changes.length > 0) {
+      addAuditEventToTransaction(transaction, {
+        category: 'interview',
+        action: 'interview.applicant_updated',
+        targetId: applicant.id,
+        targetLabel: draft.name.trim(),
+        changes,
+      });
+    }
   });
 }
 
@@ -208,6 +261,13 @@ export async function setInterviewApplicantArchived(applicant: InterviewApplican
   });
   batch.update(doc(db, 'interviewAccess', applicant.accessToken), {
     active: !archived && (applicant.applicationStatus ?? 'active') === 'active',
+  });
+  addAuditEventToBatch(batch, {
+    category: 'interview',
+    action: archived ? 'interview.applicant_archived' : 'interview.applicant_restored',
+    targetId: applicant.id,
+    targetLabel: applicant.name,
+    ...(archived ? { detail: reason.trim() || '운영진 보관 처리' } : {}),
   });
   await batch.commit();
 }
@@ -264,6 +324,15 @@ export async function mergeInterviewApplicants(roundId: string, items: Applicant
         active: true, createdAt: serverTimestamp(),
         assignmentSummary: null, changeRequestStatus: 'none',
       });
+    });
+    const created = items.filter(item => item.action === 'create').length;
+    const updated = items.length - created;
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.applicants_imported',
+      targetLabel: '지원자 CSV',
+      count: items.length,
+      detail: `신규 ${created}명, 수정 ${updated}명 · ${items.map(item => item.name.trim()).join(', ')}`,
     });
   });
   return {

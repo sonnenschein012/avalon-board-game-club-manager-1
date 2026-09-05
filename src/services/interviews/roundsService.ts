@@ -26,6 +26,16 @@ import type {
 } from '../../types';
 import type { InterviewRoundDraft, InterviewRoundExportRecords } from './models';
 import { adminRoundData, mapSnapshot, publicRoundData } from './shared';
+import { addAuditEventToBatch, createAuditEventOperation } from '../auditService';
+
+const MESSAGE_TEMPLATE_AUDIT_FIELDS = [
+  { key: 'availability', label: '가능시간 조사 문자' },
+  { key: 'reminder', label: '응답 독촉 문자' },
+  { key: 'confirmation', label: '면접 확정 문자' },
+  { key: 'reschedule', label: '일정 변경 문자' },
+  { key: 'selected', label: '선발 안내 문자' },
+  { key: 'rejected', label: '미선발 안내 문자' },
+] as const;
 
 /** Fetches immutable and note records not kept in the live round listener. */
 export async function getInterviewRoundExportRecords(roundId: string): Promise<InterviewRoundExportRecords> {
@@ -74,6 +84,13 @@ export async function createInterviewRound(draft: InterviewRoundDraft): Promise<
   const batch = writeBatch(db);
   batch.set(roundRef, { ...adminRoundData(draft, 1), createdAt: serverTimestamp() });
   batch.set(publicRef, publicRoundData(draft, 1));
+  addAuditEventToBatch(batch, {
+    category: 'interview',
+    action: 'interview.round_created',
+    targetId: roundRef.id,
+    targetLabel: draft.name.trim(),
+    detail: `${draft.interviewDates.length}일 · 면접 질문 ${draft.interviewQuestions.length}개`,
+  });
   await batch.commit();
   return roundRef.id;
 }
@@ -82,6 +99,9 @@ export async function createInterviewRound(draft: InterviewRoundDraft): Promise<
  * revisions are intentionally left untouched. */
 export async function updateInterviewRoundSettings(roundId: string, draft: InterviewRoundDraft): Promise<void> {
   if (!isSingleDocumentId(roundId)) throw new Error('올바른 면접 회차 ID가 아닙니다.');
+  const currentSnapshot = await getDoc(doc(db, 'interviewRounds', roundId));
+  if (!currentSnapshot.exists()) throw new Error('수정할 면접 회차를 찾을 수 없습니다.');
+  const current = currentSnapshot.data() as InterviewRound;
   const batch = writeBatch(db);
   batch.update(doc(db, 'interviewRounds', roundId), {
     name: draft.name.trim(),
@@ -95,6 +115,32 @@ export async function updateInterviewRoundSettings(roundId: string, draft: Inter
     instructions: draft.instructions,
     updatedAt: serverTimestamp(),
   });
+  const changes = [
+    { field: 'name', label: '회차명', before: current.name, after: draft.name.trim() },
+    {
+      field: 'interviewQuestions',
+      label: '면접 질문',
+      before: (current.interviewQuestions ?? []).map(item => item.text).join(' / ') || '없음',
+      after: draft.interviewQuestions.map(item => item.text).join(' / ') || '없음',
+    },
+    { field: 'instructions', label: '지원자 안내문', before: current.instructions || '없음', after: draft.instructions || '없음' },
+    ...MESSAGE_TEMPLATE_AUDIT_FIELDS.map(({ key, label }) => ({
+      field: `messageTemplates.${key}`,
+      label,
+      before: current.messageTemplates?.[key] || '없음',
+      after: draft.messageTemplates[key] || '없음',
+    })),
+  ].filter(change => change.before !== change.after);
+  if (changes.length > 0) {
+    addAuditEventToBatch(batch, {
+      category: 'interview',
+      action: 'interview.round_updated',
+      targetId: roundId,
+      targetLabel: draft.name.trim(),
+      changes,
+      detail: '회차 공통 설정과 문자 템플릿을 저장했습니다.',
+    });
+  }
   await batch.commit();
 }
 
@@ -173,7 +219,17 @@ export async function deleteInterviewRound(roundId: string): Promise<InterviewRo
   // dependent records have been deleted successfully.
   await commitBatchesInChunks(db, publicRefs.map(ref => ({ type: 'delete' as const, ref })));
   await commitBatchesInChunks(db, remainingRefs.map(ref => ({ type: 'delete' as const, ref })));
-  await commitBatchesInChunks(db, [{ type: 'delete', ref: roundRef }]);
+  await commitBatchesInChunks(db, [
+    { type: 'delete', ref: roundRef },
+    createAuditEventOperation({
+      category: 'interview',
+      action: 'interview.round_deleted',
+      targetId: roundId,
+      targetLabel: String(roundSnapshot.data().name ?? '면접 회차'),
+      count: publicRefs.length + remainingRefs.length + 1,
+      detail: `회차와 관련 데이터 ${publicRefs.length + remainingRefs.length + 1}건을 삭제했습니다.`,
+    }),
+  ]);
 
   return { deletedDocuments: publicRefs.length + remainingRefs.length + 1 };
 }

@@ -6,14 +6,15 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  updateDoc,
   where,
   writeBatch,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { collectAuditChanges } from '../../domain/audit/auditEvent';
 import { assertExpectedUpdatedAt } from '../../domain/interviews/revisionConflict';
 import { formatMemberPhone } from '../../domain/members/memberIdentity';
 import { db } from '../../lib/firebase';
+import { addAuditEventToBatch, addAuditEventToTransaction } from '../auditService';
 import type {
   InterviewChangeRequest,
   InterviewRoundInterviewer,
@@ -22,6 +23,12 @@ import type {
 } from '../../types';
 import type { RoundInterviewerDraft } from './models';
 import { actorEmail, mapSnapshot } from './shared';
+
+const INTERVIEWER_AUDIT_FIELDS = [
+  { key: 'name', label: '이름' },
+  { key: 'email', label: '이메일' },
+  { key: 'phone', label: '전화번호' },
+] as const;
 
 export function subscribeRoundInterviewers(
   roundId: string,
@@ -58,6 +65,13 @@ export async function addRoundInterviewer(
     roundId, interviewerId: profileRef.id, displayName: draft.name.trim(), email: normalizedEmail, phone: normalizedPhone, availability: [], active: true,
     createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
   });
+  addAuditEventToBatch(batch, {
+    category: 'interview',
+    action: 'interview.interviewer_added',
+    targetId: profileRef.id,
+    targetLabel: draft.name.trim(),
+    ...(normalizedEmail ?? normalizedPhone ? { detail: normalizedEmail ?? normalizedPhone ?? '' } : {}),
+  });
   await batch.commit();
   return profileRef.id;
 }
@@ -67,8 +81,25 @@ async function updateInterviewerAvailability(collectionName: 'interviewRoundInte
   await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(participantRef);
     if (!snapshot.exists()) throw new Error('면접관 정보를 찾을 수 없습니다.');
-    assertExpectedUpdatedAt(snapshot.data().updatedAt, expectedUpdatedAtMillis, '면접관 가능시간');
-    transaction.update(participantRef, { availability: [...new Set(availability)].sort(), updatedAt: serverTimestamp() });
+    const participant = snapshot.data() as InterviewRoundInterviewer | InterviewScheduleInterviewer;
+    assertExpectedUpdatedAt(participant.updatedAt, expectedUpdatedAtMillis, '면접관 가능시간');
+    const previousAvailability = [...new Set(participant.availability)].sort();
+    const nextAvailability = [...new Set(availability)].sort();
+    if (previousAvailability.join('|') === nextAvailability.join('|')) return;
+    transaction.update(participantRef, { availability: nextAvailability, updatedAt: serverTimestamp() });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.interviewer_availability_updated',
+      targetId: participant.interviewerId,
+      targetLabel: participant.displayName,
+      changes: [{
+        field: 'availability',
+        label: '가능시간',
+        before: previousAvailability.join(', ') || '없음',
+        after: nextAvailability.join(', ') || '없음',
+      }],
+      detail: collectionName === 'interviewScheduleInterviewers' ? '개별 면접 일정' : '면접 회차 기본값',
+    });
   });
 }
 
@@ -93,6 +124,21 @@ export async function updateInterviewerProfile(
   batch.update(doc(db, 'interviewerProfiles', participant.interviewerId), { name: displayName, email, phone, updatedAt: serverTimestamp() });
   batch.update(doc(db, 'interviewRoundInterviewers', `${participant.roundId}__${participant.interviewerId}`), { displayName, email, phone, updatedAt: serverTimestamp() });
   scheduleParticipants.docs.forEach(snapshot => batch.update(snapshot.ref, { displayName, email, phone, updatedAt: serverTimestamp() }));
+  const changes = collectAuditChanges(
+    { name: participant.displayName, email: participant.email, phone: participant.phone ?? null },
+    { name: displayName, email, phone },
+    INTERVIEWER_AUDIT_FIELDS,
+  );
+  if (changes.length > 0) {
+    addAuditEventToBatch(batch, {
+      category: 'interview',
+      action: 'interview.interviewer_updated',
+      targetId: participant.interviewerId,
+      targetLabel: displayName,
+      changes,
+      detail: `연결된 일정 ${scheduleParticipants.size}곳에 함께 반영`,
+    });
+  }
   await batch.commit();
 }
 
@@ -103,6 +149,13 @@ export async function removeRoundInterviewer(participant: InterviewRoundIntervie
   const batch = writeBatch(db);
   batch.update(doc(db, 'interviewRoundInterviewers', participant.id), { active: false, updatedAt: serverTimestamp() });
   matchingParticipants.forEach(snapshot => batch.update(snapshot.ref, { active: false, updatedAt: serverTimestamp() }));
+  addAuditEventToBatch(batch, {
+    category: 'interview',
+    action: 'interview.interviewer_removed',
+    targetId: participant.interviewerId,
+    targetLabel: participant.displayName,
+    detail: `회차 명부 및 연결된 일정 ${matchingParticipants.length}곳에서 제외`,
+  });
   await batch.commit();
 }
 
@@ -110,14 +163,34 @@ export async function reactivateRoundInterviewer(participant: InterviewRoundInte
   const batch = writeBatch(db);
   batch.update(doc(db, 'interviewerProfiles', participant.interviewerId), { active: true, updatedAt: serverTimestamp() });
   batch.update(doc(db, 'interviewRoundInterviewers', participant.id), { active: true, updatedAt: serverTimestamp() });
+  addAuditEventToBatch(batch, {
+    category: 'interview',
+    action: 'interview.interviewer_reactivated',
+    targetId: participant.interviewerId,
+    targetLabel: participant.displayName,
+  });
   await batch.commit();
 }
 
 export async function removeScheduleInterviewer(participantId: string): Promise<void> {
-  await updateDoc(doc(db, 'interviewScheduleInterviewers', participantId), {
-    active: false,
-    availability: [],
-    updatedAt: serverTimestamp(),
+  const participantRef = doc(db, 'interviewScheduleInterviewers', participantId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(participantRef);
+    if (!snapshot.exists()) throw new Error('면접관 정보를 찾을 수 없습니다.');
+    const participant = snapshot.data() as InterviewScheduleInterviewer;
+    const scheduleSnapshot = await transaction.get(doc(db, 'interviewSchedules', participant.scheduleId));
+    transaction.update(participantRef, {
+      active: false,
+      availability: [],
+      updatedAt: serverTimestamp(),
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.interviewer_removed',
+      targetId: participant.interviewerId,
+      targetLabel: participant.displayName,
+      detail: `${String(scheduleSnapshot.data()?.name ?? '개별 면접 일정')}에서 제외`,
+    });
   });
 }
 
@@ -132,10 +205,21 @@ export function subscribeInterviewChangeRequests(
 }
 
 export async function resolveInterviewChangeRequest(requestId: string, status: 'resolved' | 'dismissed'): Promise<void> {
-  const batch = writeBatch(db);
-  batch.update(doc(db, 'interviewChangeRequests', requestId), {
-    status, resolvedAt: serverTimestamp(), resolvedBy: actorEmail(),
+  const requestRef = doc(db, 'interviewChangeRequests', requestId);
+  await runTransaction(db, async transaction => {
+    const snapshot = await transaction.get(requestRef);
+    if (!snapshot.exists()) throw new Error('일정 변경 요청을 찾을 수 없습니다.');
+    const request = snapshot.data() as InterviewChangeRequest;
+    transaction.update(requestRef, {
+      status, resolvedAt: serverTimestamp(), resolvedBy: actorEmail(),
+    });
+    transaction.update(doc(db, 'interviewAccess', requestId), { changeRequestStatus: status });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: status === 'resolved' ? 'interview.change_request_resolved' : 'interview.change_request_dismissed',
+      targetId: request.applicantId,
+      targetLabel: request.applicantName,
+      detail: request.reason,
+    });
   });
-  batch.update(doc(db, 'interviewAccess', requestId), { changeRequestStatus: status });
-  await batch.commit();
 }

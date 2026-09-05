@@ -199,6 +199,41 @@ service cloud.firestore {
       allow create, update, delete: if isMasterAdmin();
     }
 
+    // Human-readable operator history. Events are append-only in the web app,
+    // use the authenticated email, and can be reviewed only by a master.
+    match /auditEvents/{eventId} {
+      allow read: if isMasterAdmin();
+      allow create: if (isAdmin() || isMasterAdmin()) &&
+        request.resource.data.keys().hasAll([
+          'category', 'action', 'actorEmail', 'occurredAt',
+          'targetLabel', 'schemaVersion'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'category', 'action', 'actorEmail', 'occurredAt',
+          'targetId', 'targetLabel', 'changes', 'detail', 'count',
+          'schemaVersion'
+        ]) &&
+        request.resource.data.category in [
+          'admin', 'member', 'game', 'session', 'attendance', 'interview'
+        ] &&
+        request.resource.data.action is string &&
+        request.resource.data.action.size() <= 100 &&
+        request.resource.data.actorEmail == request.auth.token.email &&
+        request.resource.data.occurredAt == request.time &&
+        request.resource.data.targetLabel is string &&
+        request.resource.data.targetLabel.size() <= 300 &&
+        (!('targetId' in request.resource.data) ||
+          (request.resource.data.targetId is string && request.resource.data.targetId.size() <= 500)) &&
+        (!('changes' in request.resource.data) ||
+          (request.resource.data.changes is list && request.resource.data.changes.size() <= 100)) &&
+        (!('detail' in request.resource.data) ||
+          (request.resource.data.detail is string && request.resource.data.detail.size() <= 10020)) &&
+        (!('count' in request.resource.data) ||
+          (request.resource.data.count is int && request.resource.data.count >= 0)) &&
+        request.resource.data.schemaVersion == 1;
+      allow update, delete: if false;
+    }
+
     // Interview configuration and applicant personal data are always private.
     match /interviewRounds/{roundId} {
       allow read, write: if canManageInterviews();

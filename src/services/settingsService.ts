@@ -1,6 +1,7 @@
-import { collection, deleteDoc, doc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Admin, Game, Member, Session } from '../types';
+import { addAuditEventToBatch } from './auditService';
 
 export async function listAdmins(): Promise<Admin[]> {
   const snapshot = await getDocs(collection(db, 'admins'));
@@ -8,15 +9,31 @@ export async function listAdmins(): Promise<Admin[]> {
 }
 
 export async function addAdminRecord(normalizedEmail: string): Promise<void> {
-  await setDoc(doc(db, 'admins', normalizedEmail), {
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'admins', normalizedEmail), {
     email: normalizedEmail,
     role: 'admin',
     createdAt: serverTimestamp(),
   });
+  addAuditEventToBatch(batch, {
+    category: 'admin',
+    action: 'admin.added',
+    targetId: normalizedEmail,
+    targetLabel: normalizedEmail,
+  });
+  await batch.commit();
 }
 
 export async function removeAdminRecord(email: string): Promise<void> {
-  await deleteDoc(doc(db, 'admins', email));
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'admins', email));
+  addAuditEventToBatch(batch, {
+    category: 'admin',
+    action: 'admin.removed',
+    targetId: email,
+    targetLabel: email,
+  });
+  await batch.commit();
 }
 
 export async function loadMemberExportData() {

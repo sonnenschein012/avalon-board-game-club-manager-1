@@ -1,13 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDoc, updateDoc } from 'firebase/firestore';
+import { getDoc } from 'firebase/firestore';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { importSessionRecords, updateSessionGroupGames, updateSessionRecord } from './sessionsService';
 
+const batch = vi.hoisted(() => ({
+  set: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+  commit: vi.fn().mockResolvedValue(undefined),
+}));
+const addAuditEventToBatch = vi.hoisted(() => vi.fn());
 vi.mock('../lib/firebase', () => ({ db: {} }));
 vi.mock('../lib/chunkBatch', () => ({ commitBatchesInChunks: vi.fn() }));
+vi.mock('./auditService', () => ({
+  addAuditEventToBatch,
+  createAuditEventOperation: vi.fn(() => ({ type: 'set', ref: 'audit', data: {} })),
+}));
 vi.mock('firebase/firestore', () => ({
-  addDoc: vi.fn(), collection: vi.fn(), deleteDoc: vi.fn(), doc: vi.fn(),
-  getDoc: vi.fn(), updateDoc: vi.fn(), Timestamp: { fromDate: (date: Date) => date },
+  collection: vi.fn(), doc: vi.fn(), getDoc: vi.fn(), writeBatch: vi.fn(() => batch),
+  Timestamp: { fromDate: (date: Date) => date },
 }));
 
 describe('session persistence boundaries', () => {
@@ -32,9 +43,10 @@ describe('session persistence boundaries', () => {
 
     await updateSessionRecord('session', { name: 'Renamed', date: '2026-09-02', groups: [initial] }, [initial]);
 
-    expect(updateDoc).toHaveBeenCalledWith(undefined, expect.objectContaining({
+    expect(batch.update).toHaveBeenCalledWith(undefined, expect.objectContaining({
       name: 'Renamed', groups: [remote], boardMemberIds: ['past-board-member'],
     }));
+    expect(addAuditEventToBatch).toHaveBeenCalledWith(batch, expect.objectContaining({ action: 'session.updated' }));
   });
 
   it('changes only games on the requested group and rejects a missing group', async () => {
@@ -43,9 +55,9 @@ describe('session persistence boundaries', () => {
     vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({ groups: [selected, other] }) } as never);
 
     await updateSessionGroupGames('session', 'selected', ['new']);
-    expect(updateDoc).toHaveBeenCalledWith(undefined, { groups: [{ ...selected, gameIds: ['new'] }, other] });
+    expect(batch.update).toHaveBeenCalledWith(undefined, { groups: [{ ...selected, gameIds: ['new'] }, other] });
 
     await expect(updateSessionGroupGames('session', 'missing', [])).rejects.toThrow('해당 조를 찾을 수 없습니다.');
-    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(batch.update).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,13 +17,58 @@ import { getApplicantAssignmentRevision } from '../../domain/interviews/intervie
 import { assertExpectedRevision } from '../../domain/interviews/revisionConflict';
 import { compareInterviewSchedules } from '../../domain/interviews/scheduleOrder';
 import { getAssignmentScheduleImpact } from '../../domain/interviews/scheduling';
+import { collectAuditChanges } from '../../domain/audit/auditEvent';
 import { commitBatchesInChunks } from '../../lib/chunkBatch';
 import { db } from '../../lib/firebase';
+import {
+  addAuditEventToBatch,
+  addAuditEventToTransaction,
+  createAuditEventOperation,
+} from '../auditService';
 import type { InterviewAccess, InterviewApplicant, InterviewRoundInterviewer, InterviewSchedule } from '../../types';
 import type { InterviewScheduleDraft } from './models';
 import { actorEmail, adminScheduleData, getAssignmentLockId, mapSnapshot, publicScheduleData } from './shared';
 
 const MAX_APPLICANTS_PER_SCHEDULE_MOVE = 100;
+
+const SCHEDULE_STATUS_LABELS: Record<InterviewSchedule['status'], string> = {
+  draft: '준비 중',
+  collecting: '응답 수집 중',
+  closed: '응답 마감',
+  interviewing: '면접 진행 중',
+  finished: '종료',
+  archived: '보관',
+};
+
+function scheduleAuditView(schedule: InterviewSchedule | InterviewScheduleDraft) {
+  return {
+    name: schedule.name.trim(),
+    status: SCHEDULE_STATUS_LABELS[schedule.status],
+    surveyOpensAt: schedule.surveyOpensAt instanceof Date
+      ? schedule.surveyOpensAt.toLocaleString('ko-KR')
+      : schedule.surveyOpensAt.toDate().toLocaleString('ko-KR'),
+    surveyClosesAt: schedule.surveyClosesAt instanceof Date
+      ? schedule.surveyClosesAt.toLocaleString('ko-KR')
+      : schedule.surveyClosesAt.toDate().toLocaleString('ko-KR'),
+    interviewDates: schedule.interviewDates,
+    operatingHours: `${schedule.dayStartTime}~${schedule.dayEndTime}`,
+    availabilitySlotMinutes: schedule.availabilitySlotMinutes,
+    assignmentSlotMinutes: schedule.assignmentSlotMinutes,
+    instructions: schedule.instructions.trim(),
+  };
+}
+
+const SCHEDULE_AUDIT_FIELDS = [
+  { key: 'name', label: '일정 이름' },
+  { key: 'status', label: '상태' },
+  { key: 'surveyOpensAt', label: '응답 시작' },
+  { key: 'surveyClosesAt', label: '응답 마감' },
+  { key: 'interviewDates', label: '면접일' },
+  { key: 'operatingHours', label: '운영 시간' },
+  { key: 'availabilitySlotMinutes', label: '가능시간 단위(분)' },
+  { key: 'assignmentSlotMinutes', label: '배정 단위(분)' },
+  { key: 'instructions', label: '안내문' },
+] as const;
 
 export function subscribeInterviewSchedules(
   roundId: string,
@@ -78,6 +123,13 @@ export async function assignRoundInterviewerToSchedule(
         createdAt: serverTimestamp(),
       });
     }
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.interviewer_schedule_assigned',
+      targetId: interviewerId,
+      targetLabel: interviewer.displayName,
+      detail: `면접 일정: ${schedule.name}`,
+    });
   });
 }
 
@@ -106,6 +158,13 @@ export async function createInterviewSchedule(roundId: string, draft: InterviewS
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+  });
+  addAuditEventToBatch(batch, {
+    category: 'interview',
+    action: 'interview.schedule_created',
+    targetId: scheduleRef.id,
+    targetLabel: draft.name.trim(),
+    detail: `면접관 ${interviewerSnapshots.size}명을 일정 명부에 함께 등록`,
   });
   await batch.commit();
   return scheduleRef.id;
@@ -192,6 +251,21 @@ export async function applyConcreteInterviewScheduleChange(
         createdBy: actorEmail(),
       });
     });
+    const changes = collectAuditChanges(
+      scheduleAuditView(currentSchedule),
+      scheduleAuditView(draft),
+      SCHEDULE_AUDIT_FIELDS,
+    );
+    if (changes.length > 0 || affectedResponses.length > 0 || assignmentImpact.affectedAssignmentCount > 0) {
+      addAuditEventToTransaction(transaction, {
+        category: 'interview',
+        action: 'interview.schedule_updated',
+        targetId: scheduleId,
+        targetLabel: draft.name.trim(),
+        changes,
+        detail: `유효하지 않은 응답 ${affectedResponses.length}건 정리, 배정 ${assignmentImpact.affectedAssignmentCount}건 해제`,
+      });
+    }
     return { cleanedResponseCount: affectedResponses.length, clearedAssignmentCount: assignmentImpact.affectedAssignmentCount };
   });
 }
@@ -234,7 +308,16 @@ export async function deleteInterviewSchedule(schedule: InterviewSchedule): Prom
     ...participantSnapshot.docs.map(item => item.ref),
   ];
   await commitBatchesInChunks(db, dependentRefs.map(ref => ({ type: 'delete' as const, ref })));
-  await commitBatchesInChunks(db, [{ type: 'delete', ref: scheduleRef }]);
+  await commitBatchesInChunks(db, [
+    { type: 'delete', ref: scheduleRef },
+    createAuditEventOperation({
+      category: 'interview',
+      action: 'interview.schedule_deleted',
+      targetId: schedule.id,
+      targetLabel: current.name,
+      detail: `관련 공개 일정 및 면접관 명부 ${dependentRefs.length}건 함께 삭제`,
+    }),
+  ]);
   return { deletedDocuments: dependentRefs.length + 1 };
 }
 
@@ -281,9 +364,11 @@ export async function assignApplicantsToInterviewSchedule(
     });
 
     let moved = 0;
+    const movedApplicantNames: string[] = [];
     latestApplicants.forEach(({ applicantId, ref, applicant }) => {
       if (applicant.scheduleId === scheduleId) return;
       moved += 1;
+      movedApplicantNames.push(applicant.name);
       const accessRef = doc(db, 'interviewAccess', applicant.accessToken);
       const previousAssignment = applicant.assignment ?? null;
       const previousRevision = getApplicantAssignmentRevision(applicant);
@@ -329,6 +414,16 @@ export async function assignApplicantsToInterviewSchedule(
         createdBy: actorEmail(),
       });
     });
+    if (moved > 0) {
+      addAuditEventToTransaction(transaction, {
+        category: 'interview',
+        action: 'interview.schedule_applicants_assigned',
+        targetId: scheduleId,
+        targetLabel: schedule.name,
+        count: moved,
+        detail: movedApplicantNames.join(', '),
+      });
+    }
     return moved;
   });
 }
@@ -385,6 +480,14 @@ export async function migrateLegacyApplicantsToInterviewSchedule(
         scheduleId,
         scheduleAssignmentRevision,
       });
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'interview',
+      action: 'interview.legacy_applicants_migrated',
+      targetId: scheduleId,
+      targetLabel: schedule.name,
+      count: applicants.length,
+      detail: applicants.map(({ applicant }) => applicant.name).join(', '),
     });
     return applicants.length;
   });

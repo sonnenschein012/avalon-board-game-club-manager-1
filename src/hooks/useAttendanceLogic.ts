@@ -30,6 +30,7 @@ import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attend
 import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
+import { addAuditEventToBatch } from '../services/auditService';
 
 interface UseAttendanceLogicProps {
   onMoveToRecord?: () => void;
@@ -358,6 +359,15 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
           boardMemberIds: members.filter(member => member.isBoardMember).map(member => member.id),
         });
       }
+
+      addAuditEventToBatch(batch, {
+        category: 'session',
+        action: 'session.meeting_started',
+        targetId: sessionId,
+        targetLabel: sessionName,
+        count: assignedAttendees.length,
+        detail: `${sessionDate} · ${mappedGroups.length}개 조 · 배정 ${assignedAttendees.length}명`,
+      });
 
       await batch.commit();
     }, {

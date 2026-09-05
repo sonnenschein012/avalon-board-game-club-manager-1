@@ -251,6 +251,43 @@ describe('Firestore Security Rules', () => {
     await assertSucceeds(getDocs(collection(masterDb, 'admins')));
   });
 
+  it('변경 이력은 로그인 이메일과 서버 시각으로만 추가되고 마스터만 읽을 수 있다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    await seedRegularAdmin();
+    const adminDb = testEnv.authenticatedContext('audit-admin', { email: REGULAR_ADMIN_EMAIL }).firestore();
+    const masterDb = testEnv.authenticatedContext('audit-master', { email: BOOTSTRAP_MASTER_EMAIL }).firestore();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const eventRef = doc(adminDb, 'auditEvents', 'event-1');
+
+    await assertSucceeds(setDoc(eventRef, {
+      category: 'member',
+      action: 'member.updated',
+      actorEmail: REGULAR_ADMIN_EMAIL,
+      occurredAt: serverTimestamp(),
+      targetId: 'member-1',
+      targetLabel: '홍길동',
+      changes: [{ field: 'phone', label: '연락처', before: '없음', after: '010-0000-0000' }],
+      schemaVersion: 1,
+    }));
+
+    await assertFails(getDoc(eventRef));
+    await assertSucceeds(getDoc(doc(masterDb, 'auditEvents', 'event-1')));
+    await assertFails(updateDoc(doc(masterDb, 'auditEvents', 'event-1'), { targetLabel: '변조' }));
+    await assertFails(deleteDoc(doc(masterDb, 'auditEvents', 'event-1')));
+    await assertFails(setDoc(doc(adminDb, 'auditEvents', 'forged-actor'), {
+      category: 'member', action: 'member.updated', actorEmail: 'other@example.com',
+      occurredAt: serverTimestamp(), targetLabel: '변조', schemaVersion: 1,
+    }));
+    await assertFails(setDoc(doc(adminDb, 'auditEvents', 'forged-time'), {
+      category: 'member', action: 'member.updated', actorEmail: REGULAR_ADMIN_EMAIL,
+      occurredAt: new Date('2020-01-01'), targetLabel: '변조', schemaVersion: 1,
+    }));
+    await assertFails(setDoc(doc(publicDb, 'auditEvents', 'public-event'), {
+      category: 'member', action: 'member.updated', actorEmail: REGULAR_ADMIN_EMAIL,
+      occurredAt: serverTimestamp(), targetLabel: '변조', schemaVersion: 1,
+    }));
+  });
+
   it('일반 관리자는 면접 비공개 데이터와 공개 컬렉션 전체를 관리할 수 있다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     await seedRegularAdmin();

@@ -10,6 +10,7 @@ import {
   normalizeStudentYear,
 } from '../../domain/members/memberIdentity';
 import { db } from '../../lib/firebase';
+import { addAuditEventToTransaction } from '../auditService';
 import type { InterviewApplicant, Member } from '../../types';
 import { actorEmail } from './shared';
 
@@ -70,6 +71,13 @@ export async function createMemberFromSelectedApplicant(
       memberRegisteredBy: actorEmail(),
       updatedAt: serverTimestamp(),
     });
+    addAuditEventToTransaction(transaction, {
+      category: 'member',
+      action: 'member.created_from_applicant',
+      targetId: memberRef.id,
+      targetLabel: name,
+      detail: `지원자 ${applicant.name} (${applicant.applicantNumber})에서 등록`,
+    });
   });
   return memberRef.id;
 }
@@ -96,6 +104,13 @@ export async function linkSelectedApplicantToMember(applicantId: string, memberI
       memberRegisteredBy: actorEmail(),
       updatedAt: serverTimestamp(),
     });
+    addAuditEventToTransaction(transaction, {
+      category: 'member',
+      action: 'member.linked_to_applicant',
+      targetId: memberId,
+      targetLabel: member.name,
+      detail: `지원자 ${applicant.name} (${applicant.applicantNumber})와 연결${member.status === '휴면' ? ' · 활동 상태로 복원' : ''}`,
+    });
   });
 }
 
@@ -104,11 +119,19 @@ export async function clearApplicantMemberRegistration(applicantId: string) {
   await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(applicantRef);
     if (!snapshot.exists()) throw new Error('지원자를 찾을 수 없습니다.');
+    const applicant = { id: snapshot.id, ...snapshot.data() } as InterviewApplicant;
     transaction.update(applicantRef, {
       memberId: null,
       memberRegisteredAt: null,
       memberRegisteredBy: null,
       updatedAt: serverTimestamp(),
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'member',
+      action: 'member.unlinked_from_applicant',
+      targetId: applicant.memberId ?? applicantId,
+      targetLabel: applicant.name,
+      detail: applicant.memberId ? `연결 부원 ID: ${applicant.memberId}` : '기존 연결 정보 없음',
     });
   });
 }
