@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Check, ChevronDown } from 'lucide-react';
 import { compareInterviewSchedules, getInterviewScheduleEndDate, getInterviewScheduleStartDate } from '../domain/interviews/scheduleOrder';
 import type { InterviewSchedule } from '../types';
@@ -33,8 +33,40 @@ function statusLabel(schedule: InterviewSchedule) {
 export default function InterviewScheduleSelector({ schedules, activeScheduleId, applicantCounts = {}, allowNone = false, noneLabel = '일정 선택', onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuLayout, setMenuLayout] = useState({ above: false, maxHeight: 320 });
   const active = schedules.find(schedule => schedule.id === activeScheduleId) ?? null;
   const orderedSchedules = useMemo(() => [...schedules].sort(compareInterviewSchedules), [schedules]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const updateLayout = () => {
+      if (!rootRef.current || !menuRef.current) return;
+      const rect = rootRef.current.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportBottom = viewportTop + (viewport?.height ?? window.innerHeight);
+      // Leave room for the 8px trigger gap and a 12px viewport margin.
+      const below = Math.max(0, viewportBottom - rect.bottom - 20);
+      const above = Math.max(0, rect.top - viewportTop - 20);
+      const desiredHeight = Math.min(320, menuRef.current.scrollHeight + 2);
+      const openAbove = below < desiredHeight && above > below;
+      const maxHeight = Math.min(320, openAbove ? above : below);
+      setMenuLayout(current => current.above === openAbove && current.maxHeight === maxHeight
+        ? current : { above: openAbove, maxHeight });
+    };
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+    window.addEventListener('scroll', updateLayout, true);
+    window.visualViewport?.addEventListener('resize', updateLayout);
+    window.visualViewport?.addEventListener('scroll', updateLayout);
+    return () => {
+      window.removeEventListener('resize', updateLayout);
+      window.removeEventListener('scroll', updateLayout, true);
+      window.visualViewport?.removeEventListener('resize', updateLayout);
+      window.visualViewport?.removeEventListener('scroll', updateLayout);
+    };
+  }, [open, schedules, allowNone]);
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +83,7 @@ export default function InterviewScheduleSelector({ schedules, activeScheduleId,
       <span className="min-w-0 flex-1">{active ? <><strong className="block truncate text-xs font-black text-navy">{active.name}</strong><small className="mt-0.5 block text-[10px] font-bold text-slate-400">{dateRange(active)} · 지원자 {applicantCounts[active.id] ?? 0}명</small></> : <><strong className="block text-xs font-black text-navy">{noneLabel}</strong><small className="block text-[10px] text-slate-400">관리할 일정을 선택해주세요.</small></>}</span>
       <ChevronDown size={15} className={`shrink-0 text-slate-400 transition ${open ? 'rotate-180' : ''}`} />
     </button>
-    {open && <div role="listbox" className="absolute right-0 z-40 mt-2 w-[min(22rem,calc(100vw-2rem))] space-y-1 rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl">
+    {open && <div ref={menuRef} role="listbox" style={{ maxHeight: menuLayout.maxHeight }} className={`absolute right-0 z-40 w-[min(22rem,calc(100vw-2rem))] space-y-1 overflow-y-auto overscroll-contain rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl ${menuLayout.above ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
       {allowNone && <button type="button" role="option" aria-selected={!active} onClick={() => { onSelect(null); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left ${!active ? 'bg-amber-50' : 'hover:bg-slate-50'}`}><span className="min-w-0 flex-1"><strong className="block text-xs font-black text-navy">{noneLabel}</strong><small className="text-[10px] text-slate-400">회차에 공통으로 사용할 면접관</small></span>{!active && <Check size={15} className="text-gold" />}</button>}
       {orderedSchedules.map(schedule => { const status = statusLabel(schedule); const selected = schedule.id === activeScheduleId; return <button type="button" role="option" aria-selected={selected} key={schedule.id} onClick={() => { onSelect(schedule.id); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${selected ? 'bg-amber-50' : 'hover:bg-slate-50'}`}><span className="min-w-0 flex-1"><span className="flex items-center gap-2"><strong className="truncate text-xs font-black text-navy">{schedule.name}</strong><span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black ${status.className}`}>{status.label}</span></span><small className="mt-1 block text-[10px] font-bold text-slate-400">{dateRange(schedule)} · 지원자 {applicantCounts[schedule.id] ?? 0}명</small></span>{selected && <Check size={15} className="shrink-0 text-gold" />}</button>; })}
       {schedules.length === 0 && <p className="px-3 py-5 text-center text-xs font-bold text-slate-400">아직 만든 면접 일정이 없습니다.</p>}

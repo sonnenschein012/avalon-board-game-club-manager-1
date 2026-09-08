@@ -1,0 +1,119 @@
+import React, { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAttendanceLogic } from './useAttendanceLogic';
+
+const mocks = vi.hoisted(() => ({ commit: vi.fn(), clear: vi.fn(), remove: vi.fn(), navigate: vi.fn() }));
+vi.mock('../lib/firebase', () => ({ db: {}, handleFirestoreError: vi.fn(), OperationType: { WRITE: 'write' } }));
+vi.mock('../services/auditService', () => ({ addAuditEventToBatch: vi.fn() }));
+vi.mock('../services/attendeesService', () => ({
+  deleteAttendeeRecord: mocks.remove, clearAllAttendees: mocks.clear,
+  quickAddMemberRecord: vi.fn(), manualAddAttendeeRecord: vi.fn(), importAttendeesFile: vi.fn(),
+}));
+vi.mock('firebase/firestore', async importOriginal => ({
+  ...await importOriginal<typeof import('firebase/firestore')>(),
+  doc: vi.fn(() => ({})), getDoc: vi.fn(async () => ({ exists: () => false, data: () => undefined })),
+  writeBatch: () => ({ update: vi.fn(), set: vi.fn(), commit: mocks.commit }),
+}));
+vi.mock('./useFirestore', () => {
+  const data: Record<string, unknown[]> = {
+    attendees: [{ id: 'a1', name: '김테스트', studentIdPrefix: '26', request: '' }],
+    members: [{ id: 'm1', name: '김테스트', studentId: '260001', semester: '2026-2', gender: '남' }], sessions: [],
+  };
+  return { useFirestore: (collection: string) => ({ data: data[collection], loading: false }) };
+});
+
+describe('attendance working draft', () => {
+  let root: Root;
+  let container: HTMLDivElement;
+  let latest: ReturnType<typeof useAttendanceLogic>;
+  let scope: string;
+  let counter = 0;
+  function Harness({ owner }: { owner: string }) {
+    latest = useAttendanceLogic({ draftScope: owner, onMoveToRecord: mocks.navigate });
+    return null;
+  }
+  const mount = (owner = scope) => act(() => root.render(<Harness key={owner} owner={owner} />));
+  const leave = () => act(() => root.render(null));
+  const arrange = () => act(() => {
+    latest.setSessionName('편성하던 모임');
+    latest.setSessionDate('2026-09-12');
+    latest.setGroups([{ id: 'g1', name: '즐거운 조', memberIds: ['a1'], gameIds: [], targetSize: 5, notes: '메모' }]);
+    latest.setIsAutoMode(true);
+  });
+  beforeEach(() => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    vi.clearAllMocks();
+    mocks.commit.mockResolvedValue(undefined);
+    mocks.clear.mockResolvedValue(true);
+    mocks.remove.mockResolvedValue(true);
+    scope = `test-${++counter}`;
+    sessionStorage.clear();
+    container = document.createElement('div');
+    root = createRoot(container);
+    mount();
+  });
+  afterEach(() => { act(() => root.unmount()); vi.restoreAllMocks(); container.remove(); });
+
+  it('restores all working fields and assignments after leaving the page', () => {
+    arrange();
+    const groups = latest.groups;
+    leave(); mount();
+    expect(latest.groups).toEqual(groups);
+    expect(latest.sessionName).toBe('편성하던 모임');
+    expect(latest.sessionDate).toBe('2026-09-12');
+    expect(latest.isAutoMode).toBe(true);
+    expect(latest.unassignedAttendees).toHaveLength(0);
+    act(() => latest.setSessionDate('2026-09-13'));
+    expect(latest.sessionName).toBe('편성하던 모임');
+  });
+  it('keeps accounts separate and restores serialized data for a fresh owner', () => {
+    arrange();
+    const stored = sessionStorage.getItem(`avalon:attendance-draft:v1:${scope}`)!;
+    mount(`${scope}-other`);
+    expect(latest.groups).toEqual([]);
+    sessionStorage.setItem(`avalon:attendance-draft:v1:${scope}-reload`, stored);
+    mount(`${scope}-reload`);
+    expect(latest.groups[0]?.memberIds).toEqual(['a1']);
+    expect(latest.sessionName).toBe('편성하던 모임');
+  });
+  it('retains the draft on save failure, then clears it only after a successful save', async () => {
+    arrange();
+    mocks.commit.mockRejectedValueOnce(new Error('offline'));
+    await act(async () => { await latest.handleMoveToRecord(); });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    leave(); mount();
+    expect(latest.groups).toHaveLength(1);
+    await act(async () => { await latest.handleMoveToRecord(); });
+    expect(mocks.navigate).toHaveBeenCalledOnce();
+    leave(); mount();
+    expect(latest.groups).toEqual([]);
+  });
+  it('preserves failed resets and persists an explicit successful roster reset', async () => {
+    arrange();
+    mocks.clear.mockResolvedValueOnce(false);
+    await act(async () => { await latest.clearRecords(); });
+    expect(latest.groups).toHaveLength(1);
+    await act(async () => { await latest.clearRecords(); });
+    leave(); mount();
+    expect(latest.groups).toEqual([]);
+  });
+  it('removes a deleted attendee from the saved working groups', async () => {
+    arrange();
+    act(() => latest.setAttendeeToDelete(latest.attendees[0]!));
+    await act(async () => { await latest.handleDeleteAttendee(); });
+    leave(); mount();
+    expect(latest.groups[0]?.memberIds).toEqual([]);
+  });
+  it('survives blocked browser storage and ignores invalid stored data', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    arrange(); leave(); mount();
+    expect(latest.groups).toHaveLength(1);
+    vi.restoreAllMocks();
+    sessionStorage.setItem(`avalon:attendance-draft:v1:${scope}-bad`, '{"groups":[{}]}');
+    mount(`${scope}-bad`);
+    expect(latest.groups).toEqual([]);
+    act(() => latest.setSessionDate('2026-09-15'));
+    expect(latest.sessionName).toBe('2026. 9. 15. 정기 모임');
+  });
+});

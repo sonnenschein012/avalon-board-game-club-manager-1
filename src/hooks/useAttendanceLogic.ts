@@ -26,7 +26,8 @@ import {
   calculateGroupAverageStudentId,
   getReunionWarnings
 } from '../domain/attendance/attendanceHelpers';
-import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
+import { useAttendanceDraft } from './useAttendanceDraft';
+import { useNativeDragAutoScroll } from './useNativeDragAutoScroll';
 import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
@@ -34,9 +35,10 @@ import { addAuditEventToBatch } from '../services/auditService';
 
 interface UseAttendanceLogicProps {
   onMoveToRecord?: () => void;
+  draftScope?: string;
 }
 
-export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) {
+export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendanceLogicProps) {
   const { runAction, isPending } = useAsyncActionState();
   const { data: attendees } = useFirestore<Attendee>('attendees', 'importDate', 'desc');
   const { data: members } = useFirestore<Member>('members');
@@ -45,12 +47,9 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const [importing, setImporting] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
-  const [initialSessionMetadata] = useState(() => getTodaySessionMetadata());
-  const [sessionName, setSessionNameState] = useState(initialSessionMetadata.sessionName);
-  const [sessionDate, setSessionDateState] = useState(initialSessionMetadata.sessionDate);
-  const [isSessionNameCustom, setIsSessionNameCustom] = useState(false);
-  const [groups, setGroups] = useState<SessionGroup[]>([]);
-  const [isAutoMode, setIsAutoMode] = useState(false);
+  const { sessionName, setSessionName, sessionDate, setSessionDate, groups, setGroups,
+    isAutoMode, setIsAutoMode, resetDraft } = useAttendanceDraft(draftScope ?? null);
+  const { startDragAutoScroll } = useNativeDragAutoScroll();
 
   // Modals state
   const [isCostModalOpen, setIsCostModalOpen] = useState(false);
@@ -60,20 +59,6 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const [isManualAdding, setIsManualAdding] = useState(false);
   const [attendeeToDelete, setAttendeeToDelete] = useState<Attendee | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  // A changed date should update an untouched default name, while preserving
-  // the operator's own wording once they have edited it.
-  const setSessionName = (name: string) => {
-    setIsSessionNameCustom(true);
-    setSessionNameState(name);
-  };
-
-  const setSessionDate = (date: string) => {
-    setSessionDateState(date);
-    if (!isSessionNameCustom) {
-      setSessionNameState(getDefaultSessionName(date));
-    }
-  };
 
   const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => {
     return getMemberFromAttendee(members, name, studentIdPrefix);
@@ -125,6 +110,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
     if (!attendeeToDelete) return;
     const success = await deleteAttendeeRecord(attendeeToDelete);
     if (success) {
+      setGroups(current => current.map(group => ({ ...group, memberIds: group.memberIds.filter(id => id !== attendeeToDelete.id) })));
       setIsDeleteModalOpen(false);
       setAttendeeToDelete(null);
     }
@@ -273,6 +259,7 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
   const handleDragStart = (e: React.DragEvent, memberId: string, source: string) => {
     e.dataTransfer.setData('memberId', memberId);
     e.dataTransfer.setData('source', source);
+    startDragAutoScroll();
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -375,8 +362,9 @@ export function useAttendanceLogic({ onMoveToRecord }: UseAttendanceLogicProps) 
       errorMessage: '모임과 세션 기록을 저장하지 못했습니다.',
       onError: (error) => handleFirestoreError(error, OperationType.WRITE, `DailyPlannings/${sessionDate}`),
     });
-    if (result.succeeded && onMoveToRecord) {
-      onMoveToRecord();
+    if (result.succeeded) {
+      resetDraft();
+      onMoveToRecord?.();
     }
   };
 

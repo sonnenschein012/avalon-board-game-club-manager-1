@@ -8,7 +8,9 @@ import PageHeader from '../components/PageHeader';
 import UnassignedPool from '../components/UnassignedPool';
 import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { createMemberFormData, type MemberFormData } from '../domain/members/memberForm';
-import type { Attendee, InterviewAssignment, Member, SessionGroup } from '../types';
+import type { Attendee, InterviewAssignment, Member } from '../types';
+import { useAttendanceDraft } from '../hooks/useAttendanceDraft';
+import { useNativeDragAutoScroll } from '../hooks/useNativeDragAutoScroll';
 import {
   createAttendanceFixture,
   createInterviewFixture,
@@ -181,14 +183,14 @@ export function InterviewScenario({ state }: { state: InterviewScenarioState }) 
   </div>;
 }
 
-export function AttendanceScenario({ state }: { state: AttendanceScenarioState }) {
+export function AttendanceScenario({ state, draftScope = null }: { state: AttendanceScenarioState; draftScope?: string | null }) {
   const fixture = useMemo(() => createAttendanceFixture(state), [state]);
   const [members, setMembers] = useState(fixture.members);
   const [attendees, setAttendees] = useState(fixture.attendees);
-  const [groups, setGroups] = useState<SessionGroup[]>(fixture.groups);
-  const [sessionName, setSessionName] = useState('2026-08-27 정기 모임');
-  const [sessionDate, setSessionDate] = useState('2026-08-27');
-  const [isAutoMode, setIsAutoMode] = useState(false);
+  const { groups, setGroups, sessionName, setSessionName, sessionDate, setSessionDate, isAutoMode, setIsAutoMode } = useAttendanceDraft(draftScope, {
+    groups: fixture.groups, sessionName: '2026-08-27 정기 모임', sessionDate: '2026-08-27', isSessionNameCustom: false, isAutoMode: false,
+  });
+  const { startDragAutoScroll } = useNativeDragAutoScroll();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
@@ -201,6 +203,7 @@ export function AttendanceScenario({ state }: { state: AttendanceScenarioState }
   const dragKey = 'application/x-avalon-scenario-attendee';
   const handleDragStart = (event: DragEvent, attendeeId: string, source: string) => {
     event.dataTransfer.setData(dragKey, JSON.stringify({ attendeeId, source }));
+    startDragAutoScroll();
   };
   const readDrag = (event: DragEvent) => {
     try { return JSON.parse(event.dataTransfer.getData(dragKey)) as { attendeeId: string; source: string }; }

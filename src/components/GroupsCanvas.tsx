@@ -120,10 +120,10 @@ export default function GroupsCanvas({
           </div>
         </div>
         
-        <div className="p-6 flex-1 overflow-y-auto bg-slate-50/30">
+        <div data-attendance-canvas className="p-6 flex-1 overflow-y-auto bg-slate-50/30">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {groups.map((group, idx) => (
-              <div key={group.id} className="bg-white rounded-xl shadow-sm">
+              <div key={group.id} data-group-id={group.id} className="bg-white rounded-xl shadow-sm">
                 <div className="p-3 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 rounded-t-xl">
                   <div className="flex items-center gap-2">
                     {editingGroupId === group.id ? (
@@ -174,6 +174,7 @@ export default function GroupsCanvas({
                   </button>
                 </div>
                 <div 
+                  data-group-dropzone={group.id}
                   className="p-3 min-h-[100px]"
                   onDragOver={onDragOver}
                   onDrop={(e) => onDropToGroup(e, group.id)}
@@ -188,6 +189,7 @@ export default function GroupsCanvas({
                       return (
                         <div 
                           key={aId} 
+                          data-attendee-id={aId}
                           draggable
                           onDragStart={(e) => onDragStart(e, aId, group.id)}
                           className={`flex flex-col gap-1 px-2 py-1.5 bg-white rounded shadow-sm cursor-grab border-l-2 ${borderColor}`}

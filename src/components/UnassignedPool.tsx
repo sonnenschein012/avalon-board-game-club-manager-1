@@ -39,6 +39,7 @@ export default function UnassignedPool({
         </button>
       </div>
       <div 
+        data-attendance-pool
         className="p-4 space-y-2 grow overflow-y-auto"
         onDragOver={onDragOver}
         onDrop={onDropToUnassigned}
@@ -53,6 +54,7 @@ export default function UnassignedPool({
           return (
             <div 
               key={a.id} 
+              data-attendee-id={a.id}
               draggable={isRegistered}
               onDragStart={isRegistered ? (e) => onDragStart(e, a.id, 'unassigned') : undefined}
               className={cn(

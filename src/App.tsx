@@ -278,7 +278,7 @@ export default function App() {
       } />
       <Route path="/attendance" element={
         <PrivateRoute user={user} isAdmin={isAdmin}>
-          {protectedLayout(<AttendancePage onMoveToRecord={() => navigate('/meeting')} isAdminModeActive={isAdminModeActive} />)}
+          {protectedLayout(<AttendancePage key={user?.uid} draftScope={`${import.meta.env.MODE}:${user?.uid}`} onMoveToRecord={() => navigate('/meeting')} isAdminModeActive={isAdminModeActive} />)}
         </PrivateRoute>
       } />
       <Route path="/meeting" element={

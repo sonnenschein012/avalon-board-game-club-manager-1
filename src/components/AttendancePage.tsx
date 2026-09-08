@@ -10,11 +10,12 @@ import GroupsCanvas from './GroupsCanvas';
 import { useAttendanceLogic } from '../hooks/useAttendanceLogic';
 
 interface AttendancePageProps {
+  draftScope: string;
   onMoveToRecord?: () => void;
   isAdminModeActive?: boolean;
 }
 
-export default function AttendancePage({ onMoveToRecord, isAdminModeActive = false }: AttendancePageProps) {
+export default function AttendancePage({ draftScope, onMoveToRecord, isAdminModeActive = false }: AttendancePageProps) {
   const {
     attendees,
     importing,
@@ -68,7 +69,7 @@ export default function AttendancePage({ onMoveToRecord, isAdminModeActive = fal
     handleDropToUnassigned,
     handleMoveToRecord,
     attendanceSaving,
-  } = useAttendanceLogic(onMoveToRecord ? { onMoveToRecord } : {});
+  } = useAttendanceLogic({ draftScope, ...(onMoveToRecord ? { onMoveToRecord } : {}) });
 
   return (
     <div className="space-y-6">
