@@ -67,6 +67,21 @@ describe('attendance working draft', () => {
     act(() => latest.setSessionDate('2026-09-13'));
     expect(latest.sessionName).toBe('편성하던 모임');
   });
+  it('moves a card atomically, returns it to the pool and ignores invalid destinations', () => {
+    arrange();
+    act(() => latest.setGroups(current => [...current, { id: 'g2', memberIds: [], gameIds: [] }]));
+    act(() => latest.handleMoveAttendee('a1', 'g2'));
+    act(() => latest.handleMoveAttendee('a1', 'g2'));
+    expect(latest.groups.map(group => group.memberIds)).toEqual([[], ['a1']]);
+    act(() => latest.handleMoveAttendee('a1', 'missing-group'));
+    act(() => latest.handleMoveAttendee('missing-attendee', 'g1'));
+    expect(latest.groups.map(group => group.memberIds)).toEqual([[], ['a1']]);
+    leave(); mount();
+    expect(latest.groups.map(group => group.memberIds)).toEqual([[], ['a1']]);
+    act(() => latest.handleMoveAttendee('a1', null));
+    expect(latest.groups.map(group => group.memberIds)).toEqual([[], []]);
+    expect(latest.unassignedAttendees.map(attendee => attendee.id)).toEqual(['a1']);
+  });
   it('keeps accounts separate and restores serialized data for a fresh owner', () => {
     arrange();
     const stored = sessionStorage.getItem(`avalon:attendance-draft:v1:${scope}`)!;

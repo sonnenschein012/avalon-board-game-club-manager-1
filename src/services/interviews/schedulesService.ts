@@ -133,6 +133,18 @@ export async function assignRoundInterviewerToSchedule(
   });
 }
 
+/** One realtime listener used by the round overview to summarize every schedule. */
+export function subscribeAllInterviewSchedules(
+  onData: (schedules: InterviewSchedule[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    query(collection(db, 'interviewSchedules')),
+    snapshot => onData(mapSnapshot<InterviewSchedule>(snapshot)),
+    onError,
+  );
+}
+
 export async function createInterviewSchedule(roundId: string, draft: InterviewScheduleDraft): Promise<string> {
   const [existing, interviewerSnapshots] = await Promise.all([
     getDocs(query(collection(db, 'interviewSchedules'), where('roundId', '==', roundId))),

@@ -1,4 +1,4 @@
-import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { CalendarClock, ClipboardList, Plus, Users } from 'lucide-react';
 import GroupsCanvas from '../components/GroupsCanvas';
 import InterviewSchedulePanel from '../components/InterviewSchedulePanel';
@@ -10,7 +10,8 @@ import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { createMemberFormData, type MemberFormData } from '../domain/members/memberForm';
 import type { Attendee, InterviewAssignment, Member } from '../types';
 import { useAttendanceDraft } from '../hooks/useAttendanceDraft';
-import { useNativeDragAutoScroll } from '../hooks/useNativeDragAutoScroll';
+import { AttendanceDragAndDrop } from '../components/AttendanceDragAndDrop';
+import { moveAttendee } from '../domain/attendance/moveAttendee';
 import {
   createAttendanceFixture,
   createInterviewFixture,
@@ -190,7 +191,6 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
   const { groups, setGroups, sessionName, setSessionName, sessionDate, setSessionDate, isAutoMode, setIsAutoMode } = useAttendanceDraft(draftScope, {
     groups: fixture.groups, sessionName: '2026-08-27 정기 모임', sessionDate: '2026-08-27', isSessionNameCustom: false, isAutoMode: false,
   });
-  const { startDragAutoScroll } = useNativeDragAutoScroll();
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
@@ -200,15 +200,6 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
   const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => members.find(member =>
     member.name === name && (!studentIdPrefix || member.studentId.startsWith(studentIdPrefix)));
   const memberAttendanceCount = Object.fromEntries(members.map((member, index) => [member.id, (index * 3) % 11]));
-  const dragKey = 'application/x-avalon-scenario-attendee';
-  const handleDragStart = (event: DragEvent, attendeeId: string, source: string) => {
-    event.dataTransfer.setData(dragKey, JSON.stringify({ attendeeId, source }));
-    startDragAutoScroll();
-  };
-  const readDrag = (event: DragEvent) => {
-    try { return JSON.parse(event.dataTransfer.getData(dragKey)) as { attendeeId: string; source: string }; }
-    catch { return null; }
-  };
   const removeFromGroups = (attendeeId: string) => setGroups(current => current.map(group => ({ ...group, memberIds: group.memberIds.filter(id => id !== attendeeId) })));
 
   return <div className="space-y-6" data-scenario-page="attendance">
@@ -218,15 +209,13 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
       icon={ClipboardList}
       actions={<button type="button" onClick={() => setIsAutoMode(current => !current)} className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow ${isAutoMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-slate-600'}`}>{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</button>}
     />
+    <AttendanceDragAndDrop onMoveAttendee={(attendeeId, target) => setGroups(current => moveAttendee(current, attendeeId, target))}>
     <div className="grid min-h-[500px] grid-cols-1 gap-6 md:grid-cols-4">
       <UnassignedPool
         unassignedAttendees={unassignedAttendees}
         getMemberFromInfo={getMemberFromInfo}
         memberAttendanceCount={memberAttendanceCount}
         onManualAddOpen={() => undefined}
-        onDragStart={handleDragStart}
-        onDragOver={event => event.preventDefault()}
-        onDropToUnassigned={event => { event.preventDefault(); const data = readDrag(event); if (data) removeFromGroups(data.attendeeId); }}
         onQuickAddMember={attendee => setMembers(current => [...current, { ...createMembersFixture('default')[0]!, id: `local-${attendee.id}`, name: attendee.name, studentId: `${attendee.studentIdPrefix ?? '26'}00000` }])}
         onDeleteAttendee={(attendee: Attendee) => { setAttendees(current => current.filter(item => item.id !== attendee.id)); removeFromGroups(attendee.id); }}
       />
@@ -240,9 +229,6 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
         editingGroupName={editingGroupName} setEditingGroupName={setEditingGroupName}
         onUpdateTargetSize={(groupId, size) => setGroups(current => current.map(group => group.id === groupId ? { ...group, targetSize: size } : group))}
         onCreateGroup={() => setGroups(current => [...current, { id: `local-group-${current.length + 1}`, name: `${current.length + 1}조`, memberIds: [], gameIds: [] }])}
-        onDragOver={event => event.preventDefault()}
-        onDropToGroup={(event, groupId) => { event.preventDefault(); const data = readDrag(event); if (!data) return; setGroups(current => current.map(group => ({ ...group, memberIds: group.id === groupId ? [...new Set([...group.memberIds.filter(id => id !== data.attendeeId), data.attendeeId])] : group.memberIds.filter(id => id !== data.attendeeId) }))); }}
-        onDragStart={handleDragStart}
         removeFromGroup={(attendeeId, groupId) => setGroups(current => current.map(group => group.id === groupId ? { ...group, memberIds: group.memberIds.filter(id => id !== attendeeId) } : group))}
         attendees={attendees} getMemberFromInfo={getMemberFromInfo} memberAttendanceCount={memberAttendanceCount}
         activeRequestId={activeRequestId} setActiveRequestId={setActiveRequestId}
@@ -251,5 +237,6 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
         calculateGroupAverageAttendance={ids => ids.length ? 4.5 : 0}
       />
     </div>
+    </AttendanceDragAndDrop>
   </div>;
 }

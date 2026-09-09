@@ -27,7 +27,7 @@ import {
   getReunionWarnings
 } from '../domain/attendance/attendanceHelpers';
 import { useAttendanceDraft } from './useAttendanceDraft';
-import { useNativeDragAutoScroll } from './useNativeDragAutoScroll';
+import { moveAttendee } from '../domain/attendance/moveAttendee';
 import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
@@ -49,7 +49,6 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
 
   const { sessionName, setSessionName, sessionDate, setSessionDate, groups, setGroups,
     isAutoMode, setIsAutoMode, resetDraft } = useAttendanceDraft(draftScope ?? null);
-  const { startDragAutoScroll } = useNativeDragAutoScroll();
 
   // Modals state
   const [isCostModalOpen, setIsCostModalOpen] = useState(false);
@@ -256,41 +255,9 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     ));
   };
 
-  const handleDragStart = (e: React.DragEvent, memberId: string, source: string) => {
-    e.dataTransfer.setData('memberId', memberId);
-    e.dataTransfer.setData('source', source);
-    startDragAutoScroll();
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDropToGroup = (e: React.DragEvent, targetGroupId: string) => {
-    e.preventDefault();
-    const memberId = e.dataTransfer.getData('memberId');
-    const source = e.dataTransfer.getData('source');
-
-    if (!memberId || source === targetGroupId) return;
-
-    if (source === 'unassigned') {
-      assignToGroup(memberId, targetGroupId);
-    } else {
-      setGroups(prev => prev.map(g => {
-        if (g.id === source) return { ...g, memberIds: g.memberIds.filter(id => id !== memberId) };
-        if (g.id === targetGroupId) return { ...g, memberIds: Array.from(new Set([...g.memberIds, memberId])) };
-        return g;
-      }));
-    }
-  };
-
-  const handleDropToUnassigned = (e: React.DragEvent) => {
-    e.preventDefault();
-    const memberId = e.dataTransfer.getData('memberId');
-    const source = e.dataTransfer.getData('source');
-
-    if (!memberId || source === 'unassigned') return;
-    removeFromGroup(memberId, source);
+  const handleMoveAttendee = (attendeeId: string, targetGroupId: string | null) => {
+    if (!attendees.some(attendee => attendee.id === attendeeId)) return;
+    setGroups(current => moveAttendee(current, attendeeId, targetGroupId));
   };
 
   const handleMoveToRecord = async () => {
@@ -419,10 +386,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
 
     assignToGroup,
     removeFromGroup,
-    handleDragStart,
-    handleDragOver,
-    handleDropToGroup,
-    handleDropToUnassigned,
+    handleMoveAttendee,
     handleMoveToRecord,
     attendanceSaving: isPending('attendance-save'),
   };

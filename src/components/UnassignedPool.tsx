@@ -3,15 +3,13 @@ import { Attendee, Member } from '../types';
 import { X, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import BoardMemberBadge from './BoardMemberBadge';
+import { AttendanceDraggableCard, AttendanceDropZone } from './AttendanceDragAndDrop';
 
 export interface UnassignedPoolProps {
   unassignedAttendees: Attendee[];
   getMemberFromInfo: (name?: string, studentIdPrefix?: string) => Member | undefined;
   memberAttendanceCount: Record<string, number>;
   onManualAddOpen: () => void;
-  onDragStart: (e: React.DragEvent, memberId: string, source: string) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDropToUnassigned: (e: React.DragEvent) => void;
   onQuickAddMember: (attendee: Attendee) => void;
   onDeleteAttendee: (attendee: Attendee) => void;
 }
@@ -21,9 +19,6 @@ export default function UnassignedPool({
   getMemberFromInfo,
   memberAttendanceCount,
   onManualAddOpen,
-  onDragStart,
-  onDragOver,
-  onDropToUnassigned,
   onQuickAddMember,
   onDeleteAttendee,
 }: UnassignedPoolProps) {
@@ -38,11 +33,9 @@ export default function UnassignedPool({
           + 명단 추가
         </button>
       </div>
-      <div 
+      <AttendanceDropZone groupId={null}
         data-attendance-pool
         className="p-4 space-y-2 grow overflow-y-auto"
-        onDragOver={onDragOver}
-        onDrop={onDropToUnassigned}
       >
         {unassignedAttendees.length === 0 && (
           <p className="text-[10px] text-slate-300 italic text-center p-4">명단이 없습니다.</p>
@@ -52,11 +45,10 @@ export default function UnassignedPool({
           const isRegistered = !!m;
 
           return (
-            <div 
+            <AttendanceDraggableCard
               key={a.id} 
-              data-attendee-id={a.id}
-              draggable={isRegistered}
-              onDragStart={isRegistered ? (e) => onDragStart(e, a.id, 'unassigned') : undefined}
+              attendeeId={a.id}
+              disabled={!isRegistered}
               className={cn(
                 "p-3 bg-slate-50 rounded-lg flex flex-col gap-1 transition-colors relative",
                 isRegistered ? "cursor-grab active:cursor-grabbing hover:border-transparent" : "opacity-80 grayscale"
@@ -98,10 +90,10 @@ export default function UnassignedPool({
                   <AlertTriangle size={12} className="shrink-0" /> ⚠️ 처음 왔어요
                 </div>
               )}
-            </div>
+            </AttendanceDraggableCard>
           );
         })}
-      </div>
+      </AttendanceDropZone>
     </div>
   );
 }

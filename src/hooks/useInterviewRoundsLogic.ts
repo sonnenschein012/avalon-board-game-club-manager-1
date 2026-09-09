@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import type { InterviewAccess, InterviewApplicant, InterviewRound } from '../types';
+import type { InterviewAccess, InterviewApplicant, InterviewRound, InterviewSchedule } from '../types';
 import { isActiveInterviewApplicant } from '../domain/interviews/interviewPolicy';
 import {
   createInterviewRound,
   subscribeAllInterviewAccess,
   subscribeAllInterviewApplicants,
+  subscribeAllInterviewSchedules,
   subscribeInterviewRounds,
   type InterviewRoundDraft,
 } from '../services/interviewsService';
@@ -21,6 +22,7 @@ export function useInterviewRoundsLogic() {
   const [rounds, setRounds] = useState<InterviewRound[]>([]);
   const [applicants, setApplicants] = useState<InterviewApplicant[]>([]);
   const [access, setAccess] = useState<InterviewAccess[]>([]);
+  const [schedules, setSchedules] = useState<InterviewSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const { runAction, isPending } = useAsyncActionState();
   const saving = isPending('interview-round-save');
@@ -33,10 +35,12 @@ export function useInterviewRoundsLogic() {
     // Two collection listeners provide realtime counts for every round without N listeners per round.
     const stopApplicants = subscribeAllInterviewApplicants(setApplicants, console.error);
     const stopAccess = subscribeAllInterviewAccess(setAccess, console.error);
+    const stopSchedules = subscribeAllInterviewSchedules(setSchedules, console.error);
     return () => {
       stopRounds();
       stopApplicants();
       stopAccess();
+      stopSchedules();
     };
   }, []);
 
@@ -59,6 +63,14 @@ export function useInterviewRoundsLogic() {
     return result;
   }, [access, applicants, rounds]);
 
+  const schedulesByRound = useMemo(() => {
+    const result: Record<string, InterviewSchedule[]> = {};
+    schedules.forEach(schedule => {
+      (result[schedule.roundId] ??= []).push(schedule);
+    });
+    return result;
+  }, [schedules]);
+
   const saveRound = async (draft: InterviewRoundDraft) => {
     if (saving) return false;
     const result = await runAction('interview-round-save', () => createInterviewRound(draft), {
@@ -69,5 +81,5 @@ export function useInterviewRoundsLogic() {
     return result.succeeded;
   };
 
-  return { rounds, countsByRound, loading, saving, saveRound };
+  return { rounds, countsByRound, schedulesByRound, loading, saving, saveRound };
 }

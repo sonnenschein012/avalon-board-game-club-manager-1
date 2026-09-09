@@ -2,6 +2,7 @@ import React from 'react';
 import { SessionGroup, Attendee, Member } from '../types';
 import { CheckCircle2, Activity, ArrowRight, Trash2, X, AlertTriangle, Plus, Loader2 } from 'lucide-react';
 import BoardMemberBadge from './BoardMemberBadge';
+import { AttendanceDraggableCard, AttendanceDropZone } from './AttendanceDragAndDrop';
 
 export interface GroupsCanvasProps {
   isAdminModeActive?: boolean;
@@ -23,9 +24,6 @@ export interface GroupsCanvasProps {
   setEditingGroupName: (name: string) => void;
   onUpdateTargetSize: (groupId: string, size: number) => void;
   onCreateGroup: () => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDropToGroup: (e: React.DragEvent, groupId: string) => void;
-  onDragStart: (e: React.DragEvent, memberId: string, source: string) => void;
   removeFromGroup: (memberId: string, groupId: string) => void;
   attendees: Attendee[];
   getMemberFromInfo: (name?: string, studentIdPrefix?: string) => Member | undefined;
@@ -57,9 +55,6 @@ export default function GroupsCanvas({
   setEditingGroupName,
   onUpdateTargetSize,
   onCreateGroup,
-  onDragOver,
-  onDropToGroup,
-  onDragStart,
   removeFromGroup,
   attendees,
   getMemberFromInfo,
@@ -173,11 +168,9 @@ export default function GroupsCanvas({
                     <Trash2 size={12} />
                   </button>
                 </div>
-                <div 
+                <AttendanceDropZone groupId={group.id}
                   data-group-dropzone={group.id}
                   className="p-3 min-h-[100px]"
-                  onDragOver={onDragOver}
-                  onDrop={(e) => onDropToGroup(e, group.id)}
                 >
                   <div className="flex flex-wrap gap-2">
                     {Array.from(new Set<string>(group.memberIds)).map(aId => {
@@ -187,11 +180,9 @@ export default function GroupsCanvas({
                         ? 'border-l-gold' 
                         : m?.gender === '여' ? 'border-l-crimson' : 'border-l-blue-400';
                       return (
-                        <div 
+                        <AttendanceDraggableCard
                           key={aId} 
-                          data-attendee-id={aId}
-                          draggable
-                          onDragStart={(e) => onDragStart(e, aId, group.id)}
+                          attendeeId={aId}
                           className={`flex flex-col gap-1 px-2 py-1.5 bg-white rounded shadow-sm cursor-grab border-l-2 ${borderColor}`}
                         >
                           <div className="flex min-w-0 items-center gap-1.5">
@@ -204,7 +195,7 @@ export default function GroupsCanvas({
                             {a?.afterparty && <span title="뒷풀이 예정">🍻</span>}
                             {a?.request && (
                               <div className="relative group/req flex items-center">
-                                <span 
+                                <span data-no-drag
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
                                     setActiveRequestId(activeRequestId === a.id ? null : a.id); 
@@ -227,7 +218,7 @@ export default function GroupsCanvas({
                               <AlertTriangle size={12} className="shrink-0" /> ⚠️ 처음 왔어요
                             </div>
                           )}
-                        </div>
+                        </AttendanceDraggableCard>
                       );
                     })}
                     {group.memberIds.length === 0 && (
@@ -242,7 +233,7 @@ export default function GroupsCanvas({
                       </div>
                     ))}
                   </div>
-                </div>
+                </AttendanceDropZone>
                 
                 <div className="bg-slate-50 flex justify-between items-center p-3 rounded-b-xl border-t border-slate-100">
                   <div className="flex gap-2">

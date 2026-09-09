@@ -8,6 +8,7 @@ import ManualAddModal from './ManualAddModal';
 import UnassignedPool from './UnassignedPool';
 import GroupsCanvas from './GroupsCanvas';
 import { useAttendanceLogic } from '../hooks/useAttendanceLogic';
+import { AttendanceDragAndDrop } from './AttendanceDragAndDrop';
 
 interface AttendancePageProps {
   draftScope: string;
@@ -63,10 +64,7 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
     exportSimulationData,
 
     removeFromGroup,
-    handleDragStart,
-    handleDragOver,
-    handleDropToGroup,
-    handleDropToUnassigned,
+    handleMoveAttendee,
     handleMoveToRecord,
     attendanceSaving,
   } = useAttendanceLogic({ draftScope, ...(onMoveToRecord ? { onMoveToRecord } : {}) });
@@ -106,15 +104,13 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
         }
       />
 
+      <AttendanceDragAndDrop onMoveAttendee={handleMoveAttendee}>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[500px]">
         <UnassignedPool
           unassignedAttendees={unassignedAttendees}
           getMemberFromInfo={getMemberFromInfo}
           memberAttendanceCount={memberAttendanceCount}
           onManualAddOpen={() => setIsManualAddModalOpen(true)}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDropToUnassigned={handleDropToUnassigned}
           onQuickAddMember={handleQuickAddMember}
           onDeleteAttendee={(a) => {
             setAttendeeToDelete(a);
@@ -142,9 +138,6 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
           setEditingGroupName={setEditingGroupName}
           onUpdateTargetSize={handleUpdateTargetSize}
           onCreateGroup={handleCreateGroup}
-          onDragOver={handleDragOver}
-          onDropToGroup={handleDropToGroup}
-          onDragStart={handleDragStart}
           removeFromGroup={removeFromGroup}
           attendees={attendees}
           getMemberFromInfo={getMemberFromInfo}
@@ -156,6 +149,7 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
           calculateGroupAverageAttendance={calculateGroupAverageAttendance}
         />
       </div>
+      </AttendanceDragAndDrop>
 
       <ManualAddModal
         isOpen={isManualAddModalOpen}
