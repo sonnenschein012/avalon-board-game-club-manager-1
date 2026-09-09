@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   writeBatch,
   doc,
@@ -17,7 +17,7 @@ import {
   deleteAttendeeRecord,
   quickAddMemberRecord,
   manualAddAttendeeRecord,
-  importAttendeesFile,
+  importAttendanceRows,
   clearAllAttendees
 } from '../services/attendeesService';
 import { simulateAutoAssign } from '../domain/matching/autoAssignAlgorithm';
@@ -32,6 +32,7 @@ import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
 import { addAuditEventToBatch } from '../services/auditService';
+import type { AttendanceImportInput } from '../domain/attendance/csvParser';
 
 interface UseAttendanceLogicProps {
   onMoveToRecord?: () => void;
@@ -128,16 +129,15 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     setIsManualAdding(false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleImportAttendance = async (input: AttendanceImportInput) => {
     setImporting(true);
-    importAttendeesFile(file, attendees, members, () => {
+    try {
+      const success = await importAttendanceRows(input, attendees, members);
+      if (success) setGroups([]);
+      return success;
+    } finally {
       setImporting(false);
-      setGroups([]);
-      if (e.target) e.target.value = '';
-    });
+    }
   };
 
   const clearRecords = async () => {
@@ -377,7 +377,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     handleDeleteAttendee,
     handleQuickAddMember,
     handleManualAdd,
-    handleFileUpload,
+    handleImportAttendance,
     clearRecords,
     handleCreateGroup,
     handleUpdateTargetSize,

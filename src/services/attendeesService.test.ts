@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { manualAddAttendeeRecord } from './attendeesService';
-import { Member } from '../types';
+import { importAttendanceRows, manualAddAttendeeRecord } from './attendeesService';
+import { Member, type Attendee } from '../types';
+import { detectAttendanceMapping } from '../domain/attendance/csvParser';
 import type { Timestamp } from 'firebase/firestore';
 
 const batch = vi.hoisted(() => ({
   set: vi.fn(),
   update: vi.fn(),
+  delete: vi.fn(),
   commit: vi.fn().mockResolvedValue(undefined),
 }));
 const addAuditEventToBatch = vi.hoisted(() => vi.fn());
@@ -81,5 +83,30 @@ describe('attendeesService', () => {
     );
     expect(result).toBe(false);
     expect(batch.set).not.toHaveBeenCalled();
+  });
+  const headers = ['학번 및 이름', '주문할 음료', '뒤풀이에 참석하시나요?', '희망사항'];
+  const draft = (rows = [['23 김철수', '차', '네', '']]) => ({ headers, rows, mapping: detectAttendanceMapping(headers) });
+  it('revalidates before any deletion and refuses an empty or invalid replacement', async () => {
+    const existing = [{ id: 'old' }] as Attendee[];
+    expect(await importAttendanceRows(draft([]), existing, members)).toBe(false);
+    expect(await importAttendanceRows(draft([['23 김철수', '차', '아마도', '']]), existing, members)).toBe(false);
+    expect(batch.delete).not.toHaveBeenCalled();
+    expect(batch.commit).not.toHaveBeenCalled();
+  });
+  it('commits the replacement, normalized responses, dormant updates and audit together', async () => {
+    expect(await importAttendanceRows(draft(), [{ id: 'old' }] as Attendee[], [{ ...members[0]!, status: '휴면' }])).toBe(true);
+    expect(batch.delete).toHaveBeenCalledOnce();
+    expect(batch.set).toHaveBeenCalledWith(undefined, expect.objectContaining({ name: '김철수', drink: '차', afterparty: true, request: '', status: '대기' }));
+    expect(batch.update).toHaveBeenCalledWith(undefined, { status: '활동', dormantSemester: '' });
+    expect(addAuditEventToBatch).toHaveBeenCalledWith(batch, expect.objectContaining({ action: 'attendance.imported', count: 1 }));
+    expect(batch.commit).toHaveBeenCalledOnce();
+  });
+  it('reports failed atomic commits and refuses to split an oversized replacement', async () => {
+    batch.commit.mockRejectedValueOnce(new Error('offline'));
+    expect(await importAttendanceRows(draft(), [], members)).toBe(false);
+    vi.clearAllMocks();
+    expect(await importAttendanceRows(draft(), Array.from({ length: 500 }, (_, index) => ({ id: String(index) })) as Attendee[], members)).toBe(false);
+    expect(batch.delete).not.toHaveBeenCalled();
+    expect(batch.commit).not.toHaveBeenCalled();
   });
 });

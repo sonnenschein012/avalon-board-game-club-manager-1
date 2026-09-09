@@ -11,6 +11,8 @@ import { createMemberFormData, type MemberFormData } from '../domain/members/mem
 import type { Attendee, InterviewAssignment, Member } from '../types';
 import { useAttendanceDraft } from '../hooks/useAttendanceDraft';
 import { AttendanceDragAndDrop } from '../components/AttendanceDragAndDrop';
+import AttendanceCsvImportModal from '../components/AttendanceCsvImportModal';
+import { previewAttendanceCsv } from '../domain/attendance/csvParser';
 import { moveAttendee } from '../domain/attendance/moveAttendee';
 import {
   createAttendanceFixture,
@@ -185,6 +187,7 @@ export function InterviewScenario({ state }: { state: InterviewScenarioState }) 
 }
 
 export function AttendanceScenario({ state, draftScope = null }: { state: AttendanceScenarioState; draftScope?: string | null }) {
+  const [importOpen, setImportOpen] = useState(false);
   const fixture = useMemo(() => createAttendanceFixture(state), [state]);
   const [members, setMembers] = useState(fixture.members);
   const [attendees, setAttendees] = useState(fixture.attendees);
@@ -207,8 +210,16 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
       title="일일 조 편성"
       subtitle="Operations / Team Formation"
       icon={ClipboardList}
-      actions={<button type="button" onClick={() => setIsAutoMode(current => !current)} className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow ${isAutoMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-slate-600'}`}>{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</button>}
+      actions={<div className="flex gap-2"><button type="button" onClick={() => setImportOpen(true)} className="min-h-11 rounded-xl bg-slate-50 px-4 text-xs font-bold">파일 업로드</button><button type="button" onClick={() => setIsAutoMode(current => !current)} className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow ${isAutoMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-slate-600'}`}>{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</button></div>}
     />
+    {importOpen && <AttendanceCsvImportModal members={members} existingCount={attendees.length} groupCount={groups.length}
+      onClose={() => setImportOpen(false)} onConfirm={async input => {
+        const preview = previewAttendanceCsv(input, members);
+        if (!preview.canImport) return false;
+        setAttendees(preview.rows.map((row, index) => ({ ...row.data, id: `csv-${index}`, importDate: fixture.attendees[0]?.importDate, importId: 'scenario', status: '대기' } as Attendee)));
+        setGroups([]);
+        return true;
+      }} />}
     <AttendanceDragAndDrop onMoveAttendee={(attendeeId, target) => setGroups(current => moveAttendee(current, attendeeId, target))}>
     <div className="grid min-h-[500px] grid-cols-1 gap-6 md:grid-cols-4">
       <UnassignedPool

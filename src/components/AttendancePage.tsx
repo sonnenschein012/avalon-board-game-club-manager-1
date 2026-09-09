@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileUp, Trash2, ClipboardList, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import PageHeader from './PageHeader';
@@ -9,6 +9,7 @@ import UnassignedPool from './UnassignedPool';
 import GroupsCanvas from './GroupsCanvas';
 import { useAttendanceLogic } from '../hooks/useAttendanceLogic';
 import { AttendanceDragAndDrop } from './AttendanceDragAndDrop';
+import AttendanceCsvImportModal from './AttendanceCsvImportModal';
 
 interface AttendancePageProps {
   draftScope: string;
@@ -17,8 +18,10 @@ interface AttendancePageProps {
 }
 
 export default function AttendancePage({ draftScope, onMoveToRecord, isAdminModeActive = false }: AttendancePageProps) {
+  const [importOpen, setImportOpen] = useState(false);
   const {
     attendees,
+    members,
     importing,
     activeRequestId,
     setActiveRequestId,
@@ -56,7 +59,7 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
     handleDeleteAttendee,
     handleQuickAddMember,
     handleManualAdd,
-    handleFileUpload,
+    handleImportAttendance,
     clearRecords,
     handleCreateGroup,
     handleUpdateTargetSize,
@@ -88,12 +91,11 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
             >
               <ClipboardList size={16} className="shrink-0" /> <span className="hidden sm:inline">{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</span><span className="sm:hidden">{isAutoMode ? '종료' : '자동편성'}</span>
             </button>
-            <label className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-slate-50 text-navy hover:text-gold border border-slate-100 rounded-xl hover:bg-indigo-100 transition-all text-xs font-bold cursor-pointer">
+            <button type="button" onClick={() => setImportOpen(true)} disabled={importing} className="flex min-h-11 items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-slate-50 text-navy hover:text-gold border border-slate-100 rounded-xl hover:bg-indigo-100 transition-all text-xs font-bold cursor-pointer">
               {importing ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FileUp size={16} className="shrink-0" />} 
               <span className="hidden sm:inline">{importing ? '임포트 중...' : '파일 업로드'}</span>
               <span className="sm:hidden">업로드</span>
-              <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" disabled={importing} />
-            </label>
+            </button>
             <button 
               onClick={clearRecords}
               className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all text-xs font-bold rounded-xl border border-transparent hover:border-red-100"
@@ -151,6 +153,8 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
       </div>
       </AttendanceDragAndDrop>
 
+      {importOpen && <AttendanceCsvImportModal members={members} existingCount={attendees.length} groupCount={groups.length}
+        onClose={() => setImportOpen(false)} onConfirm={handleImportAttendance} />}
       <ManualAddModal
         isOpen={isManualAddModalOpen}
         onClose={() => setIsManualAddModalOpen(false)}

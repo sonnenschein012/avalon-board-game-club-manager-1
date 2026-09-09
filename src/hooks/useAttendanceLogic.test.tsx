@@ -3,12 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAttendanceLogic } from './useAttendanceLogic';
 
-const mocks = vi.hoisted(() => ({ commit: vi.fn(), clear: vi.fn(), remove: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ commit: vi.fn(), clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
 vi.mock('../lib/firebase', () => ({ db: {}, handleFirestoreError: vi.fn(), OperationType: { WRITE: 'write' } }));
 vi.mock('../services/auditService', () => ({ addAuditEventToBatch: vi.fn() }));
 vi.mock('../services/attendeesService', () => ({
   deleteAttendeeRecord: mocks.remove, clearAllAttendees: mocks.clear,
-  quickAddMemberRecord: vi.fn(), manualAddAttendeeRecord: vi.fn(), importAttendeesFile: vi.fn(),
+  quickAddMemberRecord: vi.fn(), manualAddAttendeeRecord: vi.fn(), importAttendanceRows: mocks.importRows,
 }));
 vi.mock('firebase/firestore', async importOriginal => ({
   ...await importOriginal<typeof import('firebase/firestore')>(),
@@ -119,6 +119,17 @@ describe('attendance working draft', () => {
     await act(async () => { await latest.handleDeleteAttendee(); });
     leave(); mount();
     expect(latest.groups[0]?.memberIds).toEqual([]);
+  });
+  it('keeps assignments on failed import and resets them only after successful replacement', async () => {
+    arrange();
+    const input = { headers: [], rows: [], mapping: { name: 0, studentIdPrefix: -2, drink: -2, afterparty: -2, request: -2 } };
+    mocks.importRows.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    await act(async () => { expect(await latest.handleImportAttendance(input)).toBe(false); });
+    expect(latest.groups).toHaveLength(1);
+    expect(latest.importing).toBe(false);
+    await act(async () => { expect(await latest.handleImportAttendance(input)).toBe(true); });
+    leave(); mount();
+    expect(latest.groups).toEqual([]);
   });
   it('survives blocked browser storage and ignores invalid stored data', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });

@@ -2,12 +2,9 @@ import { writeBatch, doc, collection, serverTimestamp, deleteDoc, Timestamp } fr
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Attendee, Member } from '../types';
 import { toast } from 'sonner';
-import Papa from 'papaparse';
-import { getMemberFromAttendee } from '../domain/matching/getMemberFromAttendee';
 import { isSameName } from '../domain/matching/isSameName';
-import { commitBatchesInChunks } from '../lib/chunkBatch';
-import { parseAttendeeCsvRow } from '../domain/attendance/csvParser';
-import { addAuditEventToBatch, createAuditEventOperation } from './auditService';
+import { previewAttendanceCsv, type AttendanceImportInput } from '../domain/attendance/csvParser';
+import { addAuditEventToBatch } from './auditService';
 
 export async function deleteAttendeeRecord(attendeeToDelete: Attendee) {
   try {
@@ -136,79 +133,47 @@ export async function manualAddAttendeeRecord(
   }
 }
 
-export function importAttendeesFile(
-  file: File,
+export async function importAttendanceRows(
+  input: AttendanceImportInput,
   attendees: Attendee[],
   members: Member[],
-  onComplete: () => void
-): void {
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    complete: async (results: Papa.ParseResult<Record<string, string>>) => {
-      try {
-        const importDate = new Date();
-        const importId = Math.random().toString(36).substring(7);
-        let count = 0;
-        const wokenUpNames: string[] = [];
-        const operations: Parameters<typeof commitBatchesInChunks>[1] = [];
-
-        attendees.forEach(a => {
-          operations.push({ type: 'delete', ref: doc(db, 'attendees', a.id) });
-        });
-
-        results.data.forEach((row: Record<string, string>) => {
-          const parsed = parseAttendeeCsvRow(row);
-          if (parsed) {
-            const docRef = doc(collection(db, 'attendees'));
-            operations.push({
-              type: 'set',
-              ref: docRef,
-              data: {
-                ...parsed,
-                importDate: Timestamp.fromDate(importDate),
-                importId,
-                status: '대기'
-              }
-            });
-            count++;
-
-            const member = getMemberFromAttendee(members, parsed.name, parsed.studentIdPrefix);
-            if (member && member.status === '휴면') {
-              operations.push({
-                type: 'update',
-                ref: doc(db, 'members', member.id),
-                data: { status: '활동', dormantSemester: '' }
-              });
-              wokenUpNames.push(member.name);
-            }
-          }
-        });
-
-        operations.push(createAuditEventOperation({
-          category: 'attendance',
-          action: 'attendance.imported',
-          targetLabel: `출석 명단 ${count}명`,
-          count,
-          detail: `기존 ${attendees.length}명 교체${wokenUpNames.length > 0 ? ` · 휴면 해제 ${Array.from(new Set(wokenUpNames)).join(', ')}` : ''}`,
-        }));
-        await commitBatchesInChunks(db, operations);
-        toast.success(`이전 목록이 삭제되고 ${count}명의 명단이 새로 임포트되었습니다.`);
-
-        if (wokenUpNames.length > 0) {
-          const uniqueWokenUp = Array.from(new Set(wokenUpNames));
-          uniqueWokenUp.forEach(wokenName => {
-            toast.success(`휴면 멤버 ${wokenName}님이 출석하여 활동 상태로 자동 전환되었습니다.`);
-          });
-        }
-        onComplete();
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'attendees (batch)');
-        toast.error('임포트 중 오류가 발생했습니다.');
-        onComplete();
-      }
-    }
-  });
+): Promise<boolean> {
+  const preview = previewAttendanceCsv(input, members);
+  if (!preview.canImport) {
+    toast.error('열 연결과 오류 행을 확인해주세요. 기존 명단은 유지됩니다.');
+    return false;
+  }
+  const wakingMembers = members.filter(member => member.status === '휴면'
+    && preview.rows.some(row => row.memberId === member.id));
+  // One commit prevents a failed import from deleting only part of the roster.
+  if (attendees.length + preview.rows.length + wakingMembers.length + 1 > 500) {
+    toast.error('한 번에 교체할 수 있는 명단 크기를 초과했습니다. 기존 명단은 유지됩니다.');
+    return false;
+  }
+  try {
+    const batch = writeBatch(db);
+    const importDate = Timestamp.fromDate(new Date());
+    const importId = crypto.randomUUID();
+    attendees.forEach(attendee => batch.delete(doc(db, 'attendees', attendee.id)));
+    preview.rows.forEach(row => batch.set(doc(collection(db, 'attendees')), {
+      ...row.data, importDate, importId, status: '대기',
+    }));
+    wakingMembers.forEach(member => batch.update(doc(db, 'members', member.id), {
+      status: '활동', dormantSemester: '',
+    }));
+    addAuditEventToBatch(batch, {
+      category: 'attendance', action: 'attendance.imported',
+      targetLabel: `출석 명단 ${preview.rows.length}명`, count: preview.rows.length,
+      detail: `기존 ${attendees.length}명 교체 · 음료 ${preview.counts.drinks}명 · 뒤풀이 참석 ${preview.counts.attending}명${wakingMembers.length ? ` · 휴면 해제 ${wakingMembers.map(member => member.name).join(', ')}` : ''}`,
+    });
+    await batch.commit();
+    toast.success(`${preview.rows.length}명의 명단을 반영했습니다.${wakingMembers.length ? ` 휴면 부원 ${wakingMembers.length}명이 활동 상태로 전환되었습니다.` : ''}`);
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'attendees (batch)');
+    toast.error('명단을 반영하지 못했습니다. 다시 시도해주세요.');
+    return false;
+  }
 }
 
 export async function clearAllAttendees(attendees: Attendee[]) {
