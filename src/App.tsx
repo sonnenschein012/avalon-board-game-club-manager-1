@@ -283,7 +283,7 @@ export default function App() {
       } />
       <Route path="/meeting" element={
         <PrivateRoute user={user} isAdmin={isAdmin}>
-          {protectedLayout(<MeetingProgressPage onSidebarToggle={(collapsed) => setIsSidebarCollapsed(collapsed)} />)}
+          {protectedLayout(<MeetingProgressPage isAdminModeActive={isAdminModeActive} onSidebarToggle={(collapsed) => setIsSidebarCollapsed(collapsed)} />)}
         </PrivateRoute>
       } />
       <Route path="/sessions" element={

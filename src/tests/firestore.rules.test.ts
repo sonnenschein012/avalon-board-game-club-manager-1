@@ -237,6 +237,25 @@ describe('Firestore Security Rules', () => {
     );
   });
 
+  it('모임 이전 버전은 관리자만 보관·열람·삭제하고 기존 버전 변조는 거부한다', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    await seedRegularAdmin();
+    const adminDb = testEnv.authenticatedContext('version-admin', { email: REGULAR_ADMIN_EMAIL }).firestore();
+    const publicDb = testEnv.unauthenticatedContext().firestore();
+    const userDb = testEnv.authenticatedContext('non-admin', { email: 'member@example.com' }).firestore();
+    const path = ['DailyPlannings', '2026-09-10', 'versions', 'v1'] as const;
+    const version = { snapshot: { name: '모임', date: '2026-09-10', groups: [] }, archivedAt: serverTimestamp(), actorEmail: REGULAR_ADMIN_EMAIL, reason: '모임 다시 시작 전' };
+    await assertSucceeds(setDoc(doc(adminDb, ...path), version));
+    await assertSucceeds(getDocs(collection(adminDb, 'DailyPlannings', '2026-09-10', 'versions')));
+    await assertFails(getDoc(doc(publicDb, ...path)));
+    await assertFails(getDocs(collection(userDb, 'DailyPlannings', '2026-09-10', 'versions')));
+    await assertFails(updateDoc(doc(adminDb, ...path), { reason: '변조' }));
+    await assertFails(setDoc(doc(adminDb, 'DailyPlannings', '2026-09-10', 'versions', 'forged'), { ...version, actorEmail: 'other@example.com' }));
+    await assertFails(setDoc(doc(userDb, 'DailyPlannings', '2026-09-10', 'versions', 'unauthorized'), { ...version, actorEmail: 'member@example.com' }));
+    await assertFails(deleteDoc(doc(publicDb, ...path)));
+    await assertSucceeds(deleteDoc(doc(adminDb, ...path)));
+  });
+
   it('저장된 master role 관리자도 admins 컬렉션을 관리할 수 있다', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     await testEnv.withSecurityRulesDisabled(async (context) => {

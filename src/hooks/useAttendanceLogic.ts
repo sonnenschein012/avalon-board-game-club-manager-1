@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react';
 import {
-  writeBatch,
+  runTransaction,
   doc,
   serverTimestamp,
-  getDoc,
   Timestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -31,7 +30,8 @@ import { moveAttendee } from '../domain/attendance/moveAttendee';
 import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
-import { addAuditEventToBatch } from '../services/auditService';
+import { addAuditEventToTransaction } from '../services/auditService';
+import { archiveDailyPlanning } from '../services/dailyPlanningService';
 import type { AttendanceImportInput } from '../domain/attendance/csvParser';
 
 interface UseAttendanceLogicProps {
@@ -280,9 +280,9 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     }
 
     const mappedGroups = convertAttendeeIdsToMemberIds(groups, attendees, members);
-    const result = await runAction('attendance-save', async () => {
+    const result = await runAction('attendance-save', () => runTransaction(db, async transaction => {
       const planningRef = doc(db, 'DailyPlannings', sessionDate);
-      const planningSnapshot = await getDoc(planningRef);
+      const planningSnapshot = await transaction.get(planningRef);
       const sessionId = resolveDailySessionId({
         planningSessionId: planningSnapshot.data()?.sessionId,
         sessions,
@@ -290,23 +290,30 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         sessionName,
       });
       const sessionRef = doc(db, 'sessions', sessionId);
-      const sessionSnapshot = await getDoc(sessionRef);
-      const batch = writeBatch(db);
+      const sessionSnapshot = await transaction.get(sessionRef);
+      if (planningSnapshot.exists()) {
+        archiveDailyPlanning(transaction, sessionDate, planningSnapshot.data(), '모임 다시 시작 전');
+      }
 
       attendees.forEach(a => {
-        batch.update(doc(db, 'attendees', a.id), { status: '편성됨' });
+        transaction.update(doc(db, 'attendees', a.id), { status: '편성됨' });
       });
 
-      batch.set(planningRef, {
+      transaction.set(planningRef, {
         name: sessionName,
         date: sessionDate,
         groups: mappedGroups,
+        attendees: [...new Map(assignedAttendees.map(attendee => [attendee.id, {
+          ...attendee,
+          memberId: getMemberFromInfo(attendee.name, attendee.studentIdPrefix)!.id,
+        }])).values()],
         sessionId,
         createdAt: planningSnapshot.exists() ? planningSnapshot.data().createdAt : serverTimestamp(),
+        updatedAt: serverTimestamp(),
       }, { merge: true });
 
       if (!sessionSnapshot.exists()) {
-        batch.set(sessionRef, {
+        transaction.set(sessionRef, {
           name: sessionName,
           date: Timestamp.fromDate(new Date(sessionDate)),
           groups: mappedGroups,
@@ -314,17 +321,16 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         });
       }
 
-      addAuditEventToBatch(batch, {
+      addAuditEventToTransaction(transaction, {
         category: 'session',
-        action: 'session.meeting_started',
+        action: planningSnapshot.exists() ? 'session.planning_overwritten' : 'session.meeting_started',
         targetId: sessionId,
         targetLabel: sessionName,
         count: assignedAttendees.length,
         detail: `${sessionDate} · ${mappedGroups.length}개 조 · 배정 ${assignedAttendees.length}명`,
       });
 
-      await batch.commit();
-    }, {
+    }), {
       successMessage: '모임을 시작하고 세션 기록을 저장했습니다.',
       errorMessage: '모임과 세션 기록을 저장하지 못했습니다.',
       onError: (error) => handleFirestoreError(error, OperationType.WRITE, `DailyPlannings/${sessionDate}`),

@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileQuestion, Calendar } from 'lucide-react';
 import MemberProfileModal from './MemberProfileModal';
 import { useMeetingProgressLogic } from '../hooks/useMeetingProgressLogic';
 import MeetingDashboardTab from './MeetingDashboardTab';
 import MeetingCanvasTab from './MeetingCanvasTab';
 import MeetingCardStyleModal from './MeetingCardStyleModal';
+import MeetingRecordsModal from './MeetingRecordsModal';
 
-export default function MeetingProgressPage({ onSidebarToggle }: { onSidebarToggle?: (collapsed: boolean) => void }) {
+export default function MeetingProgressPage({ onSidebarToggle, isAdminModeActive = false }: { onSidebarToggle?: (collapsed: boolean) => void; isAdminModeActive?: boolean }) {
+  const [recordsOpen, setRecordsOpen] = useState(false);
   const {
     selectedDate, setSelectedDate,
     customTitle, setCustomTitle,
@@ -46,6 +48,7 @@ export default function MeetingProgressPage({ onSidebarToggle }: { onSidebarTogg
           </h1>
         </div>
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {isAdminModeActive && <button type="button" onClick={() => setRecordsOpen(true)} className="rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white">모임 진행 기록 관리</button>}
           <div className="flex items-center bg-slate-50 rounded-xl overflow-hidden">
             <div className="pl-4 text-slate-400">
               <Calendar size={18} />
@@ -151,6 +154,17 @@ export default function MeetingProgressPage({ onSidebarToggle }: { onSidebarTogg
           setCardStyles={setCardStyles}
         />
       )}
+
+      {isAdminModeActive && recordsOpen && <MeetingRecordsModal
+        members={members}
+        onClose={() => setRecordsOpen(false)}
+        onView={date => {
+          setSelectedDate(date);
+          setActiveTab('dashboard');
+          setCustomTitle(null);
+          setRecordsOpen(false);
+        }}
+      />}
 
       <MemberProfileModal 
         member={selectedMember} 

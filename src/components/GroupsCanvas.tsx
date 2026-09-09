@@ -136,12 +136,12 @@ export default function GroupsCanvas({
                             setEditingGroupId(null);
                           }
                         }}
-                        className="text-[11px] font-black text-navy uppercase bg-slate-100 border-none outline-none rounded px-1 min-w-[60px]"
+                        className="text-[11px] font-black text-navy bg-slate-100 border-none outline-none rounded px-1 min-w-[60px]"
                         autoFocus
                       />
                     ) : (
                       <span 
-                        className="text-[11px] font-black text-navy hover:text-gold uppercase cursor-pointer"
+                        className="text-[11px] font-black text-navy hover:text-gold cursor-pointer"
                         onClick={() => {
                           setEditingGroupId(group.id);
                           setEditingGroupName(group.name || `TEAM ${idx + 1}`);

@@ -2,10 +2,12 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAttendanceLogic } from './useAttendanceLogic';
+import { archiveDailyPlanning } from '../services/dailyPlanningService';
 
-const mocks = vi.hoisted(() => ({ commit: vi.fn(), clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
+const mocks = vi.hoisted(() => ({ commit: vi.fn(), get: vi.fn(), set: vi.fn(), clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
 vi.mock('../lib/firebase', () => ({ db: {}, handleFirestoreError: vi.fn(), OperationType: { WRITE: 'write' } }));
-vi.mock('../services/auditService', () => ({ addAuditEventToBatch: vi.fn() }));
+vi.mock('../services/auditService', () => ({ addAuditEventToTransaction: vi.fn() }));
+vi.mock('../services/dailyPlanningService', () => ({ archiveDailyPlanning: vi.fn() }));
 vi.mock('../services/attendeesService', () => ({
   deleteAttendeeRecord: mocks.remove, clearAllAttendees: mocks.clear,
   quickAddMemberRecord: vi.fn(), manualAddAttendeeRecord: vi.fn(), importAttendanceRows: mocks.importRows,
@@ -13,11 +15,14 @@ vi.mock('../services/attendeesService', () => ({
 vi.mock('firebase/firestore', async importOriginal => ({
   ...await importOriginal<typeof import('firebase/firestore')>(),
   doc: vi.fn(() => ({})), getDoc: vi.fn(async () => ({ exists: () => false, data: () => undefined })),
-  writeBatch: () => ({ update: vi.fn(), set: vi.fn(), commit: mocks.commit }),
+  runTransaction: async (_db: unknown, callback: (transaction: unknown) => Promise<void>) => {
+    await callback({ get: mocks.get, update: vi.fn(), set: mocks.set });
+    await mocks.commit();
+  },
 }));
 vi.mock('./useFirestore', () => {
   const data: Record<string, unknown[]> = {
-    attendees: [{ id: 'a1', name: '김테스트', studentIdPrefix: '26', request: '' }],
+    attendees: [{ id: 'a1', name: '김테스트', studentIdPrefix: '26', drink: '아이스티', request: '쉬운 게임' }],
     members: [{ id: 'm1', name: '김테스트', studentId: '260001', semester: '2026-2', gender: '남' }], sessions: [],
   };
   return { useFirestore: (collection: string) => ({ data: data[collection], loading: false }) };
@@ -45,6 +50,7 @@ describe('attendance working draft', () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.clearAllMocks();
     mocks.commit.mockResolvedValue(undefined);
+    mocks.get.mockResolvedValue({ exists: () => false, data: () => undefined });
     mocks.clear.mockResolvedValue(true);
     mocks.remove.mockResolvedValue(true);
     scope = `test-${++counter}`;
@@ -112,6 +118,32 @@ describe('attendance working draft', () => {
     await act(async () => { await latest.clearRecords(); });
     leave(); mount();
     expect(latest.groups).toEqual([]);
+  });
+  it('saves member-linked drinks and requests with the planning and leaves it untouched on reset', async () => {
+    arrange();
+    await act(async () => { await latest.handleMoveToRecord(); });
+    const planning = mocks.set.mock.calls[0]![1];
+    expect(planning.attendees).toEqual([expect.objectContaining({
+      memberId: 'm1', drink: '아이스티', request: '쉬운 게임',
+    })]);
+    expect(mocks.set.mock.calls[1]![1]).not.toHaveProperty('attendees');
+    mocks.set.mockClear();
+    await act(async () => { await latest.clearRecords(); });
+    expect(mocks.set).not.toHaveBeenCalled();
+    expect(planning.attendees[0].drink).toBe('아이스티');
+  });
+  it('archives the previous planning when overwriting and preserves an existing session', async () => {
+    arrange();
+    const previous = { name: '이전 모임', date: '2026-09-12', sessionId: 'linked', groups: [], attendees: [], createdAt: 'original-time' };
+    mocks.get.mockResolvedValueOnce({ exists: () => true, data: () => previous });
+    mocks.get.mockResolvedValueOnce({ exists: () => true, data: () => ({ groups: [{ gameIds: ['recorded-game'] }] }) });
+    await act(async () => { await latest.handleMoveToRecord(); });
+    expect(archiveDailyPlanning).toHaveBeenCalledWith(expect.anything(), '2026-09-12', previous, '모임 다시 시작 전');
+    expect(mocks.set).toHaveBeenCalledTimes(1);
+    expect(mocks.set.mock.calls[0]![1]).toEqual(expect.objectContaining({
+      name: '편성하던 모임', sessionId: 'linked', createdAt: 'original-time',
+      attendees: [expect.objectContaining({ drink: '아이스티' })],
+    }));
   });
   it('removes a deleted attendee from the saved working groups', async () => {
     arrange();

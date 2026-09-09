@@ -188,6 +188,18 @@ service cloud.firestore {
                     request.resource.data.createdAt is timestamp &&
                     (request.resource.data.createdAt == request.time || request.resource.data.createdAt == resource.data.createdAt);
       allow delete: if isAdmin() || isMasterAdmin();
+      match /versions/{versionId} {
+        allow read, delete: if isAdmin() || isMasterAdmin();
+        allow create: if (isAdmin() || isMasterAdmin()) &&
+                      request.resource.data.keys().hasAll(['snapshot', 'archivedAt', 'actorEmail', 'reason']) &&
+                      request.resource.data.snapshot is map &&
+                      request.resource.data.snapshot.date is string &&
+                      request.resource.data.snapshot.groups is list &&
+                      request.resource.data.reason is string &&
+                      request.resource.data.archivedAt == request.time &&
+                      request.resource.data.actorEmail == request.auth.token.email;
+        allow update: if false;
+      }
     }
 
     // 5. Admins can verify their own role document. Only a master can list or

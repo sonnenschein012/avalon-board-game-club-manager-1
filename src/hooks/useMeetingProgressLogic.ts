@@ -1,25 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { onSnapshot, doc } from 'firebase/firestore';
-import { Member, Game, Session, Attendee } from '../types';
+import { Member, Game, Session } from '../types';
 import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
 import { captureBoard } from '../services/captureService';
 import { renameDailyPlanningGroup } from '../services/dailyPlanningService';
 import { recommendGames, getMemberPlayedGames, type RecMode } from '../domain/recommendation/recommendGames';
 import type { DailyPlanning } from '../domain/attendance/dailyPlanning';
-import { isSameName } from '../domain/matching/isSameName';
+import { koreaDateKey } from '../domain/shared/koreaDate';
 import { calculateGridPositions, generateDrinkOrderText } from '../domain/meeting/progressHelpers';
 
 export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) => void) {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => koreaDateKey());
   const [customTitle, setCustomTitle] = useState<string | null>(null);
-  const [dailyPlanning, setDailyPlanning] = useState<DailyPlanning | null>(null);
+  const [loadedPlanning, setDailyPlanning] = useState<DailyPlanning | null>(null);
+  const dailyPlanning = loadedPlanning?.date === selectedDate ? loadedPlanning : null;
 
   const { data: members } = useFirestore<Member>('members');
   const { data: games } = useFirestore<Game>('games', 'title');
   const { data: sessions } = useFirestore<Session>('sessions');
-  const { data: attendees } = useFirestore<Attendee>('attendees');
+  const attendees = dailyPlanning?.date === selectedDate ? dailyPlanning.attendees ?? [] : [];
   
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [groupRecModes, setGroupRecModes] = useState<Record<string, RecMode>>({});
@@ -124,9 +125,7 @@ export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) =
   };
 
   const getAttendeeFromMember = (m: Member) => {
-    const matchedAttendees = attendees.filter(a => isSameName(a.name, m.name));
-    const mPrefix = m.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x=>x) || '';
-    return matchedAttendees.find(a => !a.studentIdPrefix || a.studentIdPrefix === mPrefix || m.studentId?.startsWith(a.studentIdPrefix)) || matchedAttendees[0];
+    return attendees.find(attendee => attendee.memberId === m.id);
   };
 
   const handleRecommendGames = (groupMembers: Member[], mode: RecMode, seed: number = 0) => {

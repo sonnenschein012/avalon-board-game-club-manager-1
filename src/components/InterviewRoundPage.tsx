@@ -372,8 +372,8 @@ export default function InterviewRoundPage({ isAdminModeActive = false }: { isAd
               ))}
             </div>
           </div>
-          {selectedApplicants.length > 0 && (
-            <div role="region" aria-label="선택한 지원자 작업" className="sticky top-16 z-[60] flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white shadow-2xl sm:flex-row sm:items-center sm:justify-between md:top-20">
+          {selectedApplicants.length > 0 && !scheduleAssignmentOpen && !scheduleFormOpen && (
+            <div role="region" aria-label="선택한 지원자 작업" className="sticky top-16 z-30 flex flex-col gap-3 rounded-2xl bg-navy px-4 py-3 text-white shadow-2xl sm:flex-row sm:items-center sm:justify-between md:top-20">
               <p className="text-sm font-bold">
                 <strong className="font-black">{selectedApplicants.length}명</strong> 선택됨
               </p>
