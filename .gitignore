@@ -21,3 +21,6 @@ AGENTS.md
 # Local Graphify / Codex integration
 graphify-out/
 .codex/
+
+# Local Understand-Anything analysis and verification artifacts
+.ua/
