@@ -1,0 +1,304 @@
+{
+  "version": "2.0.0",
+  "status": "passed",
+  "reviewedAt": "2026-09-12T05:03:57.475Z",
+  "reviewer": "main-agent-independent-of-file-analysis",
+  "scope": "공식 graph-reviewer 9개 구조 검사와 프로젝트 6개 질의의 소스 대조. 이전 대화나 로컬 임시 증거를 필수 입력으로 사용하지 않는 공유 보고서.",
+  "analysisCommit": "a71185137f754f21a960bb2131fb337855214e45",
+  "inputDigest": "9cb0372fa430a6c67555f90359b4b97744691726c96d0fdfe5ba7e21204492a3",
+  "graphHash": "0f80a27129433d25bf321fe1ebeb35de2d88954f269223bf931040f9ae47b9a9",
+  "domainHash": "cd40326c6709d5357c8f1c8361591d700dbd20a057c405f421ea499b6a2a0d6c",
+  "graphReview": {
+    "scriptCompleted": true,
+    "issues": [],
+    "warnings": [
+      "Orphan node 'file:eslint.config.js'",
+      "Orphan node 'file:public/site.webmanifest'",
+      "Orphan node 'file:src/react-test-env.d.ts'",
+      "Orphan node 'file:.gitattributes'",
+      "Node 'table:firestore.rules:members' lacks expected migrates/defines_schema relation"
+    ],
+    "stats": {
+      "totalNodes": 715,
+      "totalEdges": 2300,
+      "totalLayers": 8,
+      "tourSteps": 9,
+      "nodeTypes": {
+        "file": 281,
+        "function": 414,
+        "class": 2,
+        "pipeline": 1,
+        "config": 9,
+        "document": 5,
+        "table": 3
+      },
+      "edgeTypes": {
+        "contains": 526,
+        "exports": 344,
+        "imports": 663,
+        "calls": 553,
+        "depends_on": 67,
+        "tested_by": 80,
+        "reads_from": 14,
+        "defines_schema": 2,
+        "writes_to": 6,
+        "triggers": 4,
+        "configures": 14,
+        "documents": 19,
+        "related": 5,
+        "validates": 3
+      }
+    }
+  },
+  "domainReview": {
+    "scriptCompleted": true,
+    "issues": [],
+    "warnings": [
+      "Zero layers",
+      "Zero tour steps",
+      "Tour count 0 outside 5-15"
+    ],
+    "stats": {
+      "totalNodes": 47,
+      "totalEdges": 48,
+      "totalLayers": 0,
+      "tourSteps": 0,
+      "nodeTypes": {
+        "domain": 5,
+        "flow": 9,
+        "step": 33
+      },
+      "edgeTypes": {
+        "contains_flow": 9,
+        "flow_step": 33,
+        "cross_domain": 6
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "attendee-member-identity",
+      "answer": "편성의 attendee ID는 이름·학번 접두어로 회원을 조회해 member ID로 변환하며 미매칭은 원래 attendee ID를 유지한다. 접두어가 맞지 않으면 첫 이름 일치 회원으로 fallback한다.",
+      "paths": [
+        "src/domain/attendance/sessionGroups.ts",
+        "src/domain/matching/getMemberFromAttendee.ts",
+        "src/domain/matching/isSameName.ts",
+        "src/hooks/useAttendanceLogic.ts"
+      ],
+      "tests": [
+        "src/domain/matching/getMemberFromAttendee.test.ts",
+        "src/domain/matching/isSameName.test.ts"
+      ],
+      "limit": "변환 함수 자체를 호출하는 직접 테스트는 검색에서 찾지 못했다. 접두어 불일치 fallback과 공백 정규화가 모두 getMemberFromAttendee 테스트에 있다는 주장은 하지 않는다.",
+      "graphNodeIds": [
+        "file:src/domain/attendance/sessionGroups.ts",
+        "function:src/domain/attendance/sessionGroups.ts:convertAttendeeIdsToMemberIds",
+        "file:src/domain/matching/getMemberFromAttendee.ts",
+        "function:src/domain/matching/getMemberFromAttendee.ts:getMemberFromAttendee",
+        "file:src/domain/matching/isSameName.ts",
+        "function:src/domain/matching/isSameName.ts:isSameName",
+        "file:src/hooks/useAttendanceLogic.ts",
+        "function:src/hooks/useAttendanceLogic.ts:useAttendanceLogic"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "board-snapshot",
+      "answer": "boardMemberIds 부재는 현재 회원 임원 플래그 fallback, 명시적 []는 당시 임원 없음이다. CSV와 통계는 optional includes 결과에 nullish fallback을 사용하고 저장은 undefined 부재를 보존한다.",
+      "paths": [
+        "src/domain/stats/getAttendanceRanking.ts",
+        "src/domain/stats/getCorePlayers.ts",
+        "src/domain/exports/clubCsv.ts",
+        "src/domain/sessions/sessionCsv.ts",
+        "src/services/sessionsService.ts"
+      ],
+      "tests": [
+        "src/domain/sessions/sessionCsv.test.ts",
+        "src/services/sessionsService.test.ts",
+        "src/domain/stats/semesterStatistics.test.ts"
+      ],
+      "limit": "관련 단위 테스트 통과는 모든 실제 운영 데이터의 무결성을 보증하지 않는다.",
+      "graphNodeIds": [
+        "file:src/domain/exports/clubCsv.ts",
+        "function:src/domain/exports/clubCsv.ts:buildMembersCsv",
+        "function:src/domain/exports/clubCsv.ts:buildGamesCsv",
+        "function:src/domain/exports/clubCsv.ts:buildSessionsCsv",
+        "file:src/domain/stats/getAttendanceRanking.ts",
+        "function:src/domain/stats/getAttendanceRanking.ts:getAttendanceRanking",
+        "file:src/domain/stats/getCorePlayers.ts",
+        "function:src/domain/stats/getCorePlayers.ts:getCorePlayers",
+        "file:src/domain/sessions/sessionCsv.ts",
+        "function:src/domain/sessions/sessionCsv.ts:findMember",
+        "function:src/domain/sessions/sessionCsv.ts:parseSessionCsvRows",
+        "file:src/services/sessionsService.ts",
+        "function:src/services/sessionsService.ts:importSessionRecords",
+        "function:src/services/sessionsService.ts:createSessionRecord",
+        "function:src/services/sessionsService.ts:updateSessionRecord",
+        "function:src/services/sessionsService.ts:updateSessionGroupGames",
+        "function:src/services/sessionsService.ts:deleteSessionRecord"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "planning-session-preservation",
+      "answer": "DailyPlannings는 운영 계획, sessions는 확정 기록이다. renameDailyPlanningGroup은 트랜잭션에서 두 문서를 따로 읽고 각 문서의 현재 groups에서 대상 이름만 바꾼다. 독립된 게임·메모·회원·다른 조를 유지한다.",
+      "paths": [
+        "src/services/dailyPlanningService.ts",
+        "src/services/sessionsService.ts"
+      ],
+      "tests": [
+        "src/services/dailyPlanningService.test.ts",
+        "src/services/sessionsService.test.ts"
+      ],
+      "limit": "연결 세션이 없으면 이름 변경이 실패하고, 유효한 연결 ID가 없는 기존 계획은 계획만 편집한다.",
+      "graphNodeIds": [
+        "file:src/services/dailyPlanningService.ts",
+        "function:src/services/dailyPlanningService.ts:archiveDailyPlanning",
+        "function:src/services/dailyPlanningService.ts:restoreDailyPlanningVersion",
+        "function:src/services/dailyPlanningService.ts:deleteDailyPlanning",
+        "function:src/services/dailyPlanningService.ts:renameDailyPlanningGroup",
+        "file:src/services/sessionsService.ts",
+        "function:src/services/sessionsService.ts:importSessionRecords",
+        "function:src/services/sessionsService.ts:createSessionRecord",
+        "function:src/services/sessionsService.ts:updateSessionRecord",
+        "function:src/services/sessionsService.ts:updateSessionGroupGames",
+        "function:src/services/sessionsService.ts:deleteSessionRecord"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "indirect-collection-consumers",
+      "answer": "출석·모임·통계·세션 hooks는 useFirestore로 sessions/members를 직접 구독한다. 서비스 import 그래프만으로 영향 범위를 결정할 수 없으며 members/sessions/DailyPlannings table 노드를 통한 읽기·쓰기 이웃을 함께 조회한다.",
+      "paths": [
+        "src/hooks/useAttendanceLogic.ts",
+        "src/hooks/useMeetingProgressLogic.ts",
+        "src/hooks/useArchiveLogic.ts",
+        "src/hooks/useSessionsLogic.ts",
+        "src/hooks/useMembersLogic.ts",
+        "src/services/dailyPlanningService.ts",
+        "src/services/sessionsService.ts"
+      ],
+      "tests": [
+        "src/hooks/useAttendanceLogic.test.tsx",
+        "src/hooks/useMeetingProgressLogic.test.tsx",
+        "src/hooks/useSessionsLogic.test.tsx"
+      ],
+      "limit": "명시적으로 모델링한 세 컬렉션 밖의 모든 동적 경로와 간접 관계를 완전히 추출했다는 의미는 아니다.",
+      "graphNodeIds": [
+        "file:src/hooks/useArchiveLogic.ts",
+        "function:src/hooks/useArchiveLogic.ts:useArchiveLogic",
+        "file:src/services/dailyPlanningService.ts",
+        "function:src/services/dailyPlanningService.ts:archiveDailyPlanning",
+        "function:src/services/dailyPlanningService.ts:restoreDailyPlanningVersion",
+        "function:src/services/dailyPlanningService.ts:deleteDailyPlanning",
+        "function:src/services/dailyPlanningService.ts:renameDailyPlanningGroup",
+        "file:src/hooks/useMeetingProgressLogic.ts",
+        "function:src/hooks/useMeetingProgressLogic.ts:useMeetingProgressLogic",
+        "file:src/hooks/useAttendanceLogic.ts",
+        "function:src/hooks/useAttendanceLogic.ts:useAttendanceLogic",
+        "file:src/services/sessionsService.ts",
+        "function:src/services/sessionsService.ts:importSessionRecords",
+        "function:src/services/sessionsService.ts:createSessionRecord",
+        "function:src/services/sessionsService.ts:updateSessionRecord",
+        "function:src/services/sessionsService.ts:updateSessionGroupGames",
+        "function:src/services/sessionsService.ts:deleteSessionRecord",
+        "file:src/hooks/useMembersLogic.ts",
+        "function:src/hooks/useMembersLogic.ts:useMembersLogic",
+        "file:src/hooks/useSessionsLogic.ts",
+        "function:src/hooks/useSessionsLogic.ts:useSessionsLogic"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "public-admin-legacy",
+      "answer": "공개 응답은 활성 bearer token의 허용 필드·일정 슬롯·서버 시각 검사와 관리자 경계를 따른다. 클라이언트의 scheduleId null은 미배정, undefined는 기존 회차 fallback, 문자열은 일정이다. migration은 undefined만 허용한다. Rules accessScheduleId는 비문자열을 null로 정규화하므로 클라이언트와 같은 구분이라고 단정하지 않는다.",
+      "paths": [
+        "src/services/publicInterviewService.ts",
+        "src/services/interviews/schedulesService.ts",
+        "src/hooks/usePublicInterviewLogic.ts",
+        "firestore.rules"
+      ],
+      "tests": [
+        "src/services/publicInterviewService.test.ts",
+        "src/hooks/usePublicInterviewLogic.test.ts",
+        "src/hooks/usePublicInterviewLogic.integration.test.tsx",
+        "src/tests/firestore.rules.test.ts"
+      ],
+      "limit": "KST 나흘 범위는 클라이언트 정책이며 Rules는 동일한 달력 계산을 강제하지 않는다. 이번 npm run check에는 Emulator 규칙 테스트가 포함되지 않았다.",
+      "graphNodeIds": [
+        "file:src/hooks/usePublicInterviewLogic.ts",
+        "function:src/hooks/usePublicInterviewLogic.ts:getPublicInterviewState",
+        "function:src/hooks/usePublicInterviewLogic.ts:resolvePublicInitializationState",
+        "function:src/hooks/usePublicInterviewLogic.ts:usePublicInterviewLogic",
+        "file:src/services/publicInterviewService.ts",
+        "function:src/services/publicInterviewService.ts:initializePublicInterviewAccess",
+        "function:src/services/publicInterviewService.ts:subscribeToPublicInterview",
+        "function:src/services/publicInterviewService.ts:savePublicAvailability",
+        "file:src/services/interviews/schedulesService.ts",
+        "function:src/services/interviews/schedulesService.ts:scheduleAuditView",
+        "function:src/services/interviews/schedulesService.ts:subscribeInterviewSchedules",
+        "function:src/services/interviews/schedulesService.ts:assignRoundInterviewerToSchedule",
+        "function:src/services/interviews/schedulesService.ts:subscribeAllInterviewSchedules",
+        "function:src/services/interviews/schedulesService.ts:createInterviewSchedule",
+        "function:src/services/interviews/schedulesService.ts:applyConcreteInterviewScheduleChange",
+        "function:src/services/interviews/schedulesService.ts:deleteInterviewSchedule",
+        "function:src/services/interviews/schedulesService.ts:assignApplicantsToInterviewSchedule",
+        "function:src/services/interviews/schedulesService.ts:migrateLegacyApplicantsToInterviewSchedule",
+        "file:firestore.rules",
+        "table:firestore.rules:members",
+        "table:firestore.rules:sessions",
+        "table:firestore.rules:DailyPlannings"
+      ],
+      "status": "passed"
+    },
+    {
+      "id": "portable-freshness-and-loss",
+      "answer": "최신성은 공유 소스·문서·제어 입력과 산출물의 SHA-256으로 결정한다. HEAD 이동과 dirty 해제만으로 무효화하지 않는다. agent_docs와 installation 경로는 입력이 아니며 공유 toolchain/AGENTS는 입력이다. validateGraph는 해시가 같은 파일의 기존 심볼과 관계 누락을 거부한다. cosmetic 분류는 명시적인 의미 유지 근거 없이는 승인하지 않는다.",
+      "paths": [
+        "scripts/knowledge-graph.mjs",
+        "scripts/knowledge-graph.test.mjs",
+        "docs/knowledge-graph.md",
+        "docs/new-computer.md",
+        ".gitattributes"
+      ],
+      "tests": [
+        "scripts/knowledge-graph.test.mjs"
+      ],
+      "limit": "자동 구조 검증만으로 본문 의미가 항상 정확하다고 판단할 수 없다. 새 source commit 뒤 분석하고 별도 artifact commit을 공유한다.",
+      "graphNodeIds": [
+        "document:docs/knowledge-graph.md",
+        "document:docs/new-computer.md",
+        "file:.gitattributes",
+        "file:scripts/knowledge-graph.mjs",
+        "function:scripts/knowledge-graph.mjs:inventory",
+        "function:scripts/knowledge-graph.mjs:snapshot",
+        "function:scripts/knowledge-graph.mjs:validateGraph",
+        "function:scripts/knowledge-graph.mjs:freshness",
+        "function:scripts/knowledge-graph.mjs:cosmeticReviewIssues",
+        "function:scripts/knowledge-graph.mjs:main",
+        "file:scripts/knowledge-graph.test.mjs"
+      ],
+      "status": "passed"
+    }
+  ],
+  "execution": {
+    "projectCheck": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "unitTestFiles": 67,
+      "unitTests": 273,
+      "build": "passed",
+      "productionBundle": "passed"
+    },
+    "portableVerifierTests": 9,
+    "cleanCloneInputFiles": 296,
+    "cleanCloneInputDigestMatches": true,
+    "firestoreRules": "not rerun; rules unchanged",
+    "browserTests": "not rerun; UI unchanged"
+  },
+  "limits": [
+    "작업자 사용량 제한 이후 기존 UA 작업자가 파일 분석 및 구조 병합 역할을 직접 수행했다. 별도 새 하위 작업자의 독립 검토로 표기하지 않는다. 최종 의미 검토는 부모 작업자가 수행했다.",
+    "전체 그래프의 모든 문장을 소스와 일대일 재검증한 것은 아니다. 주요 데이터 경계와 변경 도구·문서 의미를 확인했다.",
+    "도메인 그래프는 업무 계약 변경이 없어 재사용했고 현재 스키마/참조 검사를 수행했다."
+  ]
+}

@@ -1,0 +1,2992 @@
+{
+  "name": "avalon-club-manager",
+  "description": "Avalon 보드게임 동아리의 회원, 게임, 정기 모임과 면접을 관리하는 웹 애플리케이션입니다.",
+  "languages": [
+    "css",
+    "html",
+    "javascript",
+    "json",
+    "markdown",
+    "powershell",
+    "rules",
+    "typescript",
+    "unknown",
+    "webmanifest",
+    "yaml"
+  ],
+  "frameworks": [
+    "React",
+    "Vite",
+    "Vitest",
+    "Tailwind CSS",
+    "Firebase"
+  ],
+  "files": [
+    {
+      "path": ".firebaserc",
+      "language": "unknown",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".gitattributes",
+      "language": "unknown",
+      "sizeLines": 2,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "language": "yaml",
+      "sizeLines": 36,
+      "fileCategory": "infra"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 105,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "design.html",
+      "language": "html",
+      "sizeLines": 14,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "docs/development.md",
+      "language": "markdown",
+      "sizeLines": 67,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/knowledge-graph.md",
+      "language": "markdown",
+      "sizeLines": 77,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/new-computer.md",
+      "language": "markdown",
+      "sizeLines": 53,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/operations.md",
+      "language": "markdown",
+      "sizeLines": 77,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "eslint.config.js",
+      "language": "javascript",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "firebase-applet-config.demo.json",
+      "language": "json",
+      "sizeLines": 9,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firebase-applet-config.json",
+      "language": "json",
+      "sizeLines": 9,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firebase-applet-config.staging.json",
+      "language": "json",
+      "sizeLines": 9,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firebase.demo.json",
+      "language": "json",
+      "sizeLines": 22,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firebase.json",
+      "language": "json",
+      "sizeLines": 32,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firebase.staging.json",
+      "language": "json",
+      "sizeLines": 24,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firestore.indexes.json",
+      "language": "json",
+      "sizeLines": 40,
+      "fileCategory": "config"
+    },
+    {
+      "path": "firestore.rules",
+      "language": "rules",
+      "sizeLines": 337,
+      "fileCategory": "code"
+    },
+    {
+      "path": "index.html",
+      "language": "html",
+      "sizeLines": 23,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "package.json",
+      "language": "json",
+      "sizeLines": 79,
+      "fileCategory": "config"
+    },
+    {
+      "path": "playwright.config.ts",
+      "language": "typescript",
+      "sizeLines": 26,
+      "fileCategory": "code"
+    },
+    {
+      "path": "playwright.scenario.config.ts",
+      "language": "typescript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "public/site.webmanifest",
+      "language": "webmanifest",
+      "sizeLines": 20,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/emulator-runtime.mjs",
+      "language": "javascript",
+      "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/knowledge-graph.mjs",
+      "language": "javascript",
+      "sizeLines": 180,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/knowledge-graph.test.mjs",
+      "language": "javascript",
+      "sizeLines": 126,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/reset-demo.mjs",
+      "language": "javascript",
+      "sizeLines": 10,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/run-demo.mjs",
+      "language": "javascript",
+      "sizeLines": 8,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/run-rules-tests.mjs",
+      "language": "javascript",
+      "sizeLines": 7,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/seed-demo.mjs",
+      "language": "javascript",
+      "sizeLines": 684,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/setup-demo-java.ps1",
+      "language": "powershell",
+      "sizeLines": 142,
+      "fileCategory": "script"
+    },
+    {
+      "path": "scripts/verify-production-bundle.mjs",
+      "language": "javascript",
+      "sizeLines": 49,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/App.tsx",
+      "language": "typescript",
+      "sizeLines": 320,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ApplicantCsvImportModal.tsx",
+      "language": "typescript",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ApplicantDetailModal.tsx",
+      "language": "typescript",
+      "sizeLines": 178,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ApplicantFormModal.tsx",
+      "language": "typescript",
+      "sizeLines": 86,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ApplicantJourney.tsx",
+      "language": "typescript",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveCharts.tsx",
+      "language": "typescript",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveExpandedChartModal.tsx",
+      "language": "typescript",
+      "sizeLines": 108,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveFormulaModal.tsx",
+      "language": "typescript",
+      "sizeLines": 111,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchivePage.tsx",
+      "language": "typescript",
+      "sizeLines": 146,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveWidgetCharts.tsx",
+      "language": "typescript",
+      "sizeLines": 167,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveWidgetCorePlayers.tsx",
+      "language": "typescript",
+      "sizeLines": 154,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveWidgetPopularGames.tsx",
+      "language": "typescript",
+      "sizeLines": 72,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ArchiveWidgetRanking.tsx",
+      "language": "typescript",
+      "sizeLines": 85,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AttendanceCsvImportModal.tsx",
+      "language": "typescript",
+      "sizeLines": 159,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AttendanceDragAndDrop.tsx",
+      "language": "typescript",
+      "sizeLines": 74,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AttendancePage.tsx",
+      "language": "typescript",
+      "sizeLines": 183,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AutoAssignmentPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AvailabilityGrid.tsx",
+      "language": "typescript",
+      "sizeLines": 167,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AvalonLogo.tsx",
+      "language": "typescript",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/BoardMemberBadge.tsx",
+      "language": "typescript",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ConfirmDeleteModal.tsx",
+      "language": "typescript",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/CostEvaluationModal.tsx",
+      "language": "typescript",
+      "sizeLines": 83,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/CsvColumnSelect.tsx",
+      "language": "typescript",
+      "sizeLines": 23,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/FilterPills.tsx",
+      "language": "typescript",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/GameFilters.tsx",
+      "language": "typescript",
+      "sizeLines": 91,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/GameForm.tsx",
+      "language": "typescript",
+      "sizeLines": 102,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/GameList.tsx",
+      "language": "typescript",
+      "sizeLines": 82,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/GamesPage.tsx",
+      "language": "typescript",
+      "sizeLines": 128,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/GroupGamesEditModal.tsx",
+      "language": "typescript",
+      "sizeLines": 142,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/GroupsCanvas.tsx",
+      "language": "typescript",
+      "sizeLines": 263,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewRoundDeleteModal.tsx",
+      "language": "typescript",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewRoundFormModal.test.ts",
+      "language": "typescript",
+      "sizeLines": 72,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewRoundFormModal.tsx",
+      "language": "typescript",
+      "sizeLines": 223,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewRoundPage.tsx",
+      "language": "typescript",
+      "sizeLines": 674,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewRoundsPage.test.tsx",
+      "language": "typescript",
+      "sizeLines": 50,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewRoundsPage.tsx",
+      "language": "typescript",
+      "sizeLines": 45,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleAssignmentModal.test.tsx",
+      "language": "typescript",
+      "sizeLines": 55,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleAssignmentModal.tsx",
+      "language": "typescript",
+      "sizeLines": 53,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleFormModal.test.ts",
+      "language": "typescript",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleFormModal.tsx",
+      "language": "typescript",
+      "sizeLines": 183,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleManagement.tsx",
+      "language": "typescript",
+      "sizeLines": 68,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewSchedulePanel.tsx",
+      "language": "typescript",
+      "sizeLines": 377,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleSelector.test.tsx",
+      "language": "typescript",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewScheduleSelector.tsx",
+      "language": "typescript",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewSchedulesOverview.tsx",
+      "language": "typescript",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewWorkspaceModal.tsx",
+      "language": "typescript",
+      "sizeLines": 351,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewerDashboard.tsx",
+      "language": "typescript",
+      "sizeLines": 91,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/InterviewersPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 264,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/LoginGate.tsx",
+      "language": "typescript",
+      "sizeLines": 80,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/ManualAddModal.tsx",
+      "language": "typescript",
+      "sizeLines": 108,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingCanvasTab.tsx",
+      "language": "typescript",
+      "sizeLines": 221,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingCardStyleModal.tsx",
+      "language": "typescript",
+      "sizeLines": 82,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingDashboardTab.tsx",
+      "language": "typescript",
+      "sizeLines": 252,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingProgressPage.tsx",
+      "language": "typescript",
+      "sizeLines": 177,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingRecordsModal.test.tsx",
+      "language": "typescript",
+      "sizeLines": 73,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingRecordsModal.tsx",
+      "language": "typescript",
+      "sizeLines": 74,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MeetingVersionsPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MemberFilters.tsx",
+      "language": "typescript",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MemberForm.tsx",
+      "language": "typescript",
+      "sizeLines": 116,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MemberList.tsx",
+      "language": "typescript",
+      "sizeLines": 285,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MemberProfileModal.tsx",
+      "language": "typescript",
+      "sizeLines": 198,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MemberRegistrationPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 136,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/MembersPage.tsx",
+      "language": "typescript",
+      "sizeLines": 151,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/PageHeader.tsx",
+      "language": "typescript",
+      "sizeLines": 42,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/PublicInterviewPage.tsx",
+      "language": "typescript",
+      "sizeLines": 192,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SelectionDecisionButtons.test.tsx",
+      "language": "typescript",
+      "sizeLines": 123,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SelectionDetailModal.tsx",
+      "language": "typescript",
+      "sizeLines": 289,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SelectionPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 186,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SessionFormModal.tsx",
+      "language": "typescript",
+      "sizeLines": 283,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SessionList.tsx",
+      "language": "typescript",
+      "sizeLines": 109,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SessionsPage.tsx",
+      "language": "typescript",
+      "sizeLines": 156,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SettingsAdminPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 97,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SettingsAuditPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SettingsExportPanel.tsx",
+      "language": "typescript",
+      "sizeLines": 72,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SettingsPage.test.tsx",
+      "language": "typescript",
+      "sizeLines": 47,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/SettingsPage.tsx",
+      "language": "typescript",
+      "sizeLines": 58,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/Sidebar.tsx",
+      "language": "typescript",
+      "sizeLines": 157,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/UnassignedPool.tsx",
+      "language": "typescript",
+      "sizeLines": 99,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/icons/DiamondSvg.tsx",
+      "language": "typescript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/icons/RookSvg.tsx",
+      "language": "typescript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/selectionDecisionStyles.ts",
+      "language": "typescript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/attendanceHelpers.ts",
+      "language": "typescript",
+      "sizeLines": 59,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/csvParser.test.ts",
+      "language": "typescript",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/csvParser.ts",
+      "language": "typescript",
+      "sizeLines": 125,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/dailyPlanning.ts",
+      "language": "typescript",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/dailySession.test.ts",
+      "language": "typescript",
+      "sizeLines": 39,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/dailySession.ts",
+      "language": "typescript",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/moveAttendee.ts",
+      "language": "typescript",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/sessionGroups.ts",
+      "language": "typescript",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/sessionMetadata.test.ts",
+      "language": "typescript",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/sessionMetadata.ts",
+      "language": "typescript",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/unassignedMemberOrder.test.ts",
+      "language": "typescript",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/attendance/unassignedMemberOrder.ts",
+      "language": "typescript",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/audit/auditEvent.test.ts",
+      "language": "typescript",
+      "sizeLines": 24,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/audit/auditEvent.ts",
+      "language": "typescript",
+      "sizeLines": 150,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/exports/clubCsv.test.ts",
+      "language": "typescript",
+      "sizeLines": 120,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/exports/clubCsv.ts",
+      "language": "typescript",
+      "sizeLines": 93,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/games/gameCatalog.ts",
+      "language": "typescript",
+      "sizeLines": 4,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/games/gameCsv.test.ts",
+      "language": "typescript",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/games/gameCsv.ts",
+      "language": "typescript",
+      "sizeLines": 78,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/games/gameForm.ts",
+      "language": "typescript",
+      "sizeLines": 25,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantCsv.test.ts",
+      "language": "typescript",
+      "sizeLines": 114,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantCsv.ts",
+      "language": "typescript",
+      "sizeLines": 170,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantFilter.ts",
+      "language": "typescript",
+      "sizeLines": 55,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantJourney.test.ts",
+      "language": "typescript",
+      "sizeLines": 42,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantJourney.ts",
+      "language": "typescript",
+      "sizeLines": 54,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantMerge.test.ts",
+      "language": "typescript",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantMerge.ts",
+      "language": "typescript",
+      "sizeLines": 102,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantSort.test.ts",
+      "language": "typescript",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/applicantSort.ts",
+      "language": "typescript",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/autoAssignment.test.ts",
+      "language": "typescript",
+      "sizeLines": 186,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/autoAssignment.ts",
+      "language": "typescript",
+      "sizeLines": 405,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/availabilitySummary.test.ts",
+      "language": "typescript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/availabilitySummary.ts",
+      "language": "typescript",
+      "sizeLines": 45,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewCompletion.test.ts",
+      "language": "typescript",
+      "sizeLines": 78,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewCompletion.ts",
+      "language": "typescript",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewCsvExport.test.ts",
+      "language": "typescript",
+      "sizeLines": 78,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewCsvExport.ts",
+      "language": "typescript",
+      "sizeLines": 198,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewPolicy.test.ts",
+      "language": "typescript",
+      "sizeLines": 83,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewPolicy.ts",
+      "language": "typescript",
+      "sizeLines": 45,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewQuestions.test.ts",
+      "language": "typescript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewQuestions.ts",
+      "language": "typescript",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewRatings.ts",
+      "language": "typescript",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewTransitions.test.ts",
+      "language": "typescript",
+      "sizeLines": 67,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewTransitions.ts",
+      "language": "typescript",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewerParticipation.test.ts",
+      "language": "typescript",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/interviewerParticipation.ts",
+      "language": "typescript",
+      "sizeLines": 25,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/memberRegistration.test.ts",
+      "language": "typescript",
+      "sizeLines": 34,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/memberRegistration.ts",
+      "language": "typescript",
+      "sizeLines": 71,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/messages.test.ts",
+      "language": "typescript",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/messages.ts",
+      "language": "typescript",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/optimisticApplicant.test.ts",
+      "language": "typescript",
+      "sizeLines": 36,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/optimisticApplicant.ts",
+      "language": "typescript",
+      "sizeLines": 36,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/publicTimeWindow.test.ts",
+      "language": "typescript",
+      "sizeLines": 64,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/publicTimeWindow.ts",
+      "language": "typescript",
+      "sizeLines": 124,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/reassignment.test.ts",
+      "language": "typescript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/reassignment.ts",
+      "language": "typescript",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/revisionConflict.test.ts",
+      "language": "typescript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/revisionConflict.ts",
+      "language": "typescript",
+      "sizeLines": 33,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/scheduleOrder.test.ts",
+      "language": "typescript",
+      "sizeLines": 61,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/scheduleOrder.ts",
+      "language": "typescript",
+      "sizeLines": 68,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/scheduling.test.ts",
+      "language": "typescript",
+      "sizeLines": 208,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/interviews/scheduling.ts",
+      "language": "typescript",
+      "sizeLines": 385,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/autoAssignAlgorithm.ts",
+      "language": "typescript",
+      "sizeLines": 130,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/getMemberFromAttendee.test.ts",
+      "language": "typescript",
+      "sizeLines": 37,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/getMemberFromAttendee.ts",
+      "language": "typescript",
+      "sizeLines": 26,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/groupCostContext.test.ts",
+      "language": "typescript",
+      "sizeLines": 110,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/groupCostContext.ts",
+      "language": "typescript",
+      "sizeLines": 87,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/groupCostFunction.test.ts",
+      "language": "typescript",
+      "sizeLines": 166,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/groupCostFunction.ts",
+      "language": "typescript",
+      "sizeLines": 117,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/isSameName.test.ts",
+      "language": "typescript",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/isSameName.ts",
+      "language": "typescript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/participationHistory.test.ts",
+      "language": "typescript",
+      "sizeLines": 49,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/participationHistory.ts",
+      "language": "typescript",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/meeting/progressHelpers.ts",
+      "language": "typescript",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/dormantMemberOrder.test.ts",
+      "language": "typescript",
+      "sizeLines": 33,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/dormantMemberOrder.ts",
+      "language": "typescript",
+      "sizeLines": 25,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/memberCsv.test.ts",
+      "language": "typescript",
+      "sizeLines": 59,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/memberCsv.ts",
+      "language": "typescript",
+      "sizeLines": 51,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/memberForm.ts",
+      "language": "typescript",
+      "sizeLines": 38,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/memberIdentity.test.ts",
+      "language": "typescript",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/memberIdentity.ts",
+      "language": "typescript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/recommendation/recommendGames.test.ts",
+      "language": "typescript",
+      "sizeLines": 71,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/recommendation/recommendGames.ts",
+      "language": "typescript",
+      "sizeLines": 227,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/semester/getSemester.ts",
+      "language": "typescript",
+      "sizeLines": 25,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/semester/semesterSelection.test.ts",
+      "language": "typescript",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/semester/semesterSelection.ts",
+      "language": "typescript",
+      "sizeLines": 10,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/sessions/sessionCsv.test.ts",
+      "language": "typescript",
+      "sizeLines": 56,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/sessions/sessionCsv.ts",
+      "language": "typescript",
+      "sizeLines": 79,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/sessions/sessionGroups.test.ts",
+      "language": "typescript",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/sessions/sessionGroups.ts",
+      "language": "typescript",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/shared/documentId.test.ts",
+      "language": "typescript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/shared/documentId.ts",
+      "language": "typescript",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/shared/koreaDate.test.ts",
+      "language": "typescript",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/shared/koreaDate.ts",
+      "language": "typescript",
+      "sizeLines": 8,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/archiveGameFilters.ts",
+      "language": "typescript",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/archiveGameStatistics.test.ts",
+      "language": "typescript",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getAttendanceRanking.ts",
+      "language": "typescript",
+      "sizeLines": 27,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getAttendanceTrend.ts",
+      "language": "typescript",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getCorePlayers.ts",
+      "language": "typescript",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getGameMmi.ts",
+      "language": "typescript",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getNewcomerTrend.ts",
+      "language": "typescript",
+      "sizeLines": 64,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getPopularGames.ts",
+      "language": "typescript",
+      "sizeLines": 34,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getSemesterRosterCounts.test.ts",
+      "language": "typescript",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getSemesterRosterCounts.ts",
+      "language": "typescript",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/getStagnationIndex.ts",
+      "language": "typescript",
+      "sizeLines": 42,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/stats/semesterStatistics.test.ts",
+      "language": "typescript",
+      "sizeLines": 55,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/interviews/useInterviewAssignmentLogic.test.tsx",
+      "language": "typescript",
+      "sizeLines": 101,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/interviews/useInterviewAssignmentLogic.ts",
+      "language": "typescript",
+      "sizeLines": 250,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/interviews/useInterviewRoundData.ts",
+      "language": "typescript",
+      "sizeLines": 111,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useArchiveLogic.ts",
+      "language": "typescript",
+      "sizeLines": 109,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useAsyncActionState.test.tsx",
+      "language": "typescript",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useAsyncActionState.ts",
+      "language": "typescript",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useAttendanceDraft.ts",
+      "language": "typescript",
+      "sizeLines": 73,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useAttendanceLogic.test.tsx",
+      "language": "typescript",
+      "sizeLines": 177,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useAttendanceLogic.ts",
+      "language": "typescript",
+      "sizeLines": 399,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useAuditEvents.ts",
+      "language": "typescript",
+      "sizeLines": 40,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useClubExports.ts",
+      "language": "typescript",
+      "sizeLines": 72,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useEdgeAutoScroll.test.ts",
+      "language": "typescript",
+      "sizeLines": 14,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useEdgeAutoScroll.ts",
+      "language": "typescript",
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useFirestore.test.tsx",
+      "language": "typescript",
+      "sizeLines": 78,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useFirestore.ts",
+      "language": "typescript",
+      "sizeLines": 39,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useGamesLogic.ts",
+      "language": "typescript",
+      "sizeLines": 280,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useInterviewNoteLogic.test.tsx",
+      "language": "typescript",
+      "sizeLines": 140,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useInterviewNoteLogic.ts",
+      "language": "typescript",
+      "sizeLines": 183,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useInterviewRoundLogic.ts",
+      "language": "typescript",
+      "sizeLines": 599,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useInterviewRoundsLogic.ts",
+      "language": "typescript",
+      "sizeLines": 85,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useMeetingProgressLogic.test.tsx",
+      "language": "typescript",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useMeetingProgressLogic.ts",
+      "language": "typescript",
+      "sizeLines": 178,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useMeetingRecords.ts",
+      "language": "typescript",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useMemberRegistrationLogic.ts",
+      "language": "typescript",
+      "sizeLines": 25,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useMembersLogic.ts",
+      "language": "typescript",
+      "sizeLines": 360,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/usePublicInterviewLogic.integration.test.tsx",
+      "language": "typescript",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/usePublicInterviewLogic.test.ts",
+      "language": "typescript",
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/usePublicInterviewLogic.ts",
+      "language": "typescript",
+      "sizeLines": 268,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useSessionsLogic.test.tsx",
+      "language": "typescript",
+      "sizeLines": 52,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useSessionsLogic.ts",
+      "language": "typescript",
+      "sizeLines": 267,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/hooks/useSettingsAdmins.ts",
+      "language": "typescript",
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/index.css",
+      "language": "css",
+      "sizeLines": 44,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "src/lib/chunkBatch.ts",
+      "language": "typescript",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/lib/downloadCsv.ts",
+      "language": "typescript",
+      "sizeLines": 15,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/lib/firebase.ts",
+      "language": "typescript",
+      "sizeLines": 163,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/lib/utils.ts",
+      "language": "typescript",
+      "sizeLines": 28,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/main.tsx",
+      "language": "typescript",
+      "sizeLines": 13,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/react-test-env.d.ts",
+      "language": "typescript",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/scenario-lab/ScenarioLabApp.tsx",
+      "language": "typescript",
+      "sizeLines": 148,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/scenario-lab/ScenarioPages.tsx",
+      "language": "typescript",
+      "sizeLines": 253,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/scenario-lab/fixtures.ts",
+      "language": "typescript",
+      "sizeLines": 226,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/scenario-lab/main.tsx",
+      "language": "typescript",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/attendeesService.test.ts",
+      "language": "typescript",
+      "sizeLines": 112,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/attendeesService.ts",
+      "language": "typescript",
+      "sizeLines": 200,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/auditService.test.ts",
+      "language": "typescript",
+      "sizeLines": 45,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/auditService.ts",
+      "language": "typescript",
+      "sizeLines": 106,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/captureService.ts",
+      "language": "typescript",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/dailyPlanningService.test.ts",
+      "language": "typescript",
+      "sizeLines": 116,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/dailyPlanningService.ts",
+      "language": "typescript",
+      "sizeLines": 126,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/applicantsService.ts",
+      "language": "typescript",
+      "sizeLines": 342,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/interviewersService.ts",
+      "language": "typescript",
+      "sizeLines": 225,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/memberRegistrationService.ts",
+      "language": "typescript",
+      "sizeLines": 137,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/models.ts",
+      "language": "typescript",
+      "sizeLines": 119,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/recordsService.ts",
+      "language": "typescript",
+      "sizeLines": 431,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/roundsService.ts",
+      "language": "typescript",
+      "sizeLines": 235,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/schedulesService.ts",
+      "language": "typescript",
+      "sizeLines": 506,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/schedulingService.ts",
+      "language": "typescript",
+      "sizeLines": 567,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviews/shared.ts",
+      "language": "typescript",
+      "sizeLines": 132,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/interviewsService.ts",
+      "language": "typescript",
+      "sizeLines": 11,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/publicInterviewService.test.ts",
+      "language": "typescript",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/publicInterviewService.ts",
+      "language": "typescript",
+      "sizeLines": 161,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/sessionsService.test.ts",
+      "language": "typescript",
+      "sizeLines": 63,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/sessionsService.ts",
+      "language": "typescript",
+      "sizeLines": 152,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/services/settingsService.ts",
+      "language": "typescript",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/tests/firestore.rules.test.ts",
+      "language": "typescript",
+      "sizeLines": 708,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/types.ts",
+      "language": "typescript",
+      "sizeLines": 421,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/design-lab/smoke.spec.ts",
+      "language": "typescript",
+      "sizeLines": 88,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/scenario-lab/attendance-draft.spec.ts",
+      "language": "typescript",
+      "sizeLines": 179,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/scenario-lab/attendance-import.spec.ts",
+      "language": "typescript",
+      "sizeLines": 81,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/scenario-lab/fixtures/attendance-draft.html",
+      "language": "html",
+      "sizeLines": 5,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "tests/scenario-lab/fixtures/attendance-draft.tsx",
+      "language": "typescript",
+      "sizeLines": 17,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/scenario-lab/fixtures/interview-schedule-overflow.html",
+      "language": "html",
+      "sizeLines": 5,
+      "fileCategory": "markup"
+    },
+    {
+      "path": "tests/scenario-lab/fixtures/interview-schedule-overflow.tsx",
+      "language": "typescript",
+      "sizeLines": 33,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/scenario-lab/interview-schedule-overflow.spec.ts",
+      "language": "typescript",
+      "sizeLines": 84,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tests/scenario-lab/scenario.spec.ts",
+      "language": "typescript",
+      "sizeLines": 103,
+      "fileCategory": "code"
+    },
+    {
+      "path": "tsconfig.json",
+      "language": "json",
+      "sizeLines": 33,
+      "fileCategory": "config"
+    },
+    {
+      "path": "vite.config.ts",
+      "language": "typescript",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    }
+  ],
+  "totalFiles": 296,
+  "filteredByIgnore": 11,
+  "estimatedComplexity": "large",
+  "importMap": {
+    ".firebaserc": [],
+    ".gitattributes": [],
+    ".github/workflows/ci.yml": [],
+    "README.md": [],
+    "design.html": [],
+    "docs/development.md": [],
+    "docs/knowledge-graph.md": [],
+    "docs/new-computer.md": [],
+    "docs/operations.md": [],
+    "eslint.config.js": [],
+    "firebase-applet-config.demo.json": [],
+    "firebase-applet-config.json": [],
+    "firebase-applet-config.staging.json": [],
+    "firebase.demo.json": [],
+    "firebase.json": [],
+    "firebase.staging.json": [],
+    "firestore.indexes.json": [],
+    "firestore.rules": [],
+    "index.html": [],
+    "package.json": [],
+    "playwright.config.ts": [],
+    "playwright.scenario.config.ts": [],
+    "public/site.webmanifest": [],
+    "scripts/emulator-runtime.mjs": [],
+    "scripts/knowledge-graph.mjs": [],
+    "scripts/knowledge-graph.test.mjs": [
+      "scripts/knowledge-graph.mjs"
+    ],
+    "scripts/reset-demo.mjs": [],
+    "scripts/run-demo.mjs": [
+      "scripts/emulator-runtime.mjs"
+    ],
+    "scripts/run-rules-tests.mjs": [
+      "scripts/emulator-runtime.mjs"
+    ],
+    "scripts/seed-demo.mjs": [],
+    "scripts/setup-demo-java.ps1": [],
+    "scripts/verify-production-bundle.mjs": [],
+    "src/App.tsx": [
+      "src/components/AvalonLogo.tsx",
+      "src/components/LoginGate.tsx",
+      "src/components/Sidebar.tsx",
+      "src/lib/firebase.ts"
+    ],
+    "src/components/ApplicantCsvImportModal.tsx": [
+      "src/components/CsvColumnSelect.tsx",
+      "src/domain/interviews/applicantCsv.ts",
+      "src/domain/interviews/applicantMerge.ts",
+      "src/services/interviewsService.ts"
+    ],
+    "src/components/ApplicantDetailModal.tsx": [
+      "src/domain/interviews/availabilitySummary.ts",
+      "src/domain/interviews/messages.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/types.ts"
+    ],
+    "src/components/ApplicantFormModal.tsx": [
+      "src/hooks/useAsyncActionState.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/components/ApplicantJourney.tsx": [
+      "src/domain/interviews/applicantJourney.ts"
+    ],
+    "src/components/ArchiveCharts.tsx": [],
+    "src/components/ArchiveExpandedChartModal.tsx": [
+      "src/components/ArchiveCharts.tsx",
+      "src/hooks/useArchiveLogic.ts",
+      "src/lib/utils.ts"
+    ],
+    "src/components/ArchiveFormulaModal.tsx": [
+      "src/hooks/useArchiveLogic.ts"
+    ],
+    "src/components/ArchivePage.tsx": [
+      "src/components/ArchiveExpandedChartModal.tsx",
+      "src/components/ArchiveFormulaModal.tsx",
+      "src/components/ArchiveWidgetCharts.tsx",
+      "src/components/ArchiveWidgetCorePlayers.tsx",
+      "src/components/ArchiveWidgetPopularGames.tsx",
+      "src/components/ArchiveWidgetRanking.tsx",
+      "src/components/PageHeader.tsx",
+      "src/domain/games/gameCatalog.ts",
+      "src/domain/stats/archiveGameFilters.ts",
+      "src/hooks/useArchiveLogic.ts"
+    ],
+    "src/components/ArchiveWidgetCharts.tsx": [
+      "src/components/ArchiveCharts.tsx",
+      "src/hooks/useArchiveLogic.ts",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/ArchiveWidgetCorePlayers.tsx": [
+      "src/components/FilterPills.tsx",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/ArchiveWidgetPopularGames.tsx": [
+      "src/components/FilterPills.tsx",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/ArchiveWidgetRanking.tsx": [
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/AttendanceCsvImportModal.tsx": [
+      "src/components/CsvColumnSelect.tsx",
+      "src/domain/attendance/csvParser.ts",
+      "src/types.ts"
+    ],
+    "src/components/AttendanceDragAndDrop.tsx": [
+      "src/lib/utils.ts"
+    ],
+    "src/components/AttendancePage.tsx": [
+      "src/components/AttendanceCsvImportModal.tsx",
+      "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/ConfirmDeleteModal.tsx",
+      "src/components/CostEvaluationModal.tsx",
+      "src/components/GroupsCanvas.tsx",
+      "src/components/ManualAddModal.tsx",
+      "src/components/PageHeader.tsx",
+      "src/components/UnassignedPool.tsx",
+      "src/hooks/useAttendanceLogic.ts",
+      "src/lib/utils.ts"
+    ],
+    "src/components/AutoAssignmentPanel.tsx": [
+      "src/domain/interviews/autoAssignment.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/types.ts"
+    ],
+    "src/components/AvailabilityGrid.tsx": [
+      "src/domain/interviews/scheduling.ts",
+      "src/hooks/useEdgeAutoScroll.ts",
+      "src/lib/utils.ts"
+    ],
+    "src/components/AvalonLogo.tsx": [],
+    "src/components/BoardMemberBadge.tsx": [],
+    "src/components/ConfirmDeleteModal.tsx": [],
+    "src/components/CostEvaluationModal.tsx": [
+      "src/domain/matching/groupCostFunction.ts",
+      "src/types.ts"
+    ],
+    "src/components/CsvColumnSelect.tsx": [],
+    "src/components/FilterPills.tsx": [
+      "src/lib/utils.ts"
+    ],
+    "src/components/GameFilters.tsx": [
+      "src/domain/games/gameCatalog.ts"
+    ],
+    "src/components/GameForm.tsx": [
+      "src/domain/games/gameCatalog.ts",
+      "src/domain/games/gameForm.ts"
+    ],
+    "src/components/GameList.tsx": [
+      "src/types.ts"
+    ],
+    "src/components/GamesPage.tsx": [
+      "src/components/ConfirmDeleteModal.tsx",
+      "src/components/GameFilters.tsx",
+      "src/components/GameForm.tsx",
+      "src/components/GameList.tsx",
+      "src/components/PageHeader.tsx",
+      "src/hooks/useGamesLogic.ts"
+    ],
+    "src/components/GroupGamesEditModal.tsx": [
+      "src/types.ts"
+    ],
+    "src/components/GroupsCanvas.tsx": [
+      "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/BoardMemberBadge.tsx",
+      "src/types.ts"
+    ],
+    "src/components/InterviewRoundDeleteModal.tsx": [
+      "src/types.ts"
+    ],
+    "src/components/InterviewRoundFormModal.test.ts": [
+      "src/components/InterviewRoundFormModal.tsx",
+      "src/types.ts"
+    ],
+    "src/components/InterviewRoundFormModal.tsx": [
+      "src/components/InterviewScheduleManagement.tsx",
+      "src/domain/interviews/messages.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewRoundPage.tsx": [
+      "src/components/ApplicantCsvImportModal.tsx",
+      "src/components/ApplicantDetailModal.tsx",
+      "src/components/ApplicantFormModal.tsx",
+      "src/components/ApplicantJourney.tsx",
+      "src/components/InterviewRoundDeleteModal.tsx",
+      "src/components/InterviewRoundFormModal.tsx",
+      "src/components/InterviewScheduleAssignmentModal.tsx",
+      "src/components/InterviewScheduleFormModal.tsx",
+      "src/components/InterviewSchedulePanel.tsx",
+      "src/components/InterviewScheduleSelector.tsx",
+      "src/components/InterviewSchedulesOverview.tsx",
+      "src/components/InterviewerDashboard.tsx",
+      "src/components/InterviewersPanel.tsx",
+      "src/components/MemberRegistrationPanel.tsx",
+      "src/components/PageHeader.tsx",
+      "src/components/SelectionPanel.tsx",
+      "src/domain/interviews/applicantFilter.ts",
+      "src/domain/interviews/applicantJourney.ts",
+      "src/domain/interviews/applicantSort.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewQuestions.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/hooks/useEdgeAutoScroll.ts",
+      "src/hooks/useInterviewRoundLogic.ts",
+      "src/lib/downloadCsv.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewRoundsPage.test.tsx": [
+      "src/components/InterviewRoundsPage.tsx",
+      "src/types.ts"
+    ],
+    "src/components/InterviewRoundsPage.tsx": [
+      "src/components/InterviewRoundFormModal.tsx",
+      "src/components/PageHeader.tsx",
+      "src/hooks/useInterviewRoundsLogic.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewScheduleAssignmentModal.test.tsx": [
+      "src/components/InterviewScheduleAssignmentModal.tsx",
+      "src/types.ts"
+    ],
+    "src/components/InterviewScheduleAssignmentModal.tsx": [
+      "src/domain/interviews/scheduleOrder.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewScheduleFormModal.test.ts": [
+      "src/components/InterviewScheduleFormModal.tsx"
+    ],
+    "src/components/InterviewScheduleFormModal.tsx": [
+      "src/domain/interviews/scheduling.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewScheduleManagement.tsx": [
+      "src/domain/interviews/scheduleOrder.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewSchedulePanel.tsx": [
+      "src/components/AutoAssignmentPanel.tsx",
+      "src/domain/interviews/autoAssignment.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewScheduleSelector.test.tsx": [
+      "src/components/InterviewScheduleSelector.tsx",
+      "src/types.ts"
+    ],
+    "src/components/InterviewScheduleSelector.tsx": [
+      "src/domain/interviews/scheduleOrder.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewSchedulesOverview.tsx": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/scheduleOrder.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewWorkspaceModal.tsx": [
+      "src/domain/interviews/availabilitySummary.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewRatings.ts",
+      "src/hooks/useInterviewNoteLogic.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewerDashboard.tsx": [
+      "src/components/InterviewWorkspaceModal.tsx",
+      "src/lib/firebase.ts",
+      "src/types.ts"
+    ],
+    "src/components/InterviewersPanel.tsx": [
+      "src/components/AvailabilityGrid.tsx",
+      "src/domain/interviews/interviewerParticipation.ts",
+      "src/domain/members/memberIdentity.ts",
+      "src/types.ts"
+    ],
+    "src/components/LoginGate.tsx": [
+      "src/components/AvalonLogo.tsx"
+    ],
+    "src/components/ManualAddModal.tsx": [],
+    "src/components/MeetingCanvasTab.tsx": [
+      "src/components/icons/DiamondSvg.tsx",
+      "src/components/icons/RookSvg.tsx",
+      "src/domain/attendance/dailyPlanning.ts",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/MeetingCardStyleModal.tsx": [
+      "src/types.ts"
+    ],
+    "src/components/MeetingDashboardTab.tsx": [
+      "src/domain/attendance/dailyPlanning.ts",
+      "src/domain/recommendation/recommendGames.ts",
+      "src/types.ts"
+    ],
+    "src/components/MeetingProgressPage.tsx": [
+      "src/components/MeetingCanvasTab.tsx",
+      "src/components/MeetingCardStyleModal.tsx",
+      "src/components/MeetingDashboardTab.tsx",
+      "src/components/MeetingRecordsModal.tsx",
+      "src/components/MemberProfileModal.tsx",
+      "src/hooks/useMeetingProgressLogic.ts"
+    ],
+    "src/components/MeetingRecordsModal.test.tsx": [
+      "src/components/MeetingRecordsModal.tsx"
+    ],
+    "src/components/MeetingRecordsModal.tsx": [
+      "src/components/ConfirmDeleteModal.tsx",
+      "src/components/MeetingVersionsPanel.tsx",
+      "src/hooks/useMeetingRecords.ts",
+      "src/types.ts"
+    ],
+    "src/components/MeetingVersionsPanel.tsx": [
+      "src/hooks/useMeetingRecords.ts",
+      "src/types.ts"
+    ],
+    "src/components/MemberFilters.tsx": [
+      "src/domain/games/gameCatalog.ts",
+      "src/lib/utils.ts"
+    ],
+    "src/components/MemberForm.tsx": [
+      "src/domain/games/gameCatalog.ts",
+      "src/domain/members/memberForm.ts"
+    ],
+    "src/components/MemberList.tsx": [
+      "src/components/MemberForm.tsx",
+      "src/domain/members/memberForm.ts",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/MemberProfileModal.tsx": [
+      "src/lib/firebase.ts",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/MemberRegistrationPanel.tsx": [
+      "src/domain/games/gameCatalog.ts",
+      "src/domain/interviews/memberRegistration.ts",
+      "src/domain/members/memberIdentity.ts",
+      "src/hooks/useMemberRegistrationLogic.ts",
+      "src/types.ts"
+    ],
+    "src/components/MembersPage.tsx": [
+      "src/components/ConfirmDeleteModal.tsx",
+      "src/components/MemberFilters.tsx",
+      "src/components/MemberForm.tsx",
+      "src/components/MemberList.tsx",
+      "src/components/MemberProfileModal.tsx",
+      "src/components/PageHeader.tsx",
+      "src/hooks/useMembersLogic.ts"
+    ],
+    "src/components/PageHeader.tsx": [],
+    "src/components/PublicInterviewPage.tsx": [
+      "src/components/AvailabilityGrid.tsx",
+      "src/components/AvalonLogo.tsx",
+      "src/domain/interviews/availabilitySummary.ts",
+      "src/hooks/usePublicInterviewLogic.ts",
+      "src/lib/utils.ts"
+    ],
+    "src/components/SelectionDecisionButtons.test.tsx": [
+      "src/components/SelectionDetailModal.tsx",
+      "src/components/SelectionPanel.tsx",
+      "src/types.ts"
+    ],
+    "src/components/SelectionDetailModal.tsx": [
+      "src/components/selectionDecisionStyles.ts",
+      "src/domain/interviews/interviewRatings.ts",
+      "src/domain/interviews/messages.ts",
+      "src/hooks/useInterviewNoteLogic.ts",
+      "src/types.ts"
+    ],
+    "src/components/SelectionPanel.tsx": [
+      "src/components/SelectionDetailModal.tsx",
+      "src/components/selectionDecisionStyles.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewRatings.ts",
+      "src/types.ts"
+    ],
+    "src/components/SessionFormModal.tsx": [
+      "src/domain/attendance/unassignedMemberOrder.ts",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/SessionList.tsx": [
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/SessionsPage.tsx": [
+      "src/components/ConfirmDeleteModal.tsx",
+      "src/components/GroupGamesEditModal.tsx",
+      "src/components/MemberProfileModal.tsx",
+      "src/components/PageHeader.tsx",
+      "src/components/SessionFormModal.tsx",
+      "src/components/SessionList.tsx",
+      "src/hooks/useSessionsLogic.ts",
+      "src/types.ts"
+    ],
+    "src/components/SettingsAdminPanel.tsx": [
+      "src/types.ts"
+    ],
+    "src/components/SettingsAuditPanel.tsx": [
+      "src/domain/audit/auditEvent.ts",
+      "src/hooks/useAuditEvents.ts",
+      "src/lib/utils.ts"
+    ],
+    "src/components/SettingsExportPanel.tsx": [],
+    "src/components/SettingsPage.test.tsx": [
+      "src/components/SettingsPage.tsx"
+    ],
+    "src/components/SettingsPage.tsx": [
+      "src/components/SettingsAdminPanel.tsx",
+      "src/components/SettingsAuditPanel.tsx",
+      "src/components/SettingsExportPanel.tsx",
+      "src/hooks/useClubExports.ts",
+      "src/hooks/useSettingsAdmins.ts"
+    ],
+    "src/components/Sidebar.tsx": [
+      "src/components/AvalonLogo.tsx"
+    ],
+    "src/components/UnassignedPool.tsx": [
+      "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/BoardMemberBadge.tsx",
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/components/icons/DiamondSvg.tsx": [],
+    "src/components/icons/RookSvg.tsx": [],
+    "src/components/selectionDecisionStyles.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/attendance/attendanceHelpers.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/attendance/csvParser.test.ts": [
+      "src/domain/attendance/csvParser.ts",
+      "src/types.ts"
+    ],
+    "src/domain/attendance/csvParser.ts": [
+      "src/domain/matching/isSameName.ts",
+      "src/types.ts"
+    ],
+    "src/domain/attendance/dailyPlanning.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/attendance/dailySession.test.ts": [
+      "src/domain/attendance/dailySession.ts",
+      "src/types.ts"
+    ],
+    "src/domain/attendance/dailySession.ts": [
+      "src/domain/attendance/sessionMetadata.ts",
+      "src/domain/shared/documentId.ts",
+      "src/types.ts"
+    ],
+    "src/domain/attendance/moveAttendee.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/attendance/sessionGroups.ts": [
+      "src/domain/matching/getMemberFromAttendee.ts",
+      "src/types.ts"
+    ],
+    "src/domain/attendance/sessionMetadata.test.ts": [
+      "src/domain/attendance/sessionMetadata.ts"
+    ],
+    "src/domain/attendance/sessionMetadata.ts": [],
+    "src/domain/attendance/unassignedMemberOrder.test.ts": [
+      "src/domain/attendance/unassignedMemberOrder.ts",
+      "src/types.ts"
+    ],
+    "src/domain/attendance/unassignedMemberOrder.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/audit/auditEvent.test.ts": [
+      "src/domain/audit/auditEvent.ts"
+    ],
+    "src/domain/audit/auditEvent.ts": [],
+    "src/domain/exports/clubCsv.test.ts": [
+      "src/domain/exports/clubCsv.ts",
+      "src/types.ts"
+    ],
+    "src/domain/exports/clubCsv.ts": [
+      "src/lib/utils.ts",
+      "src/types.ts"
+    ],
+    "src/domain/games/gameCatalog.ts": [],
+    "src/domain/games/gameCsv.test.ts": [
+      "src/domain/games/gameCsv.ts"
+    ],
+    "src/domain/games/gameCsv.ts": [
+      "src/domain/games/gameForm.ts",
+      "src/types.ts"
+    ],
+    "src/domain/games/gameForm.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/applicantCsv.test.ts": [
+      "src/domain/interviews/applicantCsv.ts"
+    ],
+    "src/domain/interviews/applicantCsv.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/applicantFilter.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/applicantJourney.test.ts": [
+      "src/domain/interviews/applicantJourney.ts"
+    ],
+    "src/domain/interviews/applicantJourney.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/applicantMerge.test.ts": [
+      "src/domain/interviews/applicantMerge.ts"
+    ],
+    "src/domain/interviews/applicantMerge.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/applicantSort.test.ts": [
+      "src/domain/interviews/applicantSort.ts"
+    ],
+    "src/domain/interviews/applicantSort.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/autoAssignment.test.ts": [
+      "src/domain/interviews/autoAssignment.ts"
+    ],
+    "src/domain/interviews/autoAssignment.ts": [
+      "src/domain/interviews/scheduling.ts"
+    ],
+    "src/domain/interviews/availabilitySummary.test.ts": [
+      "src/domain/interviews/availabilitySummary.ts"
+    ],
+    "src/domain/interviews/availabilitySummary.ts": [
+      "src/domain/interviews/scheduling.ts"
+    ],
+    "src/domain/interviews/interviewCompletion.test.ts": [
+      "src/domain/interviews/interviewCompletion.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewCompletion.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewRatings.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewCsvExport.test.ts": [
+      "src/domain/interviews/interviewCsvExport.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewCsvExport.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewRatings.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewPolicy.test.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewPolicy.ts": [
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewQuestions.test.ts": [
+      "src/domain/interviews/interviewQuestions.ts"
+    ],
+    "src/domain/interviews/interviewQuestions.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewRatings.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewTransitions.test.ts": [
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewTransitions.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/interviewerParticipation.test.ts": [
+      "src/domain/interviews/interviewerParticipation.ts"
+    ],
+    "src/domain/interviews/interviewerParticipation.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/memberRegistration.test.ts": [
+      "src/domain/interviews/memberRegistration.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/memberRegistration.ts": [
+      "src/domain/members/memberIdentity.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/messages.test.ts": [
+      "src/domain/interviews/messages.ts"
+    ],
+    "src/domain/interviews/messages.ts": [],
+    "src/domain/interviews/optimisticApplicant.test.ts": [
+      "src/domain/interviews/optimisticApplicant.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/optimisticApplicant.ts": [
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/types.ts"
+    ],
+    "src/domain/interviews/publicTimeWindow.test.ts": [
+      "src/domain/interviews/publicTimeWindow.ts"
+    ],
+    "src/domain/interviews/publicTimeWindow.ts": [],
+    "src/domain/interviews/reassignment.test.ts": [
+      "src/domain/interviews/reassignment.ts"
+    ],
+    "src/domain/interviews/reassignment.ts": [
+      "src/domain/interviews/scheduling.ts"
+    ],
+    "src/domain/interviews/revisionConflict.test.ts": [
+      "src/domain/interviews/revisionConflict.ts"
+    ],
+    "src/domain/interviews/revisionConflict.ts": [],
+    "src/domain/interviews/scheduleOrder.test.ts": [
+      "src/domain/interviews/scheduleOrder.ts"
+    ],
+    "src/domain/interviews/scheduleOrder.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/interviews/scheduling.test.ts": [
+      "src/domain/interviews/scheduling.ts"
+    ],
+    "src/domain/interviews/scheduling.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/matching/autoAssignAlgorithm.ts": [
+      "src/domain/matching/groupCostFunction.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/getMemberFromAttendee.test.ts": [
+      "src/domain/matching/getMemberFromAttendee.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/getMemberFromAttendee.ts": [
+      "src/domain/matching/isSameName.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/groupCostContext.test.ts": [
+      "src/domain/matching/groupCostContext.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/groupCostContext.ts": [
+      "src/domain/matching/getMemberFromAttendee.ts",
+      "src/domain/matching/groupCostFunction.ts",
+      "src/domain/matching/participationHistory.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/groupCostFunction.test.ts": [
+      "src/domain/matching/groupCostFunction.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/groupCostFunction.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/matching/isSameName.test.ts": [
+      "src/domain/matching/isSameName.ts"
+    ],
+    "src/domain/matching/isSameName.ts": [],
+    "src/domain/matching/participationHistory.test.ts": [
+      "src/domain/matching/participationHistory.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/participationHistory.ts": [
+      "src/domain/attendance/sessionMetadata.ts",
+      "src/domain/semester/getSemester.ts",
+      "src/domain/stats/getSemesterRosterCounts.ts",
+      "src/types.ts"
+    ],
+    "src/domain/meeting/progressHelpers.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/members/dormantMemberOrder.test.ts": [
+      "src/domain/members/dormantMemberOrder.ts"
+    ],
+    "src/domain/members/dormantMemberOrder.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/members/memberCsv.test.ts": [
+      "src/domain/members/memberCsv.ts"
+    ],
+    "src/domain/members/memberCsv.ts": [
+      "src/domain/games/gameCatalog.ts",
+      "src/domain/members/memberForm.ts",
+      "src/types.ts"
+    ],
+    "src/domain/members/memberForm.ts": [
+      "src/domain/semester/getSemester.ts",
+      "src/types.ts"
+    ],
+    "src/domain/members/memberIdentity.test.ts": [
+      "src/domain/members/memberIdentity.ts"
+    ],
+    "src/domain/members/memberIdentity.ts": [],
+    "src/domain/recommendation/recommendGames.test.ts": [
+      "src/domain/recommendation/recommendGames.ts",
+      "src/types.ts"
+    ],
+    "src/domain/recommendation/recommendGames.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/semester/getSemester.ts": [],
+    "src/domain/semester/semesterSelection.test.ts": [
+      "src/domain/semester/semesterSelection.ts"
+    ],
+    "src/domain/semester/semesterSelection.ts": [
+      "src/domain/semester/getSemester.ts"
+    ],
+    "src/domain/sessions/sessionCsv.test.ts": [
+      "src/domain/sessions/sessionCsv.ts",
+      "src/types.ts"
+    ],
+    "src/domain/sessions/sessionCsv.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/sessions/sessionGroups.test.ts": [
+      "src/domain/sessions/sessionGroups.ts",
+      "src/types.ts"
+    ],
+    "src/domain/sessions/sessionGroups.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/shared/documentId.test.ts": [
+      "src/domain/shared/documentId.ts"
+    ],
+    "src/domain/shared/documentId.ts": [],
+    "src/domain/shared/koreaDate.test.ts": [
+      "src/domain/shared/koreaDate.ts"
+    ],
+    "src/domain/shared/koreaDate.ts": [],
+    "src/domain/stats/archiveGameFilters.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/stats/archiveGameStatistics.test.ts": [
+      "src/domain/stats/getCorePlayers.ts",
+      "src/domain/stats/getPopularGames.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/getAttendanceRanking.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/stats/getAttendanceTrend.ts": [
+      "src/domain/semester/getSemester.ts",
+      "src/domain/stats/getSemesterRosterCounts.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/getCorePlayers.ts": [
+      "src/domain/stats/archiveGameFilters.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/getGameMmi.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/stats/getNewcomerTrend.ts": [
+      "src/domain/semester/getSemester.ts",
+      "src/domain/stats/getSemesterRosterCounts.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/getPopularGames.ts": [
+      "src/domain/stats/archiveGameFilters.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/getSemesterRosterCounts.test.ts": [
+      "src/domain/stats/getSemesterRosterCounts.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/getSemesterRosterCounts.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/stats/getStagnationIndex.ts": [
+      "src/domain/semester/getSemester.ts",
+      "src/types.ts"
+    ],
+    "src/domain/stats/semesterStatistics.test.ts": [
+      "src/domain/stats/getAttendanceRanking.ts",
+      "src/domain/stats/getAttendanceTrend.ts",
+      "src/domain/stats/getNewcomerTrend.ts",
+      "src/domain/stats/getStagnationIndex.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/interviews/useInterviewAssignmentLogic.test.tsx": [
+      "src/hooks/interviews/useInterviewAssignmentLogic.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/interviews/useInterviewAssignmentLogic.ts": [
+      "src/domain/interviews/autoAssignment.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/domain/interviews/optimisticApplicant.ts",
+      "src/domain/interviews/revisionConflict.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/hooks/interviews/useInterviewRoundData.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/interviews/useInterviewRoundData.ts": [
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useArchiveLogic.ts": [
+      "src/domain/semester/getSemester.ts",
+      "src/domain/semester/semesterSelection.ts",
+      "src/domain/stats/getAttendanceRanking.ts",
+      "src/domain/stats/getAttendanceTrend.ts",
+      "src/domain/stats/getCorePlayers.ts",
+      "src/domain/stats/getGameMmi.ts",
+      "src/domain/stats/getNewcomerTrend.ts",
+      "src/domain/stats/getPopularGames.ts",
+      "src/domain/stats/getStagnationIndex.ts",
+      "src/hooks/useFirestore.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useAsyncActionState.test.tsx": [
+      "src/hooks/useAsyncActionState.ts"
+    ],
+    "src/hooks/useAsyncActionState.ts": [],
+    "src/hooks/useAttendanceDraft.ts": [
+      "src/domain/attendance/sessionMetadata.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useAttendanceLogic.test.tsx": [
+      "src/hooks/useAttendanceLogic.ts",
+      "src/services/dailyPlanningService.ts"
+    ],
+    "src/hooks/useAttendanceLogic.ts": [
+      "src/domain/attendance/attendanceHelpers.ts",
+      "src/domain/attendance/csvParser.ts",
+      "src/domain/attendance/dailySession.ts",
+      "src/domain/attendance/moveAttendee.ts",
+      "src/domain/attendance/sessionGroups.ts",
+      "src/domain/matching/autoAssignAlgorithm.ts",
+      "src/domain/matching/getMemberFromAttendee.ts",
+      "src/domain/matching/groupCostContext.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/hooks/useAttendanceDraft.ts",
+      "src/hooks/useFirestore.ts",
+      "src/lib/firebase.ts",
+      "src/services/attendeesService.ts",
+      "src/services/auditService.ts",
+      "src/services/dailyPlanningService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useAuditEvents.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/services/auditService.ts"
+    ],
+    "src/hooks/useClubExports.ts": [
+      "src/domain/exports/clubCsv.ts",
+      "src/lib/downloadCsv.ts",
+      "src/lib/firebase.ts",
+      "src/services/settingsService.ts"
+    ],
+    "src/hooks/useEdgeAutoScroll.test.ts": [
+      "src/hooks/useEdgeAutoScroll.ts"
+    ],
+    "src/hooks/useEdgeAutoScroll.ts": [],
+    "src/hooks/useFirestore.test.tsx": [
+      "src/hooks/useFirestore.ts"
+    ],
+    "src/hooks/useFirestore.ts": [
+      "src/lib/firebase.ts"
+    ],
+    "src/hooks/useGamesLogic.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/games/gameCsv.ts",
+      "src/domain/games/gameForm.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/hooks/useFirestore.ts",
+      "src/lib/chunkBatch.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useInterviewNoteLogic.test.tsx": [
+      "src/hooks/useInterviewNoteLogic.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useInterviewNoteLogic.ts": [
+      "src/domain/interviews/revisionConflict.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useInterviewRoundLogic.ts": [
+      "src/domain/interviews/applicantFilter.ts",
+      "src/domain/interviews/applicantMerge.ts",
+      "src/domain/interviews/interviewCsvExport.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/hooks/interviews/useInterviewAssignmentLogic.ts",
+      "src/hooks/interviews/useInterviewRoundData.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useInterviewRoundsLogic.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useMeetingProgressLogic.test.tsx": [
+      "src/hooks/useMeetingProgressLogic.ts"
+    ],
+    "src/hooks/useMeetingProgressLogic.ts": [
+      "src/domain/attendance/dailyPlanning.ts",
+      "src/domain/meeting/progressHelpers.ts",
+      "src/domain/recommendation/recommendGames.ts",
+      "src/domain/shared/koreaDate.ts",
+      "src/hooks/useFirestore.ts",
+      "src/lib/firebase.ts",
+      "src/services/captureService.ts",
+      "src/services/dailyPlanningService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useMeetingRecords.ts": [
+      "src/domain/attendance/dailyPlanning.ts",
+      "src/lib/firebase.ts",
+      "src/services/dailyPlanningService.ts"
+    ],
+    "src/hooks/useMemberRegistrationLogic.ts": [
+      "src/hooks/useFirestore.ts",
+      "src/services/interviewsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useMembersLogic.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/members/dormantMemberOrder.ts",
+      "src/domain/members/memberCsv.ts",
+      "src/domain/members/memberForm.ts",
+      "src/domain/members/memberIdentity.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/hooks/useFirestore.ts",
+      "src/lib/chunkBatch.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/usePublicInterviewLogic.integration.test.tsx": [
+      "src/hooks/usePublicInterviewLogic.ts"
+    ],
+    "src/hooks/usePublicInterviewLogic.test.ts": [
+      "src/hooks/usePublicInterviewLogic.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/usePublicInterviewLogic.ts": [
+      "src/domain/interviews/publicTimeWindow.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/services/publicInterviewService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useSessionsLogic.test.tsx": [
+      "src/hooks/useSessionsLogic.ts"
+    ],
+    "src/hooks/useSessionsLogic.ts": [
+      "src/domain/attendance/sessionMetadata.ts",
+      "src/domain/semester/getSemester.ts",
+      "src/domain/sessions/sessionCsv.ts",
+      "src/domain/sessions/sessionGroups.ts",
+      "src/hooks/useAsyncActionState.ts",
+      "src/hooks/useFirestore.ts",
+      "src/lib/firebase.ts",
+      "src/services/sessionsService.ts",
+      "src/types.ts"
+    ],
+    "src/hooks/useSettingsAdmins.ts": [
+      "src/lib/firebase.ts",
+      "src/services/settingsService.ts",
+      "src/types.ts"
+    ],
+    "src/index.css": [],
+    "src/lib/chunkBatch.ts": [],
+    "src/lib/downloadCsv.ts": [],
+    "src/lib/firebase.ts": [
+      "firebase-applet-config.json"
+    ],
+    "src/lib/utils.ts": [],
+    "src/main.tsx": [
+      "src/App.tsx",
+      "src/index.css"
+    ],
+    "src/react-test-env.d.ts": [],
+    "src/scenario-lab/ScenarioLabApp.tsx": [
+      "src/components/Sidebar.tsx",
+      "src/scenario-lab/ScenarioPages.tsx",
+      "src/scenario-lab/fixtures.ts"
+    ],
+    "src/scenario-lab/ScenarioPages.tsx": [
+      "src/components/AttendanceCsvImportModal.tsx",
+      "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/GroupsCanvas.tsx",
+      "src/components/InterviewSchedulePanel.tsx",
+      "src/components/MemberFilters.tsx",
+      "src/components/MemberList.tsx",
+      "src/components/PageHeader.tsx",
+      "src/components/UnassignedPool.tsx",
+      "src/domain/attendance/csvParser.ts",
+      "src/domain/attendance/moveAttendee.ts",
+      "src/domain/interviews/autoAssignment.ts",
+      "src/domain/members/memberForm.ts",
+      "src/hooks/useAttendanceDraft.ts",
+      "src/scenario-lab/fixtures.ts",
+      "src/types.ts"
+    ],
+    "src/scenario-lab/fixtures.ts": [
+      "src/types.ts"
+    ],
+    "src/scenario-lab/main.tsx": [
+      "src/index.css",
+      "src/scenario-lab/ScenarioLabApp.tsx"
+    ],
+    "src/services/attendeesService.test.ts": [
+      "src/domain/attendance/csvParser.ts",
+      "src/services/attendeesService.ts",
+      "src/types.ts"
+    ],
+    "src/services/attendeesService.ts": [
+      "src/domain/attendance/csvParser.ts",
+      "src/domain/matching/isSameName.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/types.ts"
+    ],
+    "src/services/auditService.test.ts": [
+      "src/services/auditService.ts"
+    ],
+    "src/services/auditService.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/lib/firebase.ts"
+    ],
+    "src/services/captureService.ts": [],
+    "src/services/dailyPlanningService.test.ts": [
+      "src/services/dailyPlanningService.ts"
+    ],
+    "src/services/dailyPlanningService.ts": [
+      "src/domain/attendance/dailyPlanning.ts",
+      "src/domain/shared/documentId.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/applicantsService.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/interviews/applicantMerge.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/domain/interviews/revisionConflict.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/models.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/interviewersService.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/interviews/revisionConflict.ts",
+      "src/domain/members/memberIdentity.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/models.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/memberRegistrationService.ts": [
+      "src/domain/members/memberIdentity.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/models.ts": [
+      "src/types.ts"
+    ],
+    "src/services/interviews/recordsService.ts": [
+      "src/domain/interviews/interviewCompletion.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewRatings.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/domain/interviews/revisionConflict.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/models.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/roundsService.ts": [
+      "src/domain/shared/documentId.ts",
+      "src/lib/chunkBatch.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/models.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/schedulesService.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/domain/interviews/revisionConflict.ts",
+      "src/domain/interviews/scheduleOrder.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/lib/chunkBatch.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/models.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/schedulingService.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/domain/interviews/revisionConflict.ts",
+      "src/domain/interviews/scheduling.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/services/interviews/models.ts",
+      "src/services/interviews/shared.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviews/shared.ts": [
+      "src/domain/interviews/interviewPolicy.ts",
+      "src/domain/interviews/interviewTransitions.ts",
+      "src/lib/firebase.ts",
+      "src/services/interviews/models.ts",
+      "src/types.ts"
+    ],
+    "src/services/interviewsService.ts": [],
+    "src/services/publicInterviewService.test.ts": [
+      "src/services/publicInterviewService.ts"
+    ],
+    "src/services/publicInterviewService.ts": [
+      "src/lib/firebase.ts",
+      "src/types.ts"
+    ],
+    "src/services/sessionsService.test.ts": [
+      "src/lib/chunkBatch.ts",
+      "src/services/sessionsService.ts"
+    ],
+    "src/services/sessionsService.ts": [
+      "src/domain/audit/auditEvent.ts",
+      "src/domain/sessions/sessionCsv.ts",
+      "src/domain/sessions/sessionGroups.ts",
+      "src/lib/chunkBatch.ts",
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/types.ts"
+    ],
+    "src/services/settingsService.ts": [
+      "src/lib/firebase.ts",
+      "src/services/auditService.ts",
+      "src/types.ts"
+    ],
+    "src/tests/firestore.rules.test.ts": [],
+    "src/types.ts": [],
+    "tests/design-lab/smoke.spec.ts": [],
+    "tests/scenario-lab/attendance-draft.spec.ts": [],
+    "tests/scenario-lab/attendance-import.spec.ts": [],
+    "tests/scenario-lab/fixtures/attendance-draft.html": [],
+    "tests/scenario-lab/fixtures/attendance-draft.tsx": [
+      "src/index.css",
+      "src/scenario-lab/ScenarioPages.tsx"
+    ],
+    "tests/scenario-lab/fixtures/interview-schedule-overflow.html": [],
+    "tests/scenario-lab/fixtures/interview-schedule-overflow.tsx": [
+      "src/components/InterviewScheduleAssignmentModal.tsx",
+      "src/components/InterviewScheduleSelector.tsx",
+      "src/index.css",
+      "src/types.ts"
+    ],
+    "tests/scenario-lab/interview-schedule-overflow.spec.ts": [],
+    "tests/scenario-lab/scenario.spec.ts": [],
+    "tsconfig.json": [],
+    "vite.config.ts": []
+  }
+}

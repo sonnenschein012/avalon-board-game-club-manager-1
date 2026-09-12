@@ -1,0 +1,1006 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "avalon-club-manager",
+    "languages": [
+      "css",
+      "html",
+      "javascript",
+      "json",
+      "markdown",
+      "powershell",
+      "rules",
+      "typescript",
+      "unknown",
+      "webmanifest",
+      "yaml"
+    ],
+    "frameworks": [
+      "React",
+      "Vite",
+      "Vitest",
+      "Tailwind CSS",
+      "GitHub Actions"
+    ],
+    "description": "Avalon 동아리의 회원·게임 명부, 출석 조 편성과 모임 기록·통계, 공개 면접 응답·선발·회원 등록 업무를 연결한 도메인 지도.",
+    "analyzedAt": "2026-09-11T11:38:44.260Z",
+    "gitCommitHash": "a7423fb9d4f19dec96806207a57d0f7fc5a3c4a6"
+  },
+  "nodes": [
+    {
+      "id": "domain:club-roster",
+      "type": "domain",
+      "name": "회원과 게임 명부",
+      "summary": "현재 회원의 신상·활동 상태와 보유 게임을 관리한다. 이름·학번과 게임 식별 정보는 출석 대조와 모임 이력의 공통 기준이다.",
+      "tags": [
+        "club-roster"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Member",
+          "Game",
+          "가입·휴면 학기"
+        ],
+        "businessRules": [
+          "회원 CSV는 이름·학번 중복을 제거한다.",
+          "게임 CSV는 기존 카탈로그와 같은 제목을 제외한다.",
+          "회원·게임 변경에 감사 이력을 기록한다."
+        ],
+        "crossDomainInteractions": [
+          "회원 ID와 활동 정보를 출석·모임·통계가 공유한다.",
+          "선발 지원자는 새 회원 또는 기존 회원으로 연결된다."
+        ]
+      }
+    },
+    {
+      "id": "domain:meeting-operation",
+      "type": "domain",
+      "name": "출석 편성과 모임 진행",
+      "summary": "참석자를 조에 편성하고 날짜별 현장 계획과 확정 세션을 연결한다. 현장 진행 버전과 세션 아카이브는 독립된 기록으로 관리한다.",
+      "tags": [
+        "meeting-operation"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Attendee",
+          "SessionGroup",
+          "StoredSessionGroup",
+          "DailyPlannings",
+          "Session"
+        ],
+        "businessRules": [
+          "편성 중 조의 memberIds는 attendee ID이며 저장 시 member ID로 변환한다.",
+          "대응 회원이 없는 참석자의 ID는 유지한다.",
+          "시작 당시 음료·희망사항 스냅샷을 교체 가능한 참석 명단과 분리한다.",
+          "계획 삭제는 확정 세션 기록 삭제와 별개다."
+        ],
+        "crossDomainInteractions": [
+          "현재 회원을 출석 매칭에 사용한다.",
+          "확정 sessions가 통계·세션 편집·CSV 백업의 입력이 된다."
+        ]
+      }
+    },
+    {
+      "id": "domain:club-history",
+      "type": "domain",
+      "name": "모임 이력과 통계",
+      "summary": "확정 세션과 현재 회원·게임 자료로 출석·활동·게임 지표를 계산하고 CSV 백업을 제공한다. 과거 스냅샷과 구형 저장 형식의 의미를 유지한다.",
+      "tags": [
+        "club-history"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "Session",
+          "boardMemberIds",
+          "학기 통계",
+          "CSV 백업"
+        ],
+        "businessRules": [
+          "임원 통계는 과거 boardMemberIds를 우선한다.",
+          "boardMemberIds 필드 부재는 현재 회원 정보로 보완하지만 []는 당시 임원 없음이다.",
+          "세션 CSV는 구형 명단과 최신 내보내기 형식을 지원한다.",
+          "조 편집은 로컬 변경과 삭제만 최신 조에 병합한다."
+        ],
+        "crossDomainInteractions": [
+          "모임 진행과 같은 sessions·members·games 자료를 읽는다.",
+          "회원·게임·세션을 한글 CSV로 내보낸다."
+        ]
+      }
+    },
+    {
+      "id": "domain:public-interview",
+      "type": "domain",
+      "name": "공개 면접 응답",
+      "summary": "지원자는 개인 토큰 링크로 면접 가능시간을 제출한다. 운영 문서와 공개 투영을 구분하고 구형 회차 링크와 개별 일정의 응답 범위를 각각 적용한다.",
+      "tags": [
+        "public-interview"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "공개 토큰",
+          "공개 일정",
+          "가능시간 응답"
+        ],
+        "businessRules": [
+          "공개 문서는 허용 필드만 투영한다.",
+          "구형 링크는 최초 접속 KST 날짜 다음 날부터 나흘 범위를 계산한다.",
+          "Firestore rules가 활성 문서 조회와 응답 필드·기간·슬롯을 제한한다.",
+          "KST 나흘 선택 범위는 클라이언트 정책이다."
+        ],
+        "crossDomainInteractions": [
+          "공개 응답과 가능시간이 운영자의 일정 배정에 입력된다.",
+          "일정 이동·토큰 교체·관리자 초기화가 공개 화면 상태에 반영된다."
+        ]
+      }
+    },
+    {
+      "id": "domain:interview-administration",
+      "type": "domain",
+      "name": "면접 운영과 회원 등록",
+      "summary": "운영자는 일정·면접관·지원자를 관리하고 배정·면접 기록·선발을 진행한다. 선발 지원자는 후보 확인 후 기존 회원에 연결하거나 신규 등록한다.",
+      "tags": [
+        "interview-administration"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "InterviewRound",
+          "InterviewSchedule",
+          "Applicant",
+          "Assignment",
+          "InterviewRecord",
+          "회원 연결"
+        ],
+        "businessRules": [
+          "scheduleId undefined는 구형 회차 자료, null은 새 구조의 미지정, 문자열은 일정 연결이다.",
+          "배정 저장은 최신 가능시간·잠금·리비전을 검증한다.",
+          "확정 안내 유효성은 발송 기록과 현재 배정 리비전의 일치로 판단한다.",
+          "회원 등록은 학번·전화번호 정규화와 동명이인·학기별 닉네임 충돌 정책을 적용한다."
+        ],
+        "crossDomainInteractions": [
+          "지원자의 공개 응답을 일정 배정에 사용한다.",
+          "선발 결과를 회원 명부의 신규 등록·기존 회원 연결로 전달한다."
+        ]
+      }
+    },
+    {
+      "id": "flow:maintain-members",
+      "type": "flow",
+      "name": "회원 등록과 수정",
+      "summary": "폼 또는 CSV에서 준비한 회원 정보를 저장한다. 휴면·복원 등 명부 작업은 같은 관리 hook의 별도 동작이다.",
+      "tags": [
+        "maintain-members"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "회원 관리 화면의 등록·수정 또는 CSV 가져오기",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:maintain-members:prepare",
+      "type": "step",
+      "name": "회원 입력 준비",
+      "summary": "기존 회원의 편집값과 기본 가입·휴면 학기를 회원 폼 데이터로 준비한다.",
+      "tags": [
+        "prepare"
+      ],
+      "complexity": "simple",
+      "filePath": "src/domain/members/memberForm.ts"
+    },
+    {
+      "id": "step:maintain-members:csv-option",
+      "type": "step",
+      "name": "CSV 명부 대조",
+      "summary": "CSV 가져오기를 선택한 경우 한글 열을 회원 데이터로 변환하고 이름·학번 중복을 제거한다. 일반 폼 저장에서는 이 단계를 사용하지 않는다.",
+      "tags": [
+        "csv-option"
+      ],
+      "complexity": "simple",
+      "filePath": "src/domain/members/memberCsv.ts"
+    },
+    {
+      "id": "step:maintain-members:save",
+      "type": "step",
+      "name": "회원 변경 저장",
+      "summary": "폼·CSV 등록 또는 회원 수정을 실행하고 변경에 감사 이력을 결합한다.",
+      "tags": [
+        "save"
+      ],
+      "complexity": "complex",
+      "filePath": "src/hooks/useMembersLogic.ts"
+    },
+    {
+      "id": "flow:maintain-games",
+      "type": "flow",
+      "name": "게임 카탈로그 관리",
+      "summary": "등록·수정 또는 CSV 추가로 보유 게임을 관리하고 과거 기록과 함께 조회한다.",
+      "tags": [
+        "maintain-games"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "게임 관리 화면의 등록·수정 또는 CSV 추가",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:maintain-games:prepare",
+      "type": "step",
+      "name": "게임 초안 준비",
+      "summary": "등록 기본값과 기존 게임의 추천 인원 보완값으로 편집 초안을 준비한다.",
+      "tags": [
+        "prepare"
+      ],
+      "complexity": "simple",
+      "filePath": "src/domain/games/gameForm.ts"
+    },
+    {
+      "id": "step:maintain-games:csv-option",
+      "type": "step",
+      "name": "CSV 중복 확인",
+      "summary": "CSV 추가에서는 과거 열 이름과 추천 인원 표기를 해석하고 기존 제목과 중복되는 행을 제외한다. 폼 편집에서는 해당하지 않는다.",
+      "tags": [
+        "csv-option"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/domain/games/gameCsv.ts"
+    },
+    {
+      "id": "step:maintain-games:save",
+      "type": "step",
+      "name": "게임 변경 반영",
+      "summary": "게임 저장과 감사 이력을 배치 쓰기로 연결한다. 목록의 플레이 횟수는 과거 게임명 기반 기록도 포함한다.",
+      "tags": [
+        "save"
+      ],
+      "complexity": "complex",
+      "filePath": "src/hooks/useGamesLogic.ts"
+    },
+    {
+      "id": "flow:start-meeting",
+      "type": "flow",
+      "name": "출석에서 모임 시작",
+      "summary": "CSV 확인과 조 편성을 거쳐 회원 ID 기반 기록을 만든다. 마지막 저장 단계가 계획 보관과 세션 연결을 한 트랜잭션으로 수행한다.",
+      "tags": [
+        "start-meeting"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "출석 화면에서 명단 가져오기·조 편성 후 모임 시작",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:start-meeting:validate",
+      "type": "step",
+      "name": "출석 명단 검증",
+      "summary": "설문 CSV의 열을 연결하고 이름·학번 충돌, 중복 회원과 해석 불가능한 응답을 저장 전에 확인한다.",
+      "tags": [
+        "validate"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/domain/attendance/csvParser.ts"
+    },
+    {
+      "id": "step:start-meeting:assign",
+      "type": "step",
+      "name": "참석자 조 편성",
+      "summary": "미배정 참석자를 배치하고 비용을 줄이는 교환으로 조를 개선한다. 기존 배정 인원은 유지한다.",
+      "tags": [
+        "assign"
+      ],
+      "complexity": "complex",
+      "filePath": "src/domain/matching/autoAssignAlgorithm.ts"
+    },
+    {
+      "id": "step:start-meeting:convert",
+      "type": "step",
+      "name": "저장 ID 변환",
+      "summary": "편성 중 attendee ID를 member ID로 변환한다. 일치 회원이 없는 참석자의 ID는 유지한다.",
+      "tags": [
+        "convert"
+      ],
+      "complexity": "simple",
+      "filePath": "src/domain/attendance/sessionGroups.ts"
+    },
+    {
+      "id": "step:start-meeting:snapshot",
+      "type": "step",
+      "name": "계획 스냅샷 구성",
+      "summary": "회원 ID 기반 조와 연결 세션 ID, 당시 출석자의 음료·희망사항 스냅샷을 계획 자료에 담는다. 이 항목은 저장 계약이며 별도의 DB 호출 순서를 뜻하지 않는다.",
+      "tags": [
+        "snapshot"
+      ],
+      "complexity": "simple",
+      "filePath": "src/domain/attendance/dailyPlanning.ts"
+    },
+    {
+      "id": "step:start-meeting:commit",
+      "type": "step",
+      "name": "계획과 세션 저장",
+      "summary": "기존 계획 보관, 확정 세션 연결과 감사 이력을 트랜잭션으로 저장한다.",
+      "tags": [
+        "commit"
+      ],
+      "complexity": "complex",
+      "filePath": "src/hooks/useAttendanceLogic.ts"
+    },
+    {
+      "id": "flow:manage-meeting-records",
+      "type": "flow",
+      "name": "현장 기록 조회와 변경",
+      "summary": "날짜별 기록을 열고 필요할 때 조 이름 수정이나 버전 복원·삭제를 실행한다. 아래는 선택 가능한 운영 작업의 읽기 순서이며 모두 필수 실행되는 절차는 아니다.",
+      "tags": [
+        "manage-meeting-records"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "모임 진행 화면과 기록·버전 목록",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:manage-meeting-records:open",
+      "type": "step",
+      "name": "기록과 버전 열기",
+      "summary": "진행 기록과 이전 버전을 역순으로 구독하여 선택할 수 있게 한다.",
+      "tags": [
+        "open"
+      ],
+      "complexity": "simple",
+      "filePath": "src/hooks/useMeetingRecords.ts"
+    },
+    {
+      "id": "step:manage-meeting-records:render",
+      "type": "step",
+      "name": "현장 스냅샷 표시",
+      "summary": "선택 계획을 회원·게임·세션과 결합하고 저장된 음료·희망사항을 회원 ID로 연결한다.",
+      "tags": [
+        "render"
+      ],
+      "complexity": "complex",
+      "filePath": "src/hooks/useMeetingProgressLogic.ts"
+    },
+    {
+      "id": "step:manage-meeting-records:mutate",
+      "type": "step",
+      "name": "선택한 기록 변경",
+      "summary": "조 이름 수정, 버전 복원 또는 계획 삭제를 트랜잭션으로 수행한다. 연결 세션의 다른 기록과 계획·세션의 독립성을 보존한다.",
+      "tags": [
+        "mutate"
+      ],
+      "complexity": "complex",
+      "filePath": "src/services/dailyPlanningService.ts"
+    },
+    {
+      "id": "flow:analyze-session-history",
+      "type": "flow",
+      "name": "세션 통계 조회",
+      "summary": "학기와 필터에 맞는 세션·회원·게임으로 통계를 계산하고 화면에 표시한다.",
+      "tags": [
+        "analyze-session-history"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "모임 아카이브의 학기·임원·게임 필터 선택",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:analyze-session-history:select",
+      "type": "step",
+      "name": "공유 이력 선택",
+      "summary": "sessions·members·games를 구독하고 선택 학기와 통계 필터를 계산에 전달한다.",
+      "tags": [
+        "select"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/hooks/useArchiveLogic.ts"
+    },
+    {
+      "id": "step:analyze-session-history:calculate",
+      "type": "step",
+      "name": "과거 임원 기준 집계",
+      "summary": "출석 순위를 계산할 때 임원 스냅샷을 우선한다. 필드가 없을 때만 현재 회원 정보로 보완하고 빈 배열은 임원 없음으로 유지한다.",
+      "tags": [
+        "calculate"
+      ],
+      "complexity": "simple",
+      "filePath": "src/domain/stats/getAttendanceRanking.ts"
+    },
+    {
+      "id": "step:analyze-session-history:display",
+      "type": "step",
+      "name": "통계 화면 표시",
+      "summary": "집계와 필터 상태를 출석 순위·게임·활동 추세 위젯에 연결한다.",
+      "tags": [
+        "display"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/components/ArchivePage.tsx"
+    },
+    {
+      "id": "flow:export-club-data",
+      "type": "flow",
+      "name": "명부와 모임 CSV 백업",
+      "summary": "회원·게임·세션을 조회해 과거 기록의 의미를 보존한 CSV 파일로 내려받는다.",
+      "tags": [
+        "export-club-data"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "설정 화면의 명부·게임·모임 내보내기 버튼",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:export-club-data:choose",
+      "type": "step",
+      "name": "백업 종류 선택",
+      "summary": "회원 명부·게임 라이브러리·모임 아카이브 중 내보낼 항목을 선택한다.",
+      "tags": [
+        "choose"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/components/SettingsExportPanel.tsx"
+    },
+    {
+      "id": "step:export-club-data:serialize",
+      "type": "step",
+      "name": "기록 CSV 직렬화",
+      "summary": "한글 헤더로 자료를 직렬화하면서 세션의 과거 임원 스냅샷과 게임명 저장 형식을 보존한다.",
+      "tags": [
+        "serialize"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/domain/exports/clubCsv.ts"
+    },
+    {
+      "id": "step:export-club-data:download",
+      "type": "step",
+      "name": "파일 다운로드",
+      "summary": "조회·CSV 생성 결과를 날짜가 붙은 파일로 내려받고 성공·실패와 작업 상태를 표시한다. 이 hook이 조회부터 다운로드까지 조정한다.",
+      "tags": [
+        "download"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/hooks/useClubExports.ts"
+    },
+    {
+      "id": "flow:submit-interview-availability",
+      "type": "flow",
+      "name": "공개 가능시간 제출",
+      "summary": "개인 링크의 상태와 적용 범위를 확인한 뒤 가능시간을 저장한다. 마지막 단계는 저장 요청에 적용되는 서버 권한 경계다.",
+      "tags": [
+        "submit-interview-availability"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "지원자가 개인 토큰 링크에서 응답 저장",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:submit-interview-availability:open",
+      "type": "step",
+      "name": "토큰 링크 상태 확인",
+      "summary": "공개 자료를 구독하고 최초 접속·토큰 교체·관리자 초기화와 새 일정 또는 구형 링크의 상태를 판정한다.",
+      "tags": [
+        "open"
+      ],
+      "complexity": "complex",
+      "filePath": "src/hooks/usePublicInterviewLogic.ts"
+    },
+    {
+      "id": "step:submit-interview-availability:legacy-window",
+      "type": "step",
+      "name": "호환 응답 범위 적용",
+      "summary": "구형 회차 링크인 경우 저장된 최초 접속 KST 날짜를 기준으로 다음 날부터 나흘 범위를 계산한다. 새 일정에는 해당 일정의 고정 범위를 사용한다.",
+      "tags": [
+        "legacy-window"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/domain/interviews/publicTimeWindow.ts"
+    },
+    {
+      "id": "step:submit-interview-availability:save",
+      "type": "step",
+      "name": "공개 응답 저장",
+      "summary": "토큰 접근 문서의 최초 접속 및 가능시간 응답을 Firestore에 저장한다.",
+      "tags": [
+        "save"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/services/publicInterviewService.ts"
+    },
+    {
+      "id": "step:submit-interview-availability:authorize",
+      "type": "step",
+      "name": "공개 쓰기 제약 검사",
+      "summary": "Firestore가 조사 기간·허용 슬롯·서버 시각·변경 필드 제한을 적용한다. 이는 저장 요청의 승인 조건이며 클라이언트 후속 함수 호출이 아니다.",
+      "tags": [
+        "authorize"
+      ],
+      "complexity": "complex",
+      "filePath": "firestore.rules"
+    },
+    {
+      "id": "flow:schedule-interviews",
+      "type": "flow",
+      "name": "일정 연결과 면접 배정",
+      "summary": "지원자를 개별 일정에 연결한 뒤 가능시간으로 배정 초안을 만들고 검토하여 저장한다.",
+      "tags": [
+        "schedule-interviews"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "면접 회차 화면의 일정 연결 및 자동·수동 배정",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:schedule-interviews:link",
+      "type": "step",
+      "name": "일정과 구형 자료 구분",
+      "summary": "지원자 이동과 공개 일정 투영을 관리한다. scheduleId undefined만 구형 회차 자료로 처리하고 null 미지정과 구분한다.",
+      "tags": [
+        "link"
+      ],
+      "complexity": "complex",
+      "filePath": "src/services/interviews/schedulesService.ts"
+    },
+    {
+      "id": "step:schedule-interviews:propose",
+      "type": "step",
+      "name": "자동 배정 초안 계산",
+      "summary": "지원자와 면접관의 가능시간으로 최대 배정과 부하 균형을 고려한 초안을 계산한다. 보호된 배정의 자원은 보존한다.",
+      "tags": [
+        "propose"
+      ],
+      "complexity": "complex",
+      "filePath": "src/domain/interviews/autoAssignment.ts"
+    },
+    {
+      "id": "step:schedule-interviews:review",
+      "type": "step",
+      "name": "배정안 검토와 수정",
+      "summary": "검토안의 이동·편집에서 가능시간과 면접관 충돌을 검증하고 잠금·확정 안내 보호를 적용한다.",
+      "tags": [
+        "review"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/components/AutoAssignmentPanel.tsx"
+    },
+    {
+      "id": "step:schedule-interviews:commit",
+      "type": "step",
+      "name": "검증된 배정 저장",
+      "summary": "최신 가능시간·슬롯 잠금·리비전을 검증하며 배정 또는 일괄 제안을 트랜잭션으로 반영한다.",
+      "tags": [
+        "commit"
+      ],
+      "complexity": "complex",
+      "filePath": "src/services/interviews/schedulingService.ts"
+    },
+    {
+      "id": "flow:select-and-register",
+      "type": "flow",
+      "name": "면접 완료에서 회원 등록",
+      "summary": "면접 기록을 저장하고 선발한 지원자에 한해 회원 후보를 확인하여 등록 또는 연결한다.",
+      "tags": [
+        "select-and-register"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "면접 작업 공간의 완료·선발 후 회원 등록 패널",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:select-and-register:notes",
+      "type": "step",
+      "name": "면접 기록 저장",
+      "summary": "질문 답변과 노트·평가 초안을 순차 자동 저장하고 원격 충돌 시 로컬 초안을 보존한다.",
+      "tags": [
+        "notes"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/hooks/useInterviewNoteLogic.ts"
+    },
+    {
+      "id": "step:select-and-register:decide",
+      "type": "step",
+      "name": "완료와 선발 기록",
+      "summary": "면접 완료·재개·선발 전이를 트랜잭션으로 기록하고 배정 버전과 이벤트 이력을 관리한다.",
+      "tags": [
+        "decide"
+      ],
+      "complexity": "complex",
+      "filePath": "src/services/interviews/recordsService.ts"
+    },
+    {
+      "id": "step:select-and-register:candidates",
+      "type": "step",
+      "name": "회원 후보와 충돌 확인",
+      "summary": "선발 지원자의 학번·전화번호를 정규화하고 이름·학번으로 기존 회원 후보 및 학기별 닉네임 충돌을 확인한다.",
+      "tags": [
+        "candidates"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/domain/interviews/memberRegistration.ts"
+    },
+    {
+      "id": "step:select-and-register:choose",
+      "type": "step",
+      "name": "등록 방식 선택",
+      "summary": "활성 선발자 중 기존 회원 연결 또는 신규 등록을 선택하고 후보·충돌 정보를 확인한다.",
+      "tags": [
+        "choose"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/components/MemberRegistrationPanel.tsx"
+    },
+    {
+      "id": "step:select-and-register:register",
+      "type": "step",
+      "name": "회원 등록과 연결",
+      "summary": "선발 지원자를 새 회원으로 등록하거나 기존 회원과 연결한다. 연결 해제는 별도 제공되는 작업이다.",
+      "tags": [
+        "register"
+      ],
+      "complexity": "moderate",
+      "filePath": "src/services/interviews/memberRegistrationService.ts"
+    }
+  ],
+  "edges": [
+    {
+      "source": "domain:club-roster",
+      "target": "flow:maintain-members",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:maintain-members",
+      "target": "step:maintain-members:prepare",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:maintain-members",
+      "target": "step:maintain-members:csv-option",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:maintain-members",
+      "target": "step:maintain-members:save",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:club-roster",
+      "target": "flow:maintain-games",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:maintain-games",
+      "target": "step:maintain-games:prepare",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:maintain-games",
+      "target": "step:maintain-games:csv-option",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:maintain-games",
+      "target": "step:maintain-games:save",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:meeting-operation",
+      "target": "flow:start-meeting",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:start-meeting",
+      "target": "step:start-meeting:validate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:start-meeting",
+      "target": "step:start-meeting:assign",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:start-meeting",
+      "target": "step:start-meeting:convert",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:start-meeting",
+      "target": "step:start-meeting:snapshot",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:start-meeting",
+      "target": "step:start-meeting:commit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:meeting-operation",
+      "target": "flow:manage-meeting-records",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:manage-meeting-records",
+      "target": "step:manage-meeting-records:open",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:manage-meeting-records",
+      "target": "step:manage-meeting-records:render",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:manage-meeting-records",
+      "target": "step:manage-meeting-records:mutate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:club-history",
+      "target": "flow:analyze-session-history",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:analyze-session-history",
+      "target": "step:analyze-session-history:select",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:analyze-session-history",
+      "target": "step:analyze-session-history:calculate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:analyze-session-history",
+      "target": "step:analyze-session-history:display",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:club-history",
+      "target": "flow:export-club-data",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:export-club-data",
+      "target": "step:export-club-data:choose",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:export-club-data",
+      "target": "step:export-club-data:serialize",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "flow:export-club-data",
+      "target": "step:export-club-data:download",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:public-interview",
+      "target": "flow:submit-interview-availability",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:submit-interview-availability",
+      "target": "step:submit-interview-availability:open",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:submit-interview-availability",
+      "target": "step:submit-interview-availability:legacy-window",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:submit-interview-availability",
+      "target": "step:submit-interview-availability:save",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:submit-interview-availability",
+      "target": "step:submit-interview-availability:authorize",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:interview-administration",
+      "target": "flow:schedule-interviews",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:schedule-interviews",
+      "target": "step:schedule-interviews:link",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.3
+    },
+    {
+      "source": "flow:schedule-interviews",
+      "target": "step:schedule-interviews:propose",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:schedule-interviews",
+      "target": "step:schedule-interviews:review",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:schedule-interviews",
+      "target": "step:schedule-interviews:commit",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:interview-administration",
+      "target": "flow:select-and-register",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:select-and-register",
+      "target": "step:select-and-register:notes",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:select-and-register",
+      "target": "step:select-and-register:decide",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:select-and-register",
+      "target": "step:select-and-register:candidates",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:select-and-register",
+      "target": "step:select-and-register:choose",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:select-and-register",
+      "target": "step:select-and-register:register",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:club-roster",
+      "target": "domain:meeting-operation",
+      "type": "cross_domain",
+      "direction": "forward",
+      "weight": 0.8,
+      "description": "현재 members 자료로 참석자를 대조하고 attendee ID를 지속되는 member ID로 변환한다."
+    },
+    {
+      "source": "domain:meeting-operation",
+      "target": "domain:club-history",
+      "type": "cross_domain",
+      "direction": "forward",
+      "weight": 0.8,
+      "description": "확정 sessions와 당시 임원 스냅샷이 아카이브·통계·CSV 백업의 입력이다."
+    },
+    {
+      "source": "domain:club-roster",
+      "target": "domain:club-history",
+      "type": "cross_domain",
+      "direction": "forward",
+      "weight": 0.8,
+      "description": "현재 회원의 활동 상태·게임 자료를 통계에 사용하고, 구형 세션의 임원 스냅샷 부재만 현재 명부로 보완한다."
+    },
+    {
+      "source": "domain:interview-administration",
+      "target": "domain:public-interview",
+      "type": "cross_domain",
+      "direction": "forward",
+      "weight": 0.8,
+      "description": "일정 설정·공개 투영·토큰 변경과 초기화가 지원자 응답 화면의 조건을 정한다."
+    },
+    {
+      "source": "domain:public-interview",
+      "target": "domain:interview-administration",
+      "type": "cross_domain",
+      "direction": "forward",
+      "weight": 0.8,
+      "description": "가능시간 응답과 현재 상태를 운영 화면과 자동·수동 배정에서 사용한다."
+    },
+    {
+      "source": "domain:interview-administration",
+      "target": "domain:club-roster",
+      "type": "cross_domain",
+      "direction": "forward",
+      "weight": 0.8,
+      "description": "선발 지원자의 학번·이름 후보 확인 후 신규 회원 등록 또는 기존 회원 연결을 기록한다."
+    }
+  ],
+  "layers": [],
+  "tour": []
+}
