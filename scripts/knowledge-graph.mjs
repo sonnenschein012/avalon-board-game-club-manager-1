@@ -118,6 +118,10 @@ export function freshness(current, state, artifacts) {
 function artifactHashes(root) {
   return Object.fromEntries(artifactNames.map(name => [name, existsSync(join(root, '.ua', name)) ? hash(readFileSync(join(root, '.ua', name))) : null]));
 }
+export function cosmeticReviewIssues(paths, review) {
+  return paths.filter(path => !review?.some(item => item.path === path && item.unchangedMeaning === true && typeof item.evidence === 'string' && item.evidence.trim().length > 0))
+    .map(path => `Cosmetic change requires a source diff review or full analysis: ${path}`);
+}
 export async function main(args) {
   const [command = 'status', rootArg = '.', ...options] = args;
   const root = resolve(rootArg), ua = join(root, '.ua');
@@ -164,7 +168,7 @@ export async function main(args) {
     if (review.status !== 'passed' || review.inputDigest !== current.digest || review.graphHash !== hash(readFileSync(join(ua, 'knowledge-graph.json'))) || review.domainHash !== hash(readFileSync(join(ua, 'domain-graph.json')))) issues.push('Missing or stale semantic review');
     if ((current.dirty || state?.input.dirty) && !options.includes('--full')) issues.push('Dirty input/baseline requires a full analysis');
     const planPath = join(ua, 'intermediate/incremental-plan.json');
-    if (!options.includes('--full') && existsSync(planPath) && json(planPath).cosmeticFiles?.length) issues.push('Cosmetic classification may hide behavior changes; perform full semantic analysis');
+    if (!options.includes('--full') && existsSync(planPath)) issues.push(...cosmeticReviewIssues(json(planPath).cosmeticFiles ?? [], review.cosmeticReview));
     if (!issues.length) {
       const next = { version: 1, status: 'verified', verifiedAt: new Date().toISOString(), tool: installation, mode: options.includes('--full') ? 'full' : 'incremental', input: current, artifacts: artifactHashes(root) };
       atomic(join(ua, 'verification/accepted-graph.json'), graph);

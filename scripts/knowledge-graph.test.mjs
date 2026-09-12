@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, renameSync, unlinkSync } from 'n
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
-import { inventory, snapshot, freshness, validateGraph } from './knowledge-graph.mjs';
+import { inventory, snapshot, freshness, validateGraph, cosmeticReviewIssues } from './knowledge-graph.mjs';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'avalon-ua-test-'));
@@ -87,4 +87,13 @@ test('source traversal and unsafe paths are rejected', () => {
   const candidate = graph();
   candidate.nodes[0].filePath = '../outside.ts';
   assert.ok(validateGraph(candidate, {}).some(issue => issue.startsWith('Unknown source')));
+});
+
+test('cosmetic classification needs explicit evidence for every changed file', () => {
+  const paths = ['src/a.ts', 'src/b.ts'];
+  const reviewed = [{ path: paths[0], unchangedMeaning: true, evidence: 'Only whitespace changed in the source diff.' }];
+  assert.equal(cosmeticReviewIssues(paths, reviewed).length, 1);
+  assert.equal(cosmeticReviewIssues(paths, [...reviewed, { path: paths[1], unchangedMeaning: false, evidence: 'Return value changed.' }]).length, 1);
+  assert.equal(cosmeticReviewIssues(paths, [...reviewed, { path: paths[1], unchangedMeaning: true, evidence: '' }]).length, 1);
+  assert.deepEqual(cosmeticReviewIssues([paths[0]], reviewed), []);
 });

@@ -18,8 +18,7 @@ agent_docs/
 .codex_workflow_hidden_resources/
 AGENTS.md
 
-# Local Graphify / Codex integration
-graphify-out/
+# Local Codex integration
 .codex/
 
 # Local Understand-Anything analysis and verification artifacts

@@ -10,6 +10,8 @@ Windows에서는 공식 저장소의 `install.ps1`을 파일로 다운로드하�
 
 Node 22 이상, Git, pnpm 10 이상, 배치 병합용 Python 3이 필요합니다. 현재 Codex 모델·인증을 사용하며 별도 API 키를 추가하지 않습니다. 구조 추출·해시·검증은 로컬 계산이고, 설명·투어·업무 흐름·LLM 검토에는 Codex 사용량이 발생합니다. 정확한 소요량은 실행 결과로 기록합니다.
 
+이 Windows 환경의 UA 분석·회귀 검증은 Node 22.23.2를 사용합니다. Node 24에서는 공식 증분 테스트의 하위 프로세스가 네이티브 오류로 종료되는 현상을 재현했습니다. 전역 앱 런타임은 바꾸지 않고 `npm exec --yes --package=node@22.23.2 -- node <공식 스크립트> <인자>` 또는 `.ua/installation.json`의 검증된 Node 실행 경로를 사용합니다. npm 캐시 경로는 다른 컴퓨터에서 재사용할 수 없으므로 재설치 시 다시 확인합니다.
+
 Codex 스킬 호출은 `$understand`처럼 채팅에서 합니다. PowerShell 명령이 아닙니다. 스킬 문서의 Bash 예제는 PowerShell로 변환하고 공식 Node/Python 스크립트를 실행합니다. junction 읽기가 제한되면 실제 플러그인 경로를 사용합니다. Windows ESM import는 `pathToFileURL`을 사용합니다. 실패 시 lockfile을 재작성하거나 새 분석기를 만들지 않습니다.
 
 ## 입력과 출력
@@ -33,11 +35,15 @@ Codex 스킬 호출은 `$understand`처럼 채팅에서 합니다. PowerShell �
 
 ## 갱신과 검증
 
-먼저 `node scripts/knowledge-graph.mjs begin`으로 입력 기준을 저장합니다. 최초, 미커밋·신규 파일이 있는 상태, 이전 정상본이 dirty 상태에서 생성된 경우에는 `$understand --full --review --language ko --no-auto-update`를 실행합니다. 깨끗한 커밋 기준점 이후의 작은 변경에만 공식 증분 `$understand`를 사용합니다. 분석을 위해 사용자 작업을 commit/stash/reset하지 않습니다.
+최초에는 `node scripts/knowledge-graph.mjs begin`으로 입력 기준을 저장하고 `$understand --full --review --language ko --no-auto-update`를 실행합니다. 이후 편집 중이거나 일반적인 미커밋 작업을 마친 시점에는 전체 분석을 자동 실행하지 않습니다. `status`의 stale 상태를 유지하고, 마지막 정상 그래프와 실제 staged·unstaged·신규 파일의 차이를 함께 검토합니다. 오래된 그래프를 현재 코드의 설명으로 제시하지 않습니다.
+
+깨끗한 커밋 기준점 이후 작은 변경에는 공식 증분 `$understand`를 사용합니다. 주요 업무 규칙·권한·공유 데이터 계약 변경이나 정한 유지보수 이정표에서 전체 분석합니다. 미커밋 상태에서 생성한 기준점은 다음 전체 분석 때 깨끗한 커밋 기준점으로 다시 세웁니다. 그 전에는 증분 승인 대신 코드 차이를 직접 검토합니다. 분석을 위해 사용자 작업을 commit/stash/reset하지 않습니다. 미커밋 변경까지 최신 그래프가 꼭 필요하면 명시적으로 전체 분석을 실행합니다.
 
 이 버전의 증분 처리기는 관련 미커밋 변경을 거부합니다. 부분 갱신은 투어 문장을 유지합니다. 함수 시그니처가 같아도 조건·반환값·업무 의미가 달라지면 설명을 직접 확인하고, 의미·권한·공유 데이터 계약·투어가 달라지는 경우 전체 분석으로 승격합니다. 업무 흐름은 지식 그래프 갱신 후 `$understand-domain`으로 별도 생성합니다. 파일이 분석 중 바뀌면 정상 기준점으로 승인하지 않습니다.
 
-공식 `incremental-plan.json`에 `cosmeticFiles`가 있으면 본문 의미 변경이 숨어 있을 수 있으므로 전체 분석으로 승격합니다. 프로젝트 승인 명령도 이 상태의 증분 승인을 거부합니다. 구조가 같은 코드의 의미 변경을 무비용 갱신으로 처리하지 않습니다.
+공식 `incremental-plan.json`의 `cosmeticFiles`는 구조가 같은 변경이며 의미까지 같다는 보장이 아닙니다. 해당 diff를 검토하고 `.ua/verification/semantic-review.json`의 `cosmeticReview`에 모든 파일의 `{path, unchangedMeaning: true, evidence: "검토한 변경과 의미 유지 근거"}`를 기록한 경우에만 증분 승인을 허용합니다. 의미가 달라졌거나 판단할 수 없으면 전체 분석합니다. 단순 주석·서식 변경 때문에 무조건 전체 분석하지 않습니다.
+
+비용을 줄이기 위해 일반 파일의 설명은 짧게 유지하고 업무 규칙·저장 계약·권한·필수 질의에 상세 설명을 집중합니다. 구조 추출 결과와 파일별 완료 산출물은 해시로 확인해 재사용하며, 분석 작업자는 최대 두 개로 제한합니다. 분석 범위와 필수 검증은 줄이지 않습니다. 모델·인증은 명시적인 사용자 결정 없이 바꾸지 않습니다.
 
 `node scripts/knowledge-graph.mjs verify`는 독립 파일 목록, 전체 fingerprint, 그래프 참조·레이어·투어, 변경되지 않은 노드·관계 보존을 검사합니다. 공식 스키마 검증과 LLM 검토도 수행합니다. 설명의 의미 정확성은 기계 검사만으로 판정할 수 없습니다.
 
