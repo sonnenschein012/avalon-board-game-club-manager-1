@@ -16,11 +16,11 @@ Codex 스킬 호출은 `$understand`처럼 채팅에서 합니다. PowerShell �
 
 ## 입력과 출력
 
-`.ua/`는 Git 제외 산출물입니다. 기존 프로젝트 `.understand-anything/`가 있으면 공식 도구가 이를 우선하므로 두 디렉터리를 동시에 만들지 않습니다. `.ua/config.json`은 `{"autoUpdate":false,"outputLanguage":"ko"}`를 사용합니다. 커밋 훅이나 주기적 자동 분석은 설치하지 않습니다.
+`.ua/`는 검증된 이식 가능 묶음만 Git에 공유합니다. `.gitignore`의 허용 목록은 그래프 두 개, fingerprints, meta, scan-result, 검증 상태, semantic-review, accepted-graph, 분석 설정과 toolchain입니다. installation.json, pending-input, 중간 배치와 임시·캐시 파일은 로컬 전용입니다. 기존 프로젝트 `.understand-anything/`가 있으면 공식 도구가 이를 우선하므로 두 디렉터리를 동시에 만들지 않습니다. `.ua/config.json`은 `{"autoUpdate":false,"outputLanguage":"ko"}`를 사용합니다. 커밋 훅이나 주기적 자동 분석은 설치하지 않습니다.
 
 분석에는 `src/`, 모든 단위·통합·Playwright 테스트와 합성 fixture, `scripts/`, `docs/`, README, Firestore 규칙·인덱스, Firebase/Vite/TypeScript/ESLint/CI 설정을 포함합니다. 생성물, 의존성, 바이너리 이미지, 실제 업무 데이터, `.env*`, 인증 파일, 중복 백업과 과거 그래프는 제외합니다. `.ua/.understandignore`에 이를 기록하고 테스트 제외 제안을 활성화하지 않습니다. 초기 스캔의 파일 목록은 검증 스크립트의 독립 목록과 일치해야 합니다. 분석 범위를 바꾸면 두 목록을 함께 검토합니다.
 
-`agent_docs/`는 Git 제외되어 공식 스캐너에서 빠질 수 있습니다. 필요한 원문을 직접 읽고 소스와 대조해 지속적인 결정만 기존 개발·운영 문서에 반영합니다. `AGENTS.md`, 분석 설정 및 `agent_docs/*.md`의 내용 해시는 별도로 감시합니다.
+`agent_docs/`는 선택적인 과거 기록이며 공유 분석 입력에 포함하지 않습니다. 필요한 지속적 결정은 소스와 대조해 docs/에 기록합니다. Git에 공유하는 `AGENTS.md`, 제외 규칙, 분석 설정과 toolchain의 내용 해시는 별도로 감시합니다. AGENTS.md는 파일 노드가 아닌 검증 제어 입력입니다.
 
 주요 산출물은 `knowledge-graph.json`, `domain-graph.json`, `fingerprints.json`, `meta.json`, `intermediate/scan-result.json`입니다. 이 묶음과 검증 상태를 함께 보관·복구합니다. 그래프의 노드 수는 정확성 점수가 아닙니다.
 
@@ -37,7 +37,7 @@ Codex 스킬 호출은 `$understand`처럼 채팅에서 합니다. PowerShell �
 
 최초에는 `node scripts/knowledge-graph.mjs begin`으로 입력 기준을 저장하고 `$understand --full --review --language ko --no-auto-update`를 실행합니다. 이후 편집 중이거나 일반적인 미커밋 작업을 마친 시점에는 전체 분석을 자동 실행하지 않습니다. `status`의 stale 상태를 유지하고, 마지막 정상 그래프와 실제 staged·unstaged·신규 파일의 차이를 함께 검토합니다. 오래된 그래프를 현재 코드의 설명으로 제시하지 않습니다.
 
-깨끗한 커밋 기준점 이후 작은 변경에는 공식 증분 `$understand`를 사용합니다. 주요 업무 규칙·권한·공유 데이터 계약 변경이나 정한 유지보수 이정표에서 전체 분석합니다. 미커밋 상태에서 생성한 기준점은 다음 전체 분석 때 깨끗한 커밋 기준점으로 다시 세웁니다. 그 전에는 증분 승인 대신 코드 차이를 직접 검토합니다. 분석을 위해 사용자 작업을 commit/stash/reset하지 않습니다. 미커밋 변경까지 최신 그래프가 꼭 필요하면 명시적으로 전체 분석을 실행합니다.
+깨끗한 커밋 기준점 이후 작은 변경에는 공식 증분 `$understand`를 사용합니다. 주요 업무 규칙·권한·공유 데이터 계약 변경이나 정한 유지보수 이정표에서 전체 분석합니다. 내용이 동일하면 커밋 이동이나 dirty 해제만으로 기존 검증이 무효화되지는 않습니다. 다만 dirty 기준점에서 공식 증분 승인은 허용하지 않으며, 다음 전체 분석으로 깨끗한 기준점을 만듭니다. 분석을 위해 사용자 작업을 commit/stash/reset하지 않습니다. 미커밋 변경까지 최신 그래프가 꼭 필요하면 명시적으로 전체 분석을 실행합니다.
 
 이 버전의 증분 처리기는 관련 미커밋 변경을 거부합니다. 부분 갱신은 투어 문장을 유지합니다. 함수 시그니처가 같아도 조건·반환값·업무 의미가 달라지면 설명을 직접 확인하고, 의미·권한·공유 데이터 계약·투어가 달라지는 경우 전체 분석으로 승격합니다. 업무 흐름은 지식 그래프 갱신 후 `$understand-domain`으로 별도 생성합니다. 파일이 분석 중 바뀌면 정상 기준점으로 승인하지 않습니다.
 
@@ -64,6 +64,14 @@ LLM 검토 결과를 `.ua/verification/semantic-review.json`에 기록합니다.
 
 ## 실패와 복구
 
-갱신 전 정상 `.ua` 묶음을 프로젝트 밖에 백업합니다. 실패 결과는 진단용으로 남기되 정상본을 덮어쓰거나 최신으로 표시하지 않습니다. 정상본 복구 시 graph/domain/fingerprints/meta/scan과 verification-state를 함께 복구합니다. 다른 작업이 진행된 뒤에는 이전 백업으로 사용자 파일 전체를 덮어쓰지 않습니다.
+갱신 전 정상 `.ua` 묶음을 프로젝트 밖에 백업합니다. 실패 결과는 진단용으로 남기되 정상본을 덮어쓰거나 최신으로 표시하지 않습니다. 정상본 복구 시 Git 허용 목록의 전체 묶음(그래프·fingerprints·meta·scan·검토·accepted-graph·검증 상태·설정)을 같은 검증 커밋에서 함께 복구합니다. 다른 작업이 진행된 뒤에는 이전 백업으로 사용자 파일 전체를 덮어쓰지 않습니다.
 
 이전 Graphify 통합과 산출물 백업은 사용자 홈의 `.codex/migration-backups/avalon-ua-20260910`에 있습니다. 전환 후 두 번의 실제 유지보수 세션이 성공할 때까지 보관합니다. 전역 Graphify CLI는 다른 프로젝트 사용 범위가 확인되지 않아 제거하지 않습니다. 이번 프로젝트는 UA를 사용하며 전역 CLI의 잔존은 병행 운영을 뜻하지 않습니다.
+
+## 컴퓨터 간 공유와 검증 기준
+
+새 컴퓨터 절차는 [새 컴퓨터에서 시작하기](new-computer.md)를 따릅니다. Git commit은 분석 대상 추적용이고 push는 배포가 아닌 저장소 공유입니다. `status`는 Node와 Git만으로 공유 입력의 SHA-256과 모든 필수 산출물 해시를 확인하며 개인 도구 설치와 agent_docs/에 의존하지 않습니다. 그래프만 저장한 후속 커밋에서도 입력이 같으면 current입니다. `.gitattributes`는 텍스트 checkout을 LF로 통일해 Windows와 다른 OS 사이의 줄바꿈 차이로 해시가 달라지는 것을 막습니다.
+
+`verify`는 설치된 고정 UA 스키마를 사용해 전체 구조·fingerprint·검증 묶음을 다시 검사합니다. 기존 묶음 검증에는 로컬 pending-input.json이 필요 없습니다. 새 분석 승인에는 begin으로 기록한 입력, 공식 스키마 검증과 해당 입력·그래프에 연결된 의미 검토가 모두 필요합니다. toolchain.json은 버전만 공유하고 installation.json의 실행 경로는 공유하지 않습니다.
+
+정책·소스·문서 변경을 먼저 커밋한 뒤 begin → 공식 분석·검토 → verify/accept 순서로 진행하고, 허용 목록의 산출물을 두 번째 커밋으로 저장해 함께 push합니다. 승인 이후 입력이나 산출물이 바뀌면 다시 검증합니다. CI는 그래프가 current일 때 verify를 실행하는 대신 로컬 도구 설치 없는 status로 입력·산출물 무결성을 검사할 수 있습니다. 일반 소스 작업의 stale은 재분석 필요 표시이며 앱 자체의 실패를 뜻하지 않습니다.

@@ -99,3 +99,7 @@ npm.cmd run test:rules
 staging은 운영과 분리된 `avalon-manager-staging` 프로젝트를 사용합니다. `npm.cmd run deploy:staging`은 이 프로젝트의 기본 데이터베이스에 Rules/인덱스를, 같은 이름의 Hosting site에 정적 앱을 순서대로 배포합니다. 정확한 대상과 운영 배포 명령은 [운영·인수인계](docs/operations.md)에 정리되어 있습니다.
 
 일반 및 staging 빌드는 `index.html`만 진입점으로 사용합니다. 빌드 후 검증 스크립트가 `design.html`, Scenario fixture, 가짜 사용자 식별자가 `dist`에 들어오면 배포 전에 실패시킵니다.
+
+## 새 컴퓨터·새 작업 세션
+
+[새 컴퓨터에서 시작하기](docs/new-computer.md)에 설치, 그래프 재사용, Firebase 로그인 절차가 있습니다. Git에 공유된 AGENTS.md와 docs/가 새 세션의 기준이며, 이전 대화와 agent_docs/ 복사는 필수가 아닙니다.

@@ -10,8 +10,8 @@ const roots = ['src', 'tests', 'scripts', 'docs', '.github', 'public'];
 const textExtension = /\.(?:tsx?|jsx?|mjs|cjs|ps1|json|ya?ml|md|html|css|rules|webmanifest)$/i;
 const excluded = /(?:^|\/)(?:node_modules|dist|build|coverage|graphify-out|\.ua|\.git|playwright-report|test-results|\.firebase|\.demo-runtime)(?:\/|$)|(?:^|\/)(?:package-lock\.json|stats\.html|\.env[^/]*$)|\.(?:bak|backup)$/;
 const fileTypes = new Set(['file', 'config', 'document', 'service', 'pipeline', 'table', 'schema', 'resource', 'endpoint']);
-const controls = ['.gitignore', '.understandignore', '.ua/.understandignore', '.ua/config.json', 'AGENTS.md'];
-const artifactNames = ['knowledge-graph.json', 'domain-graph.json', 'fingerprints.json', 'meta.json', 'intermediate/scan-result.json'];
+const controls = ['.gitignore', '.understandignore', '.ua/.understandignore', '.ua/config.json', '.ua/toolchain.json', 'AGENTS.md'];
+const artifactNames = ['knowledge-graph.json', 'domain-graph.json', 'fingerprints.json', 'meta.json', 'intermediate/scan-result.json', 'verification/semantic-review.json', 'verification/accepted-graph.json'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 const json = path => JSON.parse(readFileSync(path, 'utf8'));
 const canonical = value => JSON.stringify(value);
@@ -46,9 +46,6 @@ export function inventory(root) {
 export function snapshot(root) {
   const files = inventory(root);
   const references = [...controls];
-  if (existsSync(join(root, 'agent_docs'))) {
-    for (const name of readdirSync(join(root, 'agent_docs'))) if (name.endsWith('.md')) references.push(`agent_docs/${name}`);
-  }
   const context = Object.fromEntries(references.sort().filter(path => existsSync(join(root, path)))
     .map(path => [path, hash(readFileSync(join(root, path)))]));
   const changed = args => git(root, args).split('\0').filter(Boolean).map(slash).filter(path => path in files || path in context || !existsSync(join(root, path)) && roots.some(dir => path.startsWith(`${dir}/`)));
@@ -111,8 +108,6 @@ export function freshness(current, state, artifacts) {
   if (!state || state.status !== 'verified') return 'unverified';
   if (canonical(artifacts) !== canonical(state.artifacts)) return 'artifact-drift';
   if (current.digest !== state.input.digest) return 'stale';
-  if (state.input.dirty && !current.dirty) return 'clean-rebaseline-required';
-  if (current.head !== state.input.head) return 'commit-reconciliation-required';
   return 'current';
 }
 function artifactHashes(root) {
@@ -142,7 +137,7 @@ export async function main(args) {
   const fingerprints = json(join(ua, 'fingerprints.json'));
   const meta = json(join(ua, 'meta.json'));
   const domain = json(join(ua, 'domain-graph.json'));
-  const installation = json(join(ua, 'installation.json'));
+  const installation = json(join(ua, 'toolchain.json'));
   const toolRoot = join(homedir(), '.understand-anything/repo');
   if (git(toolRoot, ['rev-parse', 'HEAD']).trim() !== installation.commit) throw new Error('Installed tool revision changed; revalidate the upgrade');
   const { KnowledgeGraphSchema } = await import(pathToFileURL(join(toolRoot, 'understand-anything-plugin/packages/core/dist/schema.js')).href);
@@ -157,12 +152,14 @@ export async function main(args) {
   for (const path of scanned) if (!(path in current.files)) issues.push(`Unexpected scan input: ${path}`);
   if (scan.failures?.length) issues.push('Scanner reported file failures');
   for (const path of Object.keys(current.files)) if (fingerprints.files?.[path]?.contentHash !== current.files[path]) issues.push(`Fingerprint mismatch: ${path}`);
-  if (graph.project?.gitCommitHash !== current.head || meta.gitCommitHash !== current.head || fingerprints.gitCommitHash !== current.head) issues.push('Analysis commit mismatch');
+  const pendingPath = join(ua, 'verification/pending-input.json');
+  const pending = command === 'accept' ? json(pendingPath) : state?.input;
+  if (!pending || graph.project?.gitCommitHash !== pending.head || meta.gitCommitHash !== pending.head || fingerprints.gitCommitHash !== pending.head) issues.push('Analysis commit mismatch');
   if (!domain.nodes?.length || !domain.edges?.length) issues.push('Missing domain analysis');
   const domainIds = new Set(domain.nodes?.map(node => node.id));
   for (const edge of domain.edges ?? []) if (!domainIds.has(edge.source) || !domainIds.has(edge.target)) issues.push(`Dangling domain edge: ${edge.source}`);
-  const pending = json(join(ua, 'verification/pending-input.json'));
-  if (pending.digest !== current.digest || pending.head !== current.head) issues.push('Inputs changed during analysis; begin and analyze again');
+  if (!pending || pending.digest !== current.digest || command === 'accept' && pending.head !== current.head) issues.push('Inputs changed during analysis; begin and analyze again');
+  if (command === 'verify' && freshness(current, state, artifactHashes(root)) !== 'current') issues.push('Shared verification bundle is stale or damaged');
   if (command === 'accept' && !issues.length) {
     const review = json(join(ua, 'verification/semantic-review.json'));
     if (review.status !== 'passed' || review.inputDigest !== current.digest || review.graphHash !== hash(readFileSync(join(ua, 'knowledge-graph.json'))) || review.domainHash !== hash(readFileSync(join(ua, 'domain-graph.json')))) issues.push('Missing or stale semantic review');
@@ -170,8 +167,8 @@ export async function main(args) {
     const planPath = join(ua, 'intermediate/incremental-plan.json');
     if (!options.includes('--full') && existsSync(planPath)) issues.push(...cosmeticReviewIssues(json(planPath).cosmeticFiles ?? [], review.cosmeticReview));
     if (!issues.length) {
-      const next = { version: 1, status: 'verified', verifiedAt: new Date().toISOString(), tool: installation, mode: options.includes('--full') ? 'full' : 'incremental', input: current, artifacts: artifactHashes(root) };
       atomic(join(ua, 'verification/accepted-graph.json'), graph);
+      const next = { version: 2, status: 'verified', verifiedAt: new Date().toISOString(), tool: installation, mode: options.includes('--full') ? 'full' : 'incremental', input: current, artifacts: artifactHashes(root) };
       atomic(statePath, next);
     }
   }

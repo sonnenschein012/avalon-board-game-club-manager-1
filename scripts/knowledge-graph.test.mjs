@@ -42,26 +42,53 @@ test('rename and deletion change inventory without a new commit', () => {
   unlinkSync(join(root, 'src/renamed.ts'));
   assert.deepEqual(inventory(root), {});
 });
-test('ignored reference documents and controls affect freshness; artifacts do not affect input', () => {
+test('local history is optional; shared controls affect freshness; artifacts do not affect input', () => {
   const root = fixture();
   mkdirSync(join(root, 'agent_docs'));
   mkdirSync(join(root, '.ua'));
   writeFileSync(join(root, 'agent_docs/project_diary.md'), '기존 결정');
   const before = snapshot(root);
   writeFileSync(join(root, 'agent_docs/project_diary.md'), '갱신된 결정');
-  assert.notEqual(snapshot(root).digest, before.digest);
+  assert.equal(snapshot(root).digest, before.digest);
   const referenceUpdated = snapshot(root);
   writeFileSync(join(root, '.ua/knowledge-graph.json'), '{}');
   assert.equal(snapshot(root).digest, referenceUpdated.digest);
   writeFileSync(join(root, '.ua/.understandignore'), 'tests/');
   assert.notEqual(snapshot(root).digest, referenceUpdated.digest);
 });
-test('dirty baseline becoming clean requires full rebaseline', () => {
+test('same inputs survive commit changes and cleaning; artifact corruption remains invalid', () => {
   const root = fixture(), input = snapshot(root), artifacts = { graph: 'hash' };
   const state = { status: 'verified', input: { ...input, dirty: true }, artifacts };
-  assert.equal(freshness(input, state, artifacts), 'clean-rebaseline-required');
+  assert.equal(freshness(input, state, artifacts), 'current');
+  assert.equal(freshness({ ...input, head: 'another-commit' }, state, artifacts), 'current');
+  assert.equal(freshness({ ...input, digest: 'changed' }, state, artifacts), 'stale');
   assert.equal(freshness(input, state, { graph: 'corrupt' }), 'artifact-drift');
   assert.equal(freshness(input, null, artifacts), 'unverified');
+});
+
+test('fresh clone preserves input hashes without local history or installation paths', () => {
+  const root = fixture();
+  mkdirSync(join(root, '.ua'));
+  writeFileSync(join(root, '.gitattributes'), '* text=auto eol=lf\n');
+  writeFileSync(join(root, '.gitignore'), 'agent_docs/\n.ua/installation.json\n');
+  writeFileSync(join(root, 'AGENTS.md'), '# Shared instructions\n');
+  writeFileSync(join(root, '.ua/toolchain.json'), '{"commit":"pinned"}\n');
+  writeFileSync(join(root, '.ua/knowledge-graph.json'), '{}\n');
+  execFileSync('git', ['-C', root, 'add', '.']);
+  execFileSync('git', ['-C', root, '-c', 'user.name=UA verification', '-c', 'user.email=ua-test@localhost', 'commit', '--quiet', '-m', 'portable inputs']);
+  mkdirSync(join(root, 'agent_docs'));
+  writeFileSync(join(root, 'agent_docs/history.md'), 'Old session');
+  writeFileSync(join(root, '.ua/installation.json'), '{"path":"machine-specific"}');
+  const before = snapshot(root);
+  const clone = join(mkdtempSync(join(tmpdir(), 'avalon-ua-clone-')), 'checkout');
+  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', '--config', 'core.autocrlf=true', root, clone]);
+  assert.deepEqual(snapshot(clone).files, before.files);
+  assert.deepEqual(snapshot(clone).context, before.context);
+  assert.equal(snapshot(clone).digest, before.digest);
+  writeFileSync(join(clone, '.ua/toolchain.json'), '{"commit":"changed"}');
+  assert.notEqual(snapshot(clone).digest, before.digest);
+  unlinkSync(join(clone, 'AGENTS.md'));
+  assert.notEqual(snapshot(clone).digest, before.digest);
 });
 test('validation rejects missing files, dangling references and duplicate IDs', () => {
   const candidate = graph();

@@ -16,10 +16,24 @@ stats.html
 .codex-tmp-deploy-*
 agent_docs/
 .codex_workflow_hidden_resources/
-AGENTS.md
 
 # Local Codex integration
 .codex/
 
-# Local Understand-Anything analysis and verification artifacts
-.ua/
+# Share only the portable, verified Understand-Anything bundle.
+.ua/*
+!.ua/.understandignore
+!.ua/config.json
+!.ua/toolchain.json
+!.ua/knowledge-graph.json
+!.ua/domain-graph.json
+!.ua/fingerprints.json
+!.ua/meta.json
+!.ua/verification-state.json
+!.ua/intermediate/
+.ua/intermediate/*
+!.ua/intermediate/scan-result.json
+!.ua/verification/
+.ua/verification/*
+!.ua/verification/semantic-review.json
+!.ua/verification/accepted-graph.json

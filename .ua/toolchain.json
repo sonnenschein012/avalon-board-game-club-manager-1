@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/Egonex-AI/Understand-Anything",
+  "commit": "5feed1f2ce4f9c368d860f4c0ebc36d98a4693fc",
+  "packageVersion": "2.9.6",
+  "node": "22.23.2",
+  "pnpm": "10.6.2"
+}

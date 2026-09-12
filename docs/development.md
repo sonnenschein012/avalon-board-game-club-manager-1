@@ -64,4 +64,4 @@ React/Vite 단일 페이지 앱입니다. `src/main.tsx`가 앱을 시작하고 
 3. [코드 지식 그래프 운영](knowledge-graph.md)에 따라 `node scripts/knowledge-graph.mjs status`로 최신성을 확인하고 Understand-Anything의 조회·설명으로 연결을 좁힌 후 소스를 확인합니다. 일반 미커밋 작업은 오래된 그래프와 실제 diff를 함께 검토하며, 깨끗한 커밋에서는 공식 증분 갱신을 사용합니다. 주요 업무·권한 변경은 전체 분석과 업무 흐름 갱신 대상으로 검토합니다.
 4. 변경한 경계에 맞는 검증을 선택하고, 구조나 운영 방법이 달라졌을 때 이 가이드를 갱신합니다.
 
-Understand-Anything의 `.ua/` 산출물과 `agent_docs/`는 로컬 보조 자료이며 Git에서 제외됩니다. 새 clone에서 필요한 개발·운영 정보는 이 `docs/`와 README를 기준으로 합니다.
+Understand-Anything의 검증된 `.ua/` 묶음은 Git에 공유하며 설치 경로와 임시 산출물은 제외합니다. `agent_docs/`는 Git 제외된 선택적 과거 기록입니다. 새 clone에서 필요한 개발·운영 정보는 이 `docs/`와 README를 기준으로 합니다.

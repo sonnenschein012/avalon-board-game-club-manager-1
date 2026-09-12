@@ -1,0 +1,22 @@
+# Application source, all tests, fixtures and operational text are included.
+graphify-out/
+.ua/
+.understand-anything/
+agent_docs/
+.codex/
+.codex_workflow_hidden_resources/
+.firebase/
+.demo-runtime/
+playwright-report/
+test-results/
+.codex-deploy-audit-*
+.codex-tmp-deploy-*
+.env*
+stats.html
+*.bak
+*.backup
+*.zip
+*.csv
+*.tsv
+*.log
+AGENTS.md
