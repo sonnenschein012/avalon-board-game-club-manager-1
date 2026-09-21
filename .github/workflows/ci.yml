@@ -34,3 +34,5 @@ jobs:
       - run: node --test scripts/knowledge-graph.test.mjs
       - run: npm run test:rules
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run design-lab:test

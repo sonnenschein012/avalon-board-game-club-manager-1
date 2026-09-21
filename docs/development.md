@@ -49,6 +49,8 @@ React/Vite 단일 페이지 앱입니다. `src/main.tsx`가 앱을 시작하고 
 
 환경별 연결 대상과 배포 명령은 [운영·인수인계](operations.md)를 참조하세요.
 
+UI 개선 시 [목표 디자인 기준](design-guidelines.md)을 참고하세요. 현재 구현의 추출 기록과 후속 시안용 제안값을 구분하며, 이 기준안 자체는 앱 적용이나 시각 검증 완료를 의미하지 않습니다.
+
 - 빠른 화면 확인: `npm run scenario-lab` → `http://127.0.0.1:5174/design.html`. fixture 상태는 `fixtures.ts`, 화면 구성은 `ScenarioPages.tsx`, 선택기는 `ScenarioLabApp.tsx`에 있습니다. 상태를 추가하면 `tests/scenario-lab/scenario.spec.ts`도 확인합니다.
 - 실제 hook/service/규칙 확인: `npm run design-lab`. Java 21을 `JAVA_HOME`에 설정하거나 Windows에서 `npm run demo:setup`을 한 번 실행합니다. 시작할 때 데이터가 초기화되며, 실행 중에는 `npm run demo:reset`으로 다시 seed할 수 있습니다.
 - 기본 확인: `npm run check`는 lint, 타입, 단위 테스트, 운영 빌드를 실행합니다. Vitest는 `src/**/*.test.{ts,tsx}`를 대상으로 하며 `test:unit`은 Emulator 규칙 테스트를 제외합니다.
@@ -65,3 +67,12 @@ React/Vite 단일 페이지 앱입니다. `src/main.tsx`가 앱을 시작하고 
 4. 변경한 경계에 맞는 검증을 선택하고, 구조나 운영 방법이 달라졌을 때 이 가이드를 갱신합니다.
 
 Understand-Anything의 검증된 `.ua/` 묶음은 Git에 공유하며 설치 경로와 임시 산출물은 제외합니다. `agent_docs/`는 Git 제외된 선택적 과거 기록입니다. 새 clone에서 필요한 개발·운영 정보는 이 `docs/`와 README를 기준으로 합니다.
+
+## 출석 등록·세션 삭제와 조회 오류
+
+- 출석 카드의 멤버 추가는 확인 폼을 열며 저장 전에는 쓰지 않습니다. 성별은 직접 선택하고 학번 미입력 시 임의 값을 만들지 않습니다. 등록 서비스는 현재 명부와 중복을 확인하고, 회원 생성과 정정한 출석 이름·학번을 같은 배치에 저장합니다. 가입 학기는 일반 회원 등록과 같은 3월/9월 기준이며 면접 등록의 2월/8월 기준은 유지합니다.
+- 모임 시작은 실제 조에 들어간 참석자만 편성됨으로 변경합니다. 미배정자의 대기·결석 상태는 유지합니다.
+- 세션 삭제는 해당 sessionId를 참조하는 DailyPlannings의 연결 필드만 함께 제거합니다. 모임의 조·음료·요청·이전 버전은 유지하며, 버전 복원은 현재 연결만 사용하므로 삭제된 연결을 되살리지 않습니다. 연결 조회 실패나 배치 실패는 삭제 성공으로 처리하지 않습니다.
+- useFirestore는 error와 retry를 제공하고 조회 실패 시 지속되는 알림과 다시 시도 버튼을 표시합니다. 재구독할 때 로딩과 데이터를 초기화합니다.
+- members/games/sessions Rules는 새 문서의 핵심 필드·타입·enum을 검사합니다. 기존 문서는 변경한 필드만 검사하므로 누락된 과거 필드를 한꺼번에 채우지 않아도 휴면 전환 등의 작업이 가능합니다. 중첩 배열 항목 전체의 도메인 검증이나 모든 legacy 문서의 자동 이관을 의미하지 않습니다.
+- 기본 개발 명령은 npm run dev(Emulator Design Lab)이며 운영 연결은 npm run dev:prod로 명시합니다. 이번 변경은 세션 동시 편집 병합, export, 보관 정책 및 개인정보 로그 보존 정책을 바꾸지 않습니다.

@@ -10,10 +10,10 @@ export default defineConfig(({mode, command}) => {
   if (!supportedModes.includes(mode)) {
     throw new Error(`Unsupported Vite mode "${mode}". Refusing to fall back to production Firebase.`);
   }
-  if ((mode === 'demo' || mode === 'scenario') && command === 'build') {
+  if ((mode === 'development' || mode === 'demo' || mode === 'scenario') && command === 'build') {
     throw new Error(`${mode === 'demo' ? 'Demo' : 'Scenario Lab'} mode is local-only and cannot be built for deployment.`);
   }
-  const firebaseConfigPath = mode === 'demo'
+  const firebaseConfigPath = mode === 'demo' || mode === 'development'
     ? path.resolve(__dirname, 'firebase-applet-config.demo.json')
     : mode === 'staging'
       ? path.resolve(__dirname, 'firebase-applet-config.staging.json')

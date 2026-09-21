@@ -77,6 +77,7 @@ export default function MeetingDashboardTab({
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
+                      aria-label="조 이름"
                       value={editingGroupName}
                       onChange={(e) => setEditingGroupName(e.target.value)}
                       onBlur={() => handleUpdateGroupName(group.id)}

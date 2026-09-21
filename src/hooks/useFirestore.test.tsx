@@ -2,6 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFirestore } from './useFirestore';
+import { toast } from 'sonner';
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), dismiss: vi.fn() } }));
 
 const firestore = vi.hoisted(() => ({
   subscribe: vi.fn(),
@@ -68,11 +70,20 @@ describe('useFirestore collection subscriptions', () => {
     expect(latest.loading).toBe(true);
     const subscription = firestore.subscribe.mock.calls[0]!;
     act(() => subscription[1]({ docs: [{ id: 'member-1', data: () => ({ name: '가온' }) }] }));
-    expect(latest).toEqual({ data: [{ id: 'member-1', name: '가온' }], loading: false });
+    expect(latest).toEqual({ data: [{ id: 'member-1', name: '가온' }], loading: false, error: null, retry: expect.any(Function) });
 
     const error = new Error('permission denied');
     act(() => subscription[2](error));
     expect(firestore.reportError).toHaveBeenCalledWith(error, 'list', 'members');
     expect(latest.loading).toBe(false);
+    expect(latest.error).toBe(error);
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('불러오지 못했습니다'), expect.objectContaining({ duration: Infinity, action: expect.objectContaining({ label: '다시 시도' }) }));
+    act(() => latest.retry());
+    expect(firestore.unsubscribe).toHaveBeenCalledOnce();
+    expect(latest.loading).toBe(true);
+    expect(latest.error).toBeNull();
+    act(() => firestore.subscribe.mock.calls[1]![1]({ docs: [] }));
+    expect(latest.loading).toBe(false);
+    expect(latest.data).toEqual([]);
   });
 });

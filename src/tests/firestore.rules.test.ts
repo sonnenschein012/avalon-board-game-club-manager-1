@@ -166,6 +166,30 @@ describe('Firestore Security Rules', () => {
     await assertFails(setDoc(doc(unauthedDb, 'interviewNotes', 'note-1'), { generalNotes: 'test' }));
   });
 
+  it('rejects malformed core records while allowing incremental legacy repairs', async () => {
+    if (!testEnv) throw new Error('testEnv not initialized');
+    await seedRegularAdmin();
+    const db = testEnv.authenticatedContext('schema-admin', { email: REGULAR_ADMIN_EMAIL }).firestore();
+    const member = { name: '새부원', nickname: '26 새부원', studentId: '26', phone: '', gender: '여', semester: '2026-2', preferredGenre: [], createdAt: serverTimestamp() };
+    await assertFails(setDoc(doc(db, 'members', 'old-quick-add'), { name: '새부원', nickname: '25 새부원', studentId: '25', gender: '남', semester: '2025-1', createdAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(db, 'members', 'bad-gender'), { ...member, gender: 'unknown' }));
+    await assertSucceeds(setDoc(doc(db, 'members', 'valid'), member));
+    await assertFails(updateDoc(doc(db, 'members', 'valid'), { status: 'unknown' }));
+    await assertFails(updateDoc(doc(db, 'members', 'valid'), { preferredGenre: '전략' }));
+    await assertFails(setDoc(doc(db, 'games', 'bad'), { title: '게임', minPlayers: '둘' }));
+    await assertSucceeds(setDoc(doc(db, 'games', 'valid'), { title: '게임', minPlayers: 2, genres: [] }));
+    await assertFails(setDoc(doc(db, 'sessions', 'bad'), { name: '모임', date: new Date(), groups: '잘못된 조' }));
+    await assertSucceeds(setDoc(doc(db, 'sessions', 'valid'), { name: '모임', date: new Date(), groups: [], boardMemberIds: [] }));
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'members', 'legacy'), { name: '과거 부원' });
+      await setDoc(doc(context.firestore(), 'sessions', 'legacy'), { name: '과거 모임', date: '2025-01-01', groups: [] });
+    });
+    await assertSucceeds(updateDoc(doc(db, 'members', 'legacy'), { status: '휴면' }));
+    await assertSucceeds(updateDoc(doc(db, 'members', 'legacy'), { phone: '', preferredGenre: [] }));
+    await assertSucceeds(updateDoc(doc(db, 'sessions', 'legacy'), { name: '수정한 모임' }));
+    await assertFails(updateDoc(doc(db, 'sessions', 'legacy'), { groups: null }));
+  });
+
   it('일반 관리자 → members 및 attendees 읽기 쓰기 허용, admins 쓰기 거부', async () => {
     if (!testEnv) throw new Error('testEnv not initialized');
     // Setup regular admin (not master)
@@ -182,11 +206,11 @@ describe('Firestore Security Rules', () => {
     
     // members 읽기/쓰기 허용
     await assertSucceeds(getDoc(doc(authedDb, 'members', 'm1')));
-    await assertSucceeds(setDoc(doc(authedDb, 'members', 'm2'), { name: 'Member 2' }));
+    await assertSucceeds(setDoc(doc(authedDb, 'members', 'm2'), { name: 'Member 2', nickname: '26 Member 2', studentId: '26', phone: '', gender: '여', semester: '2026-2', preferredGenre: [], createdAt: serverTimestamp() }));
     await assertSucceeds(getDoc(doc(authedDb, 'games', 'g1')));
     await assertSucceeds(setDoc(doc(authedDb, 'games', 'g2'), { title: 'Game 2' }));
     await assertSucceeds(getDoc(doc(authedDb, 'sessions', 's1')));
-    await assertSucceeds(setDoc(doc(authedDb, 'sessions', 's2'), { name: 'Session 2' }));
+    await assertSucceeds(setDoc(doc(authedDb, 'sessions', 's2'), { name: 'Session 2', date: new Date(), groups: [] }));
     await assertSucceeds(getDoc(doc(authedDb, 'DailyPlannings', 'dp-read')));
 
     // attendees 쓰기 쓰키마 검증

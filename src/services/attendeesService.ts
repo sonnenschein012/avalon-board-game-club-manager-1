@@ -1,10 +1,11 @@
-import { writeBatch, doc, collection, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
+import { writeBatch, doc, collection, getDocs, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Attendee, Member } from '../types';
 import { toast } from 'sonner';
 import { isSameName } from '../domain/matching/isSameName';
 import { previewAttendanceCsv, type AttendanceImportInput } from '../domain/attendance/csvParser';
 import { addAuditEventToBatch } from './auditService';
+import { prepareAttendanceMember, type AttendanceMemberDraft } from '../domain/members/attendanceRegistration';
 
 export async function deleteAttendeeRecord(attendeeToDelete: Attendee) {
   try {
@@ -18,35 +19,31 @@ export async function deleteAttendeeRecord(attendeeToDelete: Attendee) {
   }
 }
 
-export async function quickAddMemberRecord(attendee: Attendee) {
+export async function quickAddMemberRecord(attendee: Attendee, input: AttendanceMemberDraft) {
   try {
+    const snapshot = await getDocs(collection(db, 'members'));
+    const members = snapshot.docs.map(item => ({ ...item.data(), id: item.id }) as Member);
+    const data = prepareAttendanceMember(input, members);
     const batch = writeBatch(db);
     const memberRef = doc(collection(db, 'members'));
-
-    const studentId = attendee.studentIdPrefix || '25';
-    const nickname = `${studentId} ${attendee.name}`;
-
     batch.set(memberRef, {
-      name: attendee.name,
-      nickname: nickname,
-      studentId: studentId,
-      gender: '남',
-      semester: '2025-1',
+      ...data,
       createdAt: serverTimestamp()
     });
+    batch.update(doc(db, 'attendees', attendee.id), { name: data.name, studentIdPrefix: data.studentId });
     addAuditEventToBatch(batch, {
       category: 'member',
       action: 'member.created_from_attendance',
       targetId: memberRef.id,
-      targetLabel: attendee.name,
-      detail: `출석 명단에서 빠른 등록 · 학번 ${studentId}`,
+      targetLabel: data.name,
+      detail: `출석 명단에서 확인 후 등록 · 학번 ${data.studentId}`,
     });
     await batch.commit();
     toast.success(`${attendee.name}님이 멤버로 추가되었습니다.`);
     return true;
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, 'members (batch)');
-    toast.error('추가 중 오류가 발생했습니다.');
+    toast.error(e instanceof Error ? e.message : '추가 중 오류가 발생했습니다.');
     return false;
   }
 }

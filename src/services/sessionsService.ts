@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, deleteField, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import type { Session, StoredSessionGroup } from '../types';
@@ -140,7 +140,11 @@ export async function updateSessionGroupGames(
 }
 
 export async function deleteSessionRecord(sessionId: string, sessionName = '모임 기록') {
+  const linkedPlannings = await getDocs(query(collection(db, 'DailyPlannings'), where('sessionId', '==', sessionId)));
+  // Keep deletion and detachment atomic; never delete only part of the links.
+  if (linkedPlannings.size + 2 > 500) throw new Error('연결된 모임이 너무 많아 삭제할 수 없습니다.');
   const batch = writeBatch(db);
+  linkedPlannings.docs.forEach(planning => batch.update(planning.ref, { sessionId: deleteField() }));
   batch.delete(doc(db, 'sessions', sessionId));
   addAuditEventToBatch(batch, {
     category: 'session',

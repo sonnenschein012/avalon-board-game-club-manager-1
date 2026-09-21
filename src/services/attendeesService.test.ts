@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { importAttendanceRows, manualAddAttendeeRecord } from './attendeesService';
+import { importAttendanceRows, manualAddAttendeeRecord, quickAddMemberRecord } from './attendeesService';
+import { createAttendanceMemberDraft } from '../domain/members/attendanceRegistration';
+import { getDocs } from 'firebase/firestore';
 import { Member, type Attendee } from '../types';
 import { detectAttendanceMapping } from '../domain/attendance/csvParser';
 import type { Timestamp } from 'firebase/firestore';
@@ -21,7 +23,8 @@ vi.mock('../lib/firebase', () => ({
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
-  doc: vi.fn(),
+  doc: vi.fn(() => ({ id: 'new-document' })),
+  getDocs: vi.fn(async () => ({ docs: [] })),
   writeBatch: vi.fn(() => batch),
   serverTimestamp: vi.fn(),
   deleteDoc: vi.fn(),
@@ -49,6 +52,31 @@ describe('attendeesService', () => {
     { id: 'm1', name: '김철수', studentId: '20231111', gender: '남', semester: '2023-1', nickname: '', phone: '', preferredGenre: [], createdAt: { toMillis: () => 0 } as unknown as Timestamp }
   ];
 
+  it('requires confirmed identity and stores complete member fields with the corrected attendee', async () => {
+    const attendee = { id: 'a2', name: '새부원' } as Attendee;
+    const draft = createAttendanceMemberDraft(attendee);
+    expect(draft.studentId).toBe('');
+    expect(draft.gender).toBe('');
+    expect(await quickAddMemberRecord(attendee, draft)).toBe(false);
+    expect(batch.commit).not.toHaveBeenCalled();
+    expect(await quickAddMemberRecord(attendee, { ...draft, name: '새이름', studentId: '26', nickname: '', gender: '여', semester: '2026-2' })).toBe(true);
+    expect(batch.set).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), expect.objectContaining({
+      name: '새이름', nickname: '26 새이름', studentId: '26', gender: '여', semester: '2026-2',
+      phone: '', preferredGenre: [], status: '활동',
+    }));
+    expect(batch.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), { name: '새이름', studentIdPrefix: '26' });
+  });
+
+  it('rejects existing members and preserves the form on commit failure', async () => {
+    const attendee = { id: 'a2', name: '김철수', studentIdPrefix: '23' } as Attendee;
+    const draft = { ...createAttendanceMemberDraft(attendee), gender: '남' as const };
+    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [{ id: 'm1', data: () => members[0] }] } as never);
+    expect(await quickAddMemberRecord(attendee, draft)).toBe(false);
+    expect(batch.commit).not.toHaveBeenCalled();
+    batch.commit.mockRejectedValueOnce(new Error('offline'));
+    expect(await quickAddMemberRecord(attendee, draft)).toBe(false);
+  });
+
   it('명부와 일치하는 회원을 실제 출석 문서 형태로 저장한다', async () => {
     const result = await manualAddAttendeeRecord(
       { name: '김철수', studentIdPrefix: '23', drink: '', afterparty: false, request: '' },
@@ -56,7 +84,7 @@ describe('attendeesService', () => {
       []
     );
     expect(result).toBe(true);
-    expect(batch.set).toHaveBeenCalledWith(undefined, expect.objectContaining({
+    expect(batch.set).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), expect.objectContaining({
       name: '김철수',
       studentIdPrefix: '23',
       status: '대기',
@@ -96,8 +124,8 @@ describe('attendeesService', () => {
   it('commits the replacement, normalized responses, dormant updates and audit together', async () => {
     expect(await importAttendanceRows(draft(), [{ id: 'old' }] as Attendee[], [{ ...members[0]!, status: '휴면' }])).toBe(true);
     expect(batch.delete).toHaveBeenCalledOnce();
-    expect(batch.set).toHaveBeenCalledWith(undefined, expect.objectContaining({ name: '김철수', drink: '차', afterparty: true, request: '', status: '대기' }));
-    expect(batch.update).toHaveBeenCalledWith(undefined, { status: '활동', dormantSemester: '' });
+    expect(batch.set).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), expect.objectContaining({ name: '김철수', drink: '차', afterparty: true, request: '', status: '대기' }));
+    expect(batch.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), { status: '활동', dormantSemester: '' });
     expect(addAuditEventToBatch).toHaveBeenCalledWith(batch, expect.objectContaining({ action: 'attendance.imported', count: 1 }));
     expect(batch.commit).toHaveBeenCalledOnce();
   });

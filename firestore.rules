@@ -143,20 +143,67 @@ service cloud.firestore {
           resource.data.assignmentSummary.keys().hasOnly(['slotId', 'status', 'revision']));
     }
 
+    // New documents require core fields. Legacy updates validate changed fields
+    // only, allowing existing incomplete documents to be repaired incrementally.
+    function validMemberFields(fields) {
+      let d = request.resource.data;
+      return (!fields.hasAny(['name']) || (d.get('name', null) is string && d.name.size() > 0)) &&
+        (!fields.hasAny(['nickname']) || (d.get('nickname', null) is string)) &&
+        (!fields.hasAny(['studentId']) || (d.get('studentId', null) is string)) &&
+        (!fields.hasAny(['phone']) || (d.get('phone', null) is string)) &&
+        (!fields.hasAny(['gender']) || (d.get('gender', null) in ['남', '여', '기타'])) &&
+        (!fields.hasAny(['semester']) || (d.get('semester', null) is string)) &&
+        (!fields.hasAny(['preferredGenre']) || (d.get('preferredGenre', null) is list)) &&
+        (!fields.hasAny(['createdAt']) || (d.get('createdAt', null) is timestamp)) &&
+        (!fields.hasAny(['status']) || (!('status' in d) || d.status in ['활동', '휴면'])) &&
+        (!fields.hasAny(['isBoardMember']) || (!('isBoardMember' in d) || d.isBoardMember is bool));
+    }
+
+    function validGameFields(fields) {
+      let d = request.resource.data;
+      return (!fields.hasAny(['title']) || (d.get('title', null) is string && d.title.size() > 0)) &&
+        (!fields.hasAny(['minPlayers']) || (!('minPlayers' in d) || d.minPlayers is number)) &&
+        (!fields.hasAny(['maxPlayers']) || (!('maxPlayers' in d) || d.maxPlayers is number)) &&
+        (!fields.hasAny(['bestMinPlayers']) || (!('bestMinPlayers' in d) || d.bestMinPlayers is number)) &&
+        (!fields.hasAny(['bestMaxPlayers']) || (!('bestMaxPlayers' in d) || d.bestMaxPlayers is number)) &&
+        (!fields.hasAny(['complexity']) || (!('complexity' in d) || d.complexity is number)) &&
+        (!fields.hasAny(['genres']) || (!('genres' in d) || d.genres is list));
+    }
+
+    function validSessionFields(fields) {
+      let d = request.resource.data;
+      return (!fields.hasAny(['name']) || (d.get('name', null) is string)) &&
+        (!fields.hasAny(['date']) || (d.get('date', null) is timestamp)) &&
+        (!fields.hasAny(['groups']) || (d.get('groups', null) is list)) &&
+        (!fields.hasAny(['boardMemberIds']) || (!('boardMemberIds' in d) || d.boardMemberIds is list));
+    }
+
     // Internal club operations are available only to registered operators.
     match /members/{memberId} {
       allow read: if isAdmin() || isMasterAdmin();
-      allow write: if isAdmin() || isMasterAdmin();
+      allow create: if (isAdmin() || isMasterAdmin()) &&
+        validMemberFields(request.resource.data.keys().toSet().union(['name', 'nickname', 'studentId', 'phone', 'gender', 'semester', 'preferredGenre', 'createdAt'].toSet()));
+      allow update: if (isAdmin() || isMasterAdmin()) &&
+        validMemberFields(request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if isAdmin() || isMasterAdmin();
     }
 
     match /games/{gameId} {
       allow read: if isAdmin() || isMasterAdmin();
-      allow write: if isAdmin() || isMasterAdmin();
+      allow create: if (isAdmin() || isMasterAdmin()) &&
+        validGameFields(request.resource.data.keys().toSet().union(['title'].toSet()));
+      allow update: if (isAdmin() || isMasterAdmin()) &&
+        validGameFields(request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if isAdmin() || isMasterAdmin();
     }
 
     match /sessions/{sessionId} {
       allow read: if isAdmin() || isMasterAdmin();
-      allow write: if isAdmin() || isMasterAdmin();
+      allow create: if (isAdmin() || isMasterAdmin()) &&
+        validSessionFields(request.resource.data.keys().toSet().union(['name', 'date', 'groups'].toSet()));
+      allow update: if (isAdmin() || isMasterAdmin()) &&
+        validSessionFields(request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if isAdmin() || isMasterAdmin();
     }
 
     match /attendees/{attendeeId} {

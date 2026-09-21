@@ -3,20 +3,21 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAttendanceLogic } from './useAttendanceLogic';
 import { archiveDailyPlanning } from '../services/dailyPlanningService';
+import { createAttendanceMemberDraft } from '../domain/members/attendanceRegistration';
 
-const mocks = vi.hoisted(() => ({ commit: vi.fn(), get: vi.fn(), set: vi.fn(), clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
+const mocks = vi.hoisted(() => ({ commit: vi.fn(), get: vi.fn(), set: vi.fn(), update: vi.fn(), register: vi.fn(), extraAttendees: [] as unknown[], clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
 vi.mock('../lib/firebase', () => ({ db: {}, handleFirestoreError: vi.fn(), OperationType: { WRITE: 'write' } }));
 vi.mock('../services/auditService', () => ({ addAuditEventToTransaction: vi.fn() }));
 vi.mock('../services/dailyPlanningService', () => ({ archiveDailyPlanning: vi.fn() }));
 vi.mock('../services/attendeesService', () => ({
   deleteAttendeeRecord: mocks.remove, clearAllAttendees: mocks.clear,
-  quickAddMemberRecord: vi.fn(), manualAddAttendeeRecord: vi.fn(), importAttendanceRows: mocks.importRows,
+  quickAddMemberRecord: mocks.register, manualAddAttendeeRecord: vi.fn(), importAttendanceRows: mocks.importRows,
 }));
 vi.mock('firebase/firestore', async importOriginal => ({
   ...await importOriginal<typeof import('firebase/firestore')>(),
-  doc: vi.fn(() => ({})), getDoc: vi.fn(async () => ({ exists: () => false, data: () => undefined })),
+  doc: vi.fn((_db: unknown, collection: string, id: string) => `${collection}/${id}`), getDoc: vi.fn(async () => ({ exists: () => false, data: () => undefined })),
   runTransaction: async (_db: unknown, callback: (transaction: unknown) => Promise<void>) => {
-    await callback({ get: mocks.get, update: vi.fn(), set: mocks.set });
+    await callback({ get: mocks.get, update: mocks.update, set: mocks.set });
     await mocks.commit();
   },
 }));
@@ -25,7 +26,7 @@ vi.mock('./useFirestore', () => {
     attendees: [{ id: 'a1', name: '김테스트', studentIdPrefix: '26', drink: '아이스티', request: '쉬운 게임' }],
     members: [{ id: 'm1', name: '김테스트', studentId: '260001', semester: '2026-2', gender: '남' }], sessions: [],
   };
-  return { useFirestore: (collection: string) => ({ data: data[collection], loading: false }) };
+  return { useFirestore: (collection: string) => ({ data: collection === 'attendees' ? [...data.attendees!, ...mocks.extraAttendees] : data[collection], loading: false }) };
 });
 
 describe('attendance working draft', () => {
@@ -49,6 +50,7 @@ describe('attendance working draft', () => {
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.clearAllMocks();
+    mocks.extraAttendees = [];
     mocks.commit.mockResolvedValue(undefined);
     mocks.get.mockResolvedValue({ exists: () => false, data: () => undefined });
     mocks.clear.mockResolvedValue(true);
@@ -60,6 +62,28 @@ describe('attendance working draft', () => {
     mount();
   });
   afterEach(() => { act(() => root.unmount()); vi.restoreAllMocks(); container.remove(); });
+
+  it('opens registration without writing and closes only after successful confirmation', async () => {
+    const attendee = latest.attendees[0]!;
+    act(() => latest.handleQuickAddMember(attendee));
+    expect(mocks.register).not.toHaveBeenCalled();
+    expect(latest.registeringAttendee).toEqual(attendee);
+    mocks.register.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    const draft = { ...createAttendanceMemberDraft(attendee), gender: '여' as const };
+    await act(async () => { await latest.handleRegisterMember(draft); });
+    expect(latest.registeringAttendee).toEqual(attendee);
+    await act(async () => { await latest.handleRegisterMember(draft); });
+    expect(latest.registeringAttendee).toBeNull();
+    expect(mocks.register).toHaveBeenCalledWith(attendee, draft);
+  });
+
+  it('updates only assigned attendees and preserves waiting and absent people', async () => {
+    mocks.extraAttendees = [{ id: 'waiting', name: '대기자', status: '대기' }, { id: 'absent', name: '결석자', status: '결석' }];
+    arrange();
+    await act(async () => { await latest.handleMoveToRecord(); });
+    expect(mocks.update.mock.calls).toEqual([['attendees/a1', { status: '편성됨' }]]);
+    expect(mocks.set.mock.calls[0]![1].attendees.map((item: { id: string }) => item.id)).toEqual(['a1']);
+  });
 
   it('restores all working fields and assignments after leaving the page', () => {
     arrange();

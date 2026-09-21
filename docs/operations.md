@@ -6,12 +6,12 @@
 
 | 환경 | 실행/빌드 | Firebase 프로젝트 | Firestore | Hosting |
 | --- | --- | --- | --- | --- |
-| 운영 | `dev`, `build` | `gen-lang-client-0205444206` | `ai-studio-cb68814f-9f80-4e46-95cd-4725aa93e8cb` | target `avalondgu-site` → site `avalondgu` |
+| 운영 | `dev:prod`, `build` | `gen-lang-client-0205444206` | `ai-studio-cb68814f-9f80-4e46-95cd-4725aa93e8cb` | target `avalondgu-site` → site `avalondgu` |
 | staging | `dev:staging`, `build:staging` | `avalon-manager-staging` | `(default)` | site `avalon-manager-staging` |
-| Emulator Design Lab | `design-lab` | `demo-avalon-manager` | 로컬 127.0.0.1:8080 | 배포 없음 |
+| Emulator Design Lab | `dev`, `design-lab` | `demo-avalon-manager` | 로컬 127.0.0.1:8080 | 배포 없음 |
 | Scenario Lab | `scenario-lab` | 연결 없음 | 연결 없음 | 배포 없음 |
 
-Vite가 `@firebase-config`를 모드별 `firebase-applet-config*.json`에 연결합니다. 운영과 staging은 서로 다른 데이터베이스입니다. 일반 `npm run dev`로 데이터를 변경하면 운영에 쓰게 됩니다.
+Vite가 `@firebase-config`를 모드별 `firebase-applet-config*.json`에 연결합니다. 운영과 staging은 서로 다른 데이터베이스입니다. `npm run dev`는 로컬 Emulator를 실행하고 합성 데이터를 초기화합니다. `npm run dev:prod`만 운영 Firebase에 연결합니다. Vite를 직접 실행해도 기본 development 모드는 로컬 Emulator에 연결되며 Emulator가 없으면 운영으로 우회하지 않습니다.
 
 Design Lab의 Auth는 127.0.0.1:9099, Emulator UI는 127.0.0.1:4000입니다. 관리자는 로컬 계정으로 자동 로그인하고, 공개 면접 링크는 비로그인 상태로 실행합니다. seed/reset 스크립트는 고정된 로컬 프로젝트와 호스트만 허용합니다.
 
@@ -45,13 +45,15 @@ npx firebase deploy --project gen-lang-client-0205444206 --config firebase.json 
 
 일반 빌드는 `index.html`만 포함합니다. `demo`/`scenario` 빌드는 Vite에서 거부하며, 빌드 뒤 `verify:production-bundle`은 Scenario Lab 진입점·fixture·가짜 사용자 표식이 운영 번들에 없는지 검사합니다.
 
-CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운영 빌드를 실행합니다. CI가 자동 배포하지는 않습니다. 배포 후에는 변경한 관리 화면과 공개 면접 링크를 확인합니다. Hosting 이전 버전으로 되돌리는 작업은 Firestore 데이터/규칙을 되돌리지 않습니다.
+CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운영 빌드와 Emulator Design Lab의 Playwright 시나리오를 실행합니다. CI가 자동 배포하지는 않습니다. 배포 후에는 변경한 관리 화면과 공개 면접 링크를 확인합니다. Hosting 이전 버전으로 되돌리는 작업은 Firestore 데이터/규칙을 되돌리지 않습니다.
 
 ## 데이터 보관과 복구
 
-- 설정의 회원/게임/세션 CSV는 운영자가 읽고 일부 데이터를 다시 가져오기 위한 출력입니다. 문서 ID, 관리자, 계획, 이미지, 모든 면접 문서 등을 복원하는 전체 백업이 아닙니다.
-- 면접 회차의 CSV는 지원자별 기록/이력을 포함하지만 자동 전체 복구 도구는 아닙니다. 공개 응답 링크는 bearer token이므로 로그나 공유 문서에 남기지 않습니다.
-- 장기 보관이나 소유권 이전 전에 운영자는 실제 Firestore 데이터베이스 전체의 백업 방법, 저장 위치, 접근 권한과 복원 절차를 확인해야 합니다. 이 저장소는 운영 데이터 백업을 포함하지 않습니다.
+- 설정의 회원/게임/세션 CSV는 AI와 대화할 때 분석·정리할 자료를 제공하고, 새 사이트 등으로 필요한 업무 정보를 이전하기 위한 출력입니다. 문서 ID, 관리자, 계획, 모든 면접 문서까지 복원하는 전체 백업은 현재 기능의 목적이 아닙니다.
+- 이전할 때는 회원과 게임을 먼저 가져온 뒤 세션을 가져옵니다. 세션은 대상 명부의 이름·닉네임과 게임명을 이용해 연결을 다시 구성합니다. 현재 운영에서 회원은 학번을 입력해 등록하며, 게임 이미지를 입력하거나 표시하는 UI는 없습니다.
+- 면접은 보통 2주 이내, 길어야 3주 정도 사용하는 업무입니다. 진행 중인 면접 상태의 사이트 간 이전·전체 복구와 과거 면접 상세 기록의 앱 내 재사용은 현재 요구 범위에 포함하지 않습니다. 지원서 원본은 외부에서 관리하며, 선발 기록은 면접 상세 기록과 별개로 취급합니다.
+- 면접 회차의 CSV는 분석·정리에 활용할 지원자별 기록/이력을 포함하지만 자동 전체 복구 도구는 아닙니다. 공개 응답 링크는 bearer token이므로 로그나 공유 문서에 남기지 않습니다.
+- 원본 데이터 전체의 복원이 별도로 필요해지면 보존 범위, 대상 데이터베이스, 접근 권한과 복원 절차를 정합니다. 원본 export/import는 별도 기능으로 검토하며, 현재 CSV의 완성 조건으로 요구하지 않습니다. 이 저장소는 운영 데이터 백업을 포함하지 않습니다.
 - Emulator seed 데이터는 합성 데이터입니다. `demo:reset`은 로컬 데이터를 지우고 다시 구성하며, 운영 데이터 이관 용도로 사용하지 않습니다.
 
 ## 접근 권한을 넘길 때

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getDoc } from 'firebase/firestore';
+import { getDoc, getDocs } from 'firebase/firestore';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
-import { importSessionRecords, updateSessionGroupGames, updateSessionRecord } from './sessionsService';
+import { deleteSessionRecord, importSessionRecords, updateSessionGroupGames, updateSessionRecord } from './sessionsService';
 
 const batch = vi.hoisted(() => ({
   set: vi.fn(),
@@ -18,11 +18,32 @@ vi.mock('./auditService', () => ({
 }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(), doc: vi.fn(), getDoc: vi.fn(), writeBatch: vi.fn(() => batch),
+  getDocs: vi.fn(), query: vi.fn(), where: vi.fn(), deleteField: () => 'delete-field',
   Timestamp: { fromDate: (date: Date) => date },
 }));
 
 describe('session persistence boundaries', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('detaches every linked planning without changing its contents in the session deletion batch', async () => {
+    vi.mocked(getDocs).mockResolvedValue({ docs: [{ ref: 'planning-a' }, { ref: 'planning-b' }], size: 2 } as never);
+    await deleteSessionRecord('session', '모임');
+    expect(batch.update.mock.calls).toEqual([
+      ['planning-a', { sessionId: 'delete-field' }], ['planning-b', { sessionId: 'delete-field' }],
+    ]);
+    expect(batch.delete).toHaveBeenCalledOnce();
+    expect(addAuditEventToBatch).toHaveBeenCalledWith(batch, expect.objectContaining({ action: 'session.deleted' }));
+    expect(batch.commit).toHaveBeenCalledOnce();
+  });
+
+  it('does not delete on lookup failure and reports failed atomic commits', async () => {
+    vi.mocked(getDocs).mockRejectedValueOnce(new Error('lookup failed'));
+    await expect(deleteSessionRecord('session')).rejects.toThrow('lookup failed');
+    expect(batch.delete).not.toHaveBeenCalled();
+    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [], size: 0 } as never);
+    batch.commit.mockRejectedValueOnce(new Error('commit failed'));
+    await expect(deleteSessionRecord('session')).rejects.toThrow('commit failed');
+  });
 
   it('retains absent versus explicit empty imported role snapshots', async () => {
     await importSessionRecords([

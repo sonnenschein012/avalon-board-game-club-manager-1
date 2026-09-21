@@ -1,10 +1,11 @@
 {
   "name": "avalon-club-manager",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev": "node scripts/run-demo.mjs",
+    "dev:prod": "vite --mode production --port=3000 --host=127.0.0.1",
     "dev:staging": "vite --mode staging --port=3000 --host=0.0.0.0",
     "dev:demo": "vite --mode demo --port=3000 --host=127.0.0.1",
     "design-lab": "node scripts/run-demo.mjs",
@@ -28,7 +29,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test": "npm run test:unit",
-    "test:unit": "vitest run --exclude src/tests/firestore.rules.test.ts",
+    "test:unit": "vitest run --exclude src/tests/firestore.rules.test.ts && node --test scripts/dev-environment.test.mjs",
     "test:rules": "node scripts/run-rules-tests.mjs",
     "test:ui": "vitest --ui"
   },

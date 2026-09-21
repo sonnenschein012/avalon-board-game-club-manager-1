@@ -11,7 +11,7 @@
 - Preserve unrelated work. Keep modules cohesive and interfaces explicit. Define proportionate verification before implementation; do not weaken tests or assertions.
 - Inspect affected callers, consumers, shared Firestore collections, security rules and tests. Review branch, staged, unstaged and untracked changes together. Graph neighbors are only a starting point: trace indirect storage consumers in source, including deleted symbols in the previous verified graph.
 - Preserve attendee/member ID conversion, absent versus empty boardMemberIds, planning versus confirmed sessions, and legacy scheduleId semantics described in docs/development.md.
-- Run checks appropriate to the changed boundary. Never use production data for testing. `npm run dev` connects to production; prefer Scenario Lab or Emulator Design Lab for local changes.
+- Run checks appropriate to the changed boundary. Never use production data for testing. `npm run dev` starts Emulator Design Lab and resets synthetic local data. `npm run dev:prod` connects to production; use Scenario Lab or Emulator Design Lab for local changes.
 - Update maintained docs for lasting decisions. Do not require old session records or overwrite/delete agent_docs/ with generated explanations.
 
 ## Shared knowledge graph

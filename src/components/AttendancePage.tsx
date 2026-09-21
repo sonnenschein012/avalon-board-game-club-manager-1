@@ -10,6 +10,7 @@ import GroupsCanvas from './GroupsCanvas';
 import { useAttendanceLogic } from '../hooks/useAttendanceLogic';
 import { AttendanceDragAndDrop } from './AttendanceDragAndDrop';
 import AttendanceCsvImportModal from './AttendanceCsvImportModal';
+import AttendanceMemberRegistrationModal from './AttendanceMemberRegistrationModal';
 
 interface AttendancePageProps {
   draftScope: string;
@@ -20,6 +21,7 @@ interface AttendancePageProps {
 export default function AttendancePage({ draftScope, onMoveToRecord, isAdminModeActive = false }: AttendancePageProps) {
   const [importOpen, setImportOpen] = useState(false);
   const {
+    registeringAttendee, setRegisteringAttendee, handleRegisterMember,
     attendees,
     members,
     importing,
@@ -155,6 +157,8 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
 
       {importOpen && <AttendanceCsvImportModal members={members} existingCount={attendees.length} groupCount={groups.length}
         onClose={() => setImportOpen(false)} onConfirm={handleImportAttendance} />}
+      {registeringAttendee && <AttendanceMemberRegistrationModal key={registeringAttendee.id} attendee={registeringAttendee}
+        onSave={handleRegisterMember} onClose={() => setRegisteringAttendee(null)} />}
       <ManualAddModal
         isOpen={isManualAddModalOpen}
         onClose={() => setIsManualAddModalOpen(false)}

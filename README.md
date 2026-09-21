@@ -37,7 +37,7 @@ npm.cmd run dev
 
 개발 서버는 기본적으로 `http://localhost:3000`에서 실행됩니다.
 
-`dev`는 운영 Firebase에 연결합니다. UI 확인은 아래 Scenario Lab을, 데이터 변경을 포함한 로컬 개발은 Emulator Design Lab을 사용하세요. macOS/Linux에서는 `npm.cmd` 대신 `npm`을 사용합니다.
+`dev`는 Emulator Design Lab을 실행하며 로컬 합성 데이터를 초기화합니다. Java 21이 필요하며 Windows 최초 실행 전 `npm.cmd run demo:setup`을 실행하세요. UI만 확인할 때는 Scenario Lab을 사용하세요. 운영 연결은 명시적인 `npm.cmd run dev:prod` 명령에서만 사용합니다. macOS/Linux에서는 `npm.cmd` 대신 `npm`을 사용합니다.
 
 ## 개발 안내
 

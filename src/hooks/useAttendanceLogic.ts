@@ -33,6 +33,7 @@ import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroup
 import { addAuditEventToTransaction } from '../services/auditService';
 import { archiveDailyPlanning } from '../services/dailyPlanningService';
 import type { AttendanceImportInput } from '../domain/attendance/csvParser';
+import type { AttendanceMemberDraft } from '../domain/members/attendanceRegistration';
 
 interface UseAttendanceLogicProps {
   onMoveToRecord?: () => void;
@@ -46,6 +47,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   const { data: sessions } = useFirestore<Session>('sessions', 'date', 'desc');
 
   const [importing, setImporting] = useState(false);
+  const [registeringAttendee, setRegisteringAttendee] = useState<Attendee | null>(null);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
   const { sessionName, setSessionName, sessionDate, setSessionDate, groups, setGroups,
@@ -116,8 +118,14 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     }
   };
 
-  const handleQuickAddMember = async (attendee: Attendee) => {
-    await quickAddMemberRecord(attendee);
+  const handleQuickAddMember = (attendee: Attendee) => {
+    setRegisteringAttendee(attendee);
+  };
+  const handleRegisterMember = async (input: AttendanceMemberDraft) => {
+    if (!registeringAttendee) return false;
+    const success = await quickAddMemberRecord(registeringAttendee, input);
+    if (success) setRegisteringAttendee(null);
+    return success;
   };
 
   const handleManualAdd = async (data: { name: string; studentIdPrefix: string; drink: string; afterparty: boolean; request: string }) => {
@@ -295,7 +303,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         archiveDailyPlanning(transaction, sessionDate, planningSnapshot.data(), '모임 다시 시작 전');
       }
 
-      attendees.forEach(a => {
+      assignedAttendees.forEach(a => {
         transaction.update(doc(db, 'attendees', a.id), { status: '편성됨' });
       });
 
@@ -342,6 +350,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   };
 
   return {
+    registeringAttendee, setRegisteringAttendee, handleRegisterMember,
     attendees,
     members,
     sessions,

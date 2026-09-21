@@ -40,7 +40,7 @@ npm.cmd run design-lab
 
 Scenario Lab은 fixture UI를 사용하고, Design Lab은 로컬 Auth/Firestore Emulator를 실행하며 합성 데이터를 구성합니다. macOS/Linux에서는 Java 21을 설치하고 JAVA_HOME을 설정합니다. 최초 실행은 런타임·Emulator 다운로드를 위해 인터넷 연결이 필요합니다.
 
-브라우저 테스트는 최초 `npx playwright install chromium` 후 실행합니다. `npm run check`와 별도로 규칙은 `npm run test:rules`, UI 연결은 `npm run design-lab:test` 또는 `npm run scenario-lab:test`로 검사합니다. `npm run dev`는 운영 Firebase에 연결하므로 데이터 변경 검증에는 Design Lab을 사용합니다.
+브라우저 테스트는 최초 `npx playwright install chromium` 후 실행합니다. `npm run check`와 별도로 규칙은 `npm run test:rules`, UI 연결은 `npm run design-lab:test` 또는 `npm run scenario-lab:test`로 검사합니다. `npm run dev`는 Design Lab을 실행합니다(Java 21 필요). 운영 연결은 명시적인 `npm run dev:prod`에서만 사용합니다.
 
 ## Firebase 배포
 

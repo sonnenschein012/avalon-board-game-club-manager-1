@@ -74,6 +74,14 @@ describe('daily planning group rename', () => {
     expect(transaction.update).not.toHaveBeenCalled();
   });
 
+  it('can rename a detached planning without reading or recreating the deleted session', async () => {
+    storedDocuments({ 'DailyPlannings/2026-09-02': { groups: [{ id: 'a', name: 'Old', memberIds: [], gameIds: [] }] } });
+    await renameDailyPlanningGroup('2026-09-02', 'a', 'New');
+    expect(transaction.get).toHaveBeenCalledTimes(1);
+    expect(transaction.update).toHaveBeenCalledWith('DailyPlannings/2026-09-02', { groups: [{ id: 'a', name: 'New', memberIds: [], gameIds: [] }] });
+    expect(transaction.update).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes the planning and all versions with an audit event, never touching the session', async () => {
     storedDocuments({ 'DailyPlannings/2026-09-02': {
       date: '2026-09-02', name: '모임', sessionId: 'linked', groups: [{ memberIds: ['m1', 'm2'] }],

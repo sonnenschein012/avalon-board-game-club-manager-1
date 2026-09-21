@@ -53,7 +53,8 @@ export function AttendanceDraggableCard({ attendeeId, disabled = false, children
     data: { preview: <div data-attendance-drag-preview aria-hidden="true" inert className={cn(className, 'select-none shadow-xl ring-2 ring-gold/60')}>{children}</div> },
   });
   const isControl = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('button, input, select, textarea, a, [data-no-drag]'));
-  return <div ref={setNodeRef} {...attributes}
+  // Disabling dragging must not mark nested registration/delete buttons disabled.
+  return <div ref={setNodeRef} {...(disabled ? {} : attributes)}
     data-attendee-id={attendeeId} data-drag-enabled={!disabled} data-dragging={isDragging}
     draggable={false} onDragStart={event => event.preventDefault()}
     onMouseDown={event => { if (!isControl(event.target)) listeners?.onMouseDown?.(event); }}

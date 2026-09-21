@@ -14,7 +14,7 @@ import { connectFirestoreEmulator, getFirestore, doc, getDocFromServer } from 'f
 
 import firebaseConfig from '@firebase-config';
 
-export const isDemoMode = import.meta.env.MODE === 'demo';
+export const isDemoMode = import.meta.env.MODE === 'demo' || import.meta.env.MODE === 'development';
 const DEMO_ADMIN_EMAIL = 'demo.admin@avalon.local';
 const DEMO_ADMIN_PASSWORD = 'local-demo-only';
 
