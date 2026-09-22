@@ -55,7 +55,7 @@ it('requires confirmation and retains a failed deletion for retry', async () => 
 
 it('previews the old groups and details before restoring, with cancellation and failure retry', async () => {
   await click('이전 버전');
-  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-pressed="false"]')!.click());
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="이전 버전 목록"] button')!.click());
   expect(container.textContent).toContain('Team a');
   expect(container.textContent).toContain('아이스티');
   expect(container.textContent).toContain('쉬운 게임');
@@ -70,4 +70,23 @@ it('previews the old groups and details before restoring, with cancellation and 
   await click('복원 확인');
   expect(mocks.restore).toHaveBeenCalledWith('2026-09-10', 'v1');
   expect(mocks.view).toHaveBeenCalledWith('2026-09-10');
+});
+
+
+it('returns to the selected version and list position without restoring', async () => {
+  await click('이전 버전');
+  const list = container.querySelector<HTMLDivElement>('[aria-label="이전 버전 목록"]')!;
+  list.scrollTop = 160;
+  await act(async () => list.querySelector('button')!.click());
+  expect(container.querySelector('[aria-label="이전 버전 목록"]')).toBeNull();
+  expect(document.activeElement).toBe(container.querySelector('h3'));
+  await click('이 버전으로 복원');
+  await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(button('이 버전으로 복원')).toBeDefined();
+  await click('← 버전 목록');
+  const restoredList = container.querySelector<HTMLDivElement>('[aria-label="이전 버전 목록"]')!;
+  expect(restoredList.scrollTop).toBe(160);
+  expect(document.activeElement).toBe(restoredList.querySelector('button'));
+  expect(mocks.restore).not.toHaveBeenCalled();
+  expect(mocks.close).not.toHaveBeenCalled();
 });
