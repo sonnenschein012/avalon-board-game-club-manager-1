@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   runTransaction,
   doc,
@@ -19,7 +19,10 @@ import {
   importAttendanceRows,
   clearAllAttendees
 } from '../services/attendeesService';
-import { simulateAutoAssign } from '../domain/matching/autoAssignAlgorithm';
+import { getSizingNotices } from '../domain/matching/autoAssignAlgorithm';
+import { runAutoAssignment } from '../lib/runAutoAssignment';
+import { buildUtilityContext, getRequestNotices } from '../domain/matching/personalUtility';
+import { getLocalDateKey } from '../domain/attendance/sessionMetadata';
 import {
   calculateGroupAverageAttendance,
   calculateGroupAverageStudentId,
@@ -27,7 +30,6 @@ import {
 } from '../domain/attendance/attendanceHelpers';
 import { useAttendanceDraft } from './useAttendanceDraft';
 import { moveAttendee } from '../domain/attendance/moveAttendee';
-import { buildGroupCostContext } from '../domain/matching/groupCostContext';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
 import { addAuditEventToTransaction } from '../services/auditService';
@@ -42,9 +44,10 @@ interface UseAttendanceLogicProps {
 
 export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendanceLogicProps) {
   const { runAction, isPending } = useAsyncActionState();
-  const { data: attendees } = useFirestore<Attendee>('attendees', 'importDate', 'desc');
-  const { data: members } = useFirestore<Member>('members');
-  const { data: sessions } = useFirestore<Session>('sessions', 'date', 'desc');
+  const { data: attendees, loading: attendeesLoading, error: attendeesError } = useFirestore<Attendee>('attendees', 'importDate', 'desc');
+  const { data: members, loading: membersLoading, error: membersError } = useFirestore<Member>('members');
+  const { data: sessions, loading: sessionsLoading, error: sessionsError } = useFirestore<Session>('sessions', 'date', 'desc');
+  const assignmentReady = !attendeesLoading && !membersLoading && !sessionsLoading && !attendeesError && !membersError && !sessionsError;
 
   const [importing, setImporting] = useState(false);
   const [registeringAttendee, setRegisteringAttendee] = useState<Attendee | null>(null);
@@ -84,13 +87,43 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     return counts;
   }, [sessions, members]);
 
-  const costContext = useMemo(() => buildGroupCostContext({
-    attendees, members, sessions, assignmentDate: sessionDate,
-  }), [attendees, members, sessions, sessionDate]);
-
+  const utilityState = useMemo(() => {
+    if (!assignmentReady) return { context: null, error: '' };
+    try { return { context: buildUtilityContext({ attendees, members, sessions, assignmentDate: sessionDate }), error: '' }; }
+    catch (error) { return { context: null, error: error instanceof Error ? error.message : '명단을 확인해주세요.' }; }
+  }, [attendees, members, sessions, sessionDate, assignmentReady]);
+  const costContext = utilityState.context;
+  const [isAssigning, setIsAssigning] = useState(false);
+  const assignmentController = useRef<AbortController | null>(null);
+  useEffect(() => () => { assignmentController.current?.abort(); }, [groups, attendees, members, sessions, sessionDate, assignmentReady]);
+  const [lastAssignment, setLastAssignment] = useState<{
+    groups: SessionGroup[]; attendees: Attendee[]; members: Member[]; sessions: Session[];
+    date: string; sizingNotices: string[]; fixed: Record<string, string>;
+  } | null>(null);
+  const currentRun = lastAssignment?.groups === groups && lastAssignment.attendees === attendees &&
+    lastAssignment.members === members && lastAssignment.sessions === sessions && lastAssignment.date === sessionDate ? lastAssignment : null;
+  const assignmentNotices = [
+    ...(utilityState.error ? [utilityState.error] : []),
+    ...(currentRun?.sizingNotices ?? []),
+    ...(costContext?.absentRequests.filter(r => !groups.some(g => g.memberIds.includes(r.requesterId)))
+      .map(r => `${r.requester}님이 요청한 ${r.recipient}님은 불참하여 동반 요청 평가에서 제외했습니다.`) ?? []),
+  ];
+  const getAssignmentWarnings = (ids: string[]) => costContext ? getRequestNotices(groups, costContext, currentRun?.fixed, ids) : [];
+  const recentPairCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    sessions.filter(s => {
+      const date = s.date?.toDate?.();
+      return date && Number.isFinite(date.getTime()) && getLocalDateKey(date) < sessionDate;
+    }).sort((a, b) => b.date.toMillis() - a.date.toMillis()).slice(0, 3).forEach(s => {
+      s.groups.forEach(g => g.memberIds.forEach((a, i) => g.memberIds.slice(i + 1).forEach(b => {
+        const key = [a, b].sort().join('|'); counts[key] = (counts[key] ?? 0) + 1;
+      })));
+    });
+    return counts;
+  }, [sessions, sessionDate]);
   const calcGroupAvgAttendance = (attendeeIds: string[]) => calculateGroupAverageAttendance(attendeeIds, getMember, memberAttendanceCount);
   const calcGroupAvgStudentId = (attendeeIds: string[]) => calculateGroupAverageStudentId(attendeeIds, getMember, attendees);
-  const getWarnings = (attendeeIds: string[]) => getReunionWarnings(attendeeIds, getMember, costContext.memberPairRecentCounts);
+  const getWarnings = (attendeeIds: string[]) => getReunionWarnings(attendeeIds, getMember, recentPairCounts);
 
   const assignedAttendeeIds = new Set(groups.flatMap(g => g.memberIds));
   const unassignedAttendees = attendees
@@ -169,87 +202,47 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, targetSize: size } : g));
   };
 
-  const handleAutoAssign = () => {
-    const availableAttendees = attendees.filter(a => {
-      const isAssigned = groups.some(g => g.memberIds.includes(a.id));
-      const m = getMember(a.id);
-      return !isAssigned && !!m;
-    });
-
-    if (availableAttendees.length === 0) {
-      toast.error('배정 가능한 미배정 인원이 없습니다.');
-      return;
+  const performAssignment = async (exportOnly: boolean) => {
+    if (assignmentController.current) return;
+    if (!assignmentReady) { toast.error('출석 명단·회원 명부·세션 기록을 모두 불러온 뒤 편성해주세요.'); return; }
+    if (!costContext) { toast.error(utilityState.error); return; }
+    const assigned = new Set(groups.flatMap(g => g.memberIds));
+    const availableIds = [...costContext.people.keys()].filter(id => !assigned.has(id));
+    const controller = new AbortController();
+    assignmentController.current = controller;
+    setIsAssigning(true);
+    try {
+      const result = await runAutoAssignment({ availableIds, initialGroups: groups, context: costContext, withHistory: exportOnly }, controller.signal);
+      if (controller.signal.aborted) return;
+      if (exportOnly) {
+        const report = {
+          model: 'personal-utility-v2-relative-provisional', session_date: sessionDate,
+          parameters: costContext.parameters, sizes: result.sizing.sizes,
+          selected: { requestProduct: String(result.score.requestProduct), requestScore: result.score.requestScore,
+            boardMissing: result.score.boardMissing, boardMissingNonFour: result.score.boardMissingNonFour,
+            welfare: result.score.welfare, totalUtility: result.score.totalUtility },
+          samples: result.samples,
+          note: '탐색 중 채택된 배치의 기록이며, 전체 가능한 배치의 무작위 표본이나 전역 최적해가 아닙니다.',
+        };
+        const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+        const link = document.createElement('a'); link.href = url; link.download = `simulation_${sessionDate}.json`; link.click(); URL.revokeObjectURL(url);
+        toast.success('개인 효용 평가 데이터가 다운로드되었습니다.');
+      } else {
+        setLastAssignment({ groups: result.updatedGroups, attendees, members, sessions, date: sessionDate,
+          sizingNotices: getSizingNotices(result.sizing, groups), fixed: result.fixed });
+        setGroups(result.updatedGroups);
+        setIsAutoMode(false);
+        toast.success('자동 편성되었습니다. 요청 및 인원 조정 안내를 확인해주세요.');
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) toast.error(error instanceof Error ? error.message : '자동 편성에 실패했습니다.');
+    } finally {
+      if (assignmentController.current === controller) assignmentController.current = null;
+      setIsAssigning(false);
     }
-
-    const availableMembers = availableAttendees.map(a => ({
-      ...a,
-      member: getMember(a.id)!
-    }));
-
-    const { updatedGroups } = simulateAutoAssign(
-      availableMembers,
-      groups,
-      getMember,
-      costContext,
-      false
-    );
-
-    setGroups(groups.map(g => {
-       const wg = updatedGroups.find(w => w.id === g.id);
-       return wg ? { ...g, memberIds: wg.memberIds } : g;
-    }));
-    setIsAutoMode(false);
-    toast.success('논리적 균형 배치 알고리즘으로 자동 편성되었습니다.');
   };
-
-  const exportSimulationData = () => {
-    if (groups.length === 0) {
-      toast.error('조가 없습니다. 조를 생성한 뒤 시뮬레이션을 실행해주세요.');
-      return;
-    }
-
-    toast.info('시뮬레이션을 시작합니다. 브라우저가 잠시 멈출 수 있습니다...');
-    setTimeout(() => {
-      const availableAttendees = attendees.filter(a => {
-        const isAssigned = groups.some(g => g.memberIds.includes(a.id));
-        const m = getMember(a.id);
-        return !isAssigned && !!m;
-      });
-
-      const availableMembers = availableAttendees.map(a => ({
-        ...a,
-        member: getMember(a.id)!
-      }));
-
-      const { costLog, actualCost } = simulateAutoAssign(
-        availableMembers,
-        groups,
-        getMember,
-        costContext,
-        true
-      );
-
-      const simulationHistory = costLog || [];
-      const maxRewardFound = simulationHistory.length > 0 ? Math.max(...simulationHistory.map(s => s.reward)) : 0;
-      const raw_valid_costs = simulationHistory.filter(s => s.reward === maxRewardFound).map(s => s.pureCost);
-
-      const report = {
-        session_id: sessionDate,
-        actual_cost: actualCost,
-        valid_count: raw_valid_costs.length,
-        raw_valid_costs
-      };
-
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `simulation_${sessionDate}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('데이터 결과가 다운로드되었습니다.');
-    }, 100);
-  };
+  const handleAutoAssign = () => { void performAssignment(false); };
+  const exportSimulationData = () => { void performAssignment(true); };
 
   const assignToGroup = (memberId: string, groupId: string) => {
     setGroups(prev => prev.map(g =>
@@ -383,6 +376,10 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     getMemberFromInfo,
     memberAttendanceCount,
     costContext,
+    assignmentNotices,
+    getAssignmentWarnings,
+    isAssigning,
+    assignmentReady,
     calculateGroupAverageAttendance: calcGroupAvgAttendance,
     calculateGroupAverageStudentId: calcGroupAvgStudentId,
     getReunionWarnings: getWarnings,

@@ -49,10 +49,13 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
     isDeleteModalOpen,
     setIsDeleteModalOpen,
 
-    getMember,
     getMemberFromInfo,
     memberAttendanceCount,
     costContext,
+    assignmentNotices,
+    getAssignmentWarnings,
+    isAssigning,
+    assignmentReady,
     calculateGroupAverageAttendance,
     calculateGroupAverageStudentId,
     getReunionWarnings,
@@ -136,6 +139,10 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
           onExportSimulation={exportSimulationData}
           onMoveToRecord={handleMoveToRecord}
           saving={attendanceSaving}
+          isAssigning={isAssigning}
+          assignmentReady={assignmentReady}
+          assignmentNotices={assignmentNotices}
+          getAssignmentWarnings={getAssignmentWarnings}
           editingGroupId={editingGroupId}
           setEditingGroupId={setEditingGroupId}
           editingGroupName={editingGroupName}
@@ -179,7 +186,6 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
         isOpen={isCostModalOpen} 
         onClose={() => setIsCostModalOpen(false)} 
         groups={groups} 
-        getMember={getMember}
         context={costContext}
       />
     </div>

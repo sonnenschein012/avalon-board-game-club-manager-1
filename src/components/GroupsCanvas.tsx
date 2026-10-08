@@ -18,6 +18,10 @@ export interface GroupsCanvasProps {
   onExportSimulation: () => void;
   onMoveToRecord: () => void;
   saving?: boolean;
+  isAssigning?: boolean;
+  assignmentReady?: boolean;
+  assignmentNotices?: string[];
+  getAssignmentWarnings?: (ids: string[]) => string[];
   editingGroupId: string | null;
   setEditingGroupId: (id: string | null) => void;
   editingGroupName: string;
@@ -49,6 +53,10 @@ export default function GroupsCanvas({
   onExportSimulation,
   onMoveToRecord,
   saving = false,
+  isAssigning = false,
+  assignmentReady = true,
+  assignmentNotices = [],
+  getAssignmentWarnings = () => [],
   editingGroupId,
   setEditingGroupId,
   editingGroupName,
@@ -85,9 +93,10 @@ export default function GroupsCanvas({
             {isAutoMode && (
               <button 
                 onClick={onAutoAssign}
+                disabled={isAssigning || !assignmentReady}
                 className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-orange-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 transition animate-pulse whitespace-nowrap"
               >
-                <CheckCircle2 size={14} className="shrink-0" /> <span className="hidden sm:inline">조편성 시작</span><span className="sm:hidden">시작</span>
+                {isAssigning ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} className="shrink-0" />} <span>{isAssigning ? '편성 중…' : '조편성 시작'}</span>
               </button>
             )}
             <button 
@@ -99,6 +108,7 @@ export default function GroupsCanvas({
             {isAdminModeActive && (
               <button 
                 onClick={onExportSimulation}
+                disabled={isAssigning || !assignmentReady}
                 className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap"
               >
                 <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">분포 데이터 추출</span><span className="sm:hidden">추출</span>
@@ -116,6 +126,11 @@ export default function GroupsCanvas({
         </div>
         
         <div data-attendance-canvas className="p-6 flex-1 overflow-y-auto bg-slate-50/30">
+          {assignmentNotices.length > 0 && <div role="status" className="mb-4 space-y-2">
+            {assignmentNotices.map((notice, index) => <div key={`${index}-${notice}`} className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" /><span>{notice}</span>
+            </div>)}
+          </div>}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {groups.map((group, idx) => (
               <div key={group.id} data-group-id={group.id} className="bg-white rounded-xl shadow-sm">
@@ -227,6 +242,9 @@ export default function GroupsCanvas({
                   </div>
                   
                   <div className="mt-4">
+                    {getAssignmentWarnings(group.memberIds).map((notice, i) => <div key={`assignment-${i}`} role="status" className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" /><span>{notice}</span>
+                    </div>)}
                     {getReunionWarnings(group.memberIds).map((warn, i) => (
                       <div key={i} className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1.5 rounded-md font-bold flex items-center gap-1.5 mb-1.5 border border-orange-100/50">
                         <AlertTriangle size={12} className="shrink-0" /> ⚠️ 재회 주의: {warn}님은 최근 자주 같은 조였습니다.

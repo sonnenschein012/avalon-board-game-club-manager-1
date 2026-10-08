@@ -154,3 +154,50 @@ test('두 운영진이 같은 면접 기록을 수정하면 한쪽 입력을 보
   await firstContext.close();
   await secondContext.close();
 });
+
+test('개인 효용 자동 편성은 수동 배치와 정원을 유지하고 안내를 표시한다', async ({ page, request }, testInfo) => {
+  const root = 'http://127.0.0.1:8080/v1/projects/demo-avalon-manager/databases/(default)/documents';
+  const headers = { Authorization: 'Bearer owner' };
+  const response = await request.patch(`${root}/attendees/attendee-01?updateMask.fieldPaths=request`, {
+    headers, data: { fields: { request: { stringValue: '이서윤 장예린과 함께 하고 싶어요.' } } },
+  });
+  expect(response.ok()).toBe(true);
+  await page.goto('/attendance');
+  await expect(page.getByLabel('세션명')).toBeVisible();
+  const date = await page.getByLabel('세션 날짜').inputValue();
+  await page.evaluate(date => {
+    const key = Object.keys(sessionStorage).find(key => key.startsWith('avalon:attendance-draft:v1:'));
+    if (!key) throw new Error('Missing draft');
+    sessionStorage.setItem(key, JSON.stringify({ sessionName: '효용 연결 확인', sessionDate: date,
+      isSessionNameCustom: true, isAutoMode: true, groups: [
+        { id: 'utility-one', name: '고정 1조', memberIds: ['attendee-01'], gameIds: [], targetSize: 4, notes: '수동 유지' },
+        { id: 'utility-two', name: '고정 2조', memberIds: ['attendee-02'], gameIds: [], targetSize: 4 },
+      ] }));
+  }, date);
+  await page.reload();
+  await page.getByRole('button', { name: '조편성 시작', exact: true }).click();
+  await expect(page.getByText('자동 편성되었습니다. 요청 및 인원 조정 안내를 확인해주세요.', { exact: true })).toBeVisible();
+  await expect(page.getByText(/설정 인원을 4명에서 5명으로 조정/)).toBeVisible();
+  await expect(page.getByText(/수동 배치를 유지하여 서로 다른 조/)).toHaveCount(2);
+  await expect(page.getByText(/장예린님은 불참하여/)).toHaveCount(1);
+  const saved = await page.evaluate(() => {
+    const key = Object.keys(sessionStorage).find(key => key.startsWith('avalon:attendance-draft:v1:'))!;
+    return JSON.parse(sessionStorage.getItem(key)!) as { groups: { id: string; memberIds: string[]; targetSize: number; notes?: string }[] };
+  });
+  expect(saved.groups.map(g => g.memberIds.length).sort()).toEqual([4, 5]);
+  expect(saved.groups.every(g => g.memberIds.length === g.targetSize)).toBe(true);
+  expect(saved.groups[0]!.memberIds).toContain('attendee-01');
+  expect(saved.groups[1]!.memberIds).toContain('attendee-02');
+  expect(saved.groups[0]!.notes).toBe('수동 유지');
+  expect(new Set(saved.groups.flatMap(g => g.memberIds)).size).toBe(9);
+  await page.getByRole('button', { name: /비용평가지표/ }).click();
+  const dialog = page.getByRole('dialog', { name: '개인 효용 평가' });
+  await expect(dialog.getByText('개인 순효용 합:', { exact: false })).toBeVisible();
+  await expect(dialog.getByRole('columnheader', { name: '환산 순효용', exact: true })).toHaveCount(2);
+  await expect(dialog.getByRole('columnheader', { name: '개선 중요도', exact: true })).toHaveCount(2);
+  await expect(dialog.getByRole('row')).toHaveCount(11);
+  await page.screenshot({ path: testInfo.outputPath('utility-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('utility-mobile.png') });
+});
