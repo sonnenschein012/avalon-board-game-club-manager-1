@@ -107,6 +107,14 @@ CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운�
 - staging과 운영 각각 배포 파일 62개를 해당 환경의 로컬 빌드와 SHA-256으로 대조해 모두 일치했다. 편성 Worker도 포함한다. package/lockfile 버전과 annotated tag 및 [GitHub Release](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.0)는 `1.2.0`이며 태그는 배포 소스 `47f43eb`을 가리킨다. 후속 문서 커밋은 앱 빌드를 바꾸지 않는다.
 - 초기 운영값의 검증과 한계는 [개인 효용 모델](group-utility-model.md)에 기록했다. 모든 모임의 성별 고립 방지나 전역 최적성을 보장하지 않는다. 공유 `.ua` 그래프는 기존 stale 상태를 유지하며, 배포 완료나 CI의 그래프 도구 테스트 성공을 그래프 최신성 승인으로 취급하지 않는다.
 
+### v1.2.1 (2026-10-10)
+
+- 앱 소스 `fd980f1dbb1568bb84120ff5b823129bbde84148`을 main과 `codex/attendance-design-proposals`에 커밋·푸시하고 staging 대조 후 [운영 앱](https://avalondgu.web.app)에 배포했다. 각 환경을 새로 빌드했으며 Hosting만 배포했다. Firestore 규칙·인덱스·업무 데이터와 named database 설정은 변경하지 않았다. 빌드·배포는 Node 22.23.2에서 실행했다.
+- 선택한 B 평가 모달과 버튼 ②를 실제 일일 조 편성에 적용했다. 실행 버튼은 청회색, 자동 모드 종료는 투명 보조 버튼이며 평가 버튼은 `편성 평가`로 표시한다. 조·조원 선택, 전체 배치 기준 개인 평가, 접을 수 있는 지표 설명·계산 예시, 모바일 조원 선택과 Esc/닫기·포커스 복귀를 제공한다. 출석 명단·조 카드 디자인과 자동 편성 수식·파라미터·저장 계약은 유지한다. Scenario Lab 두 비교 경로는 실제 모달과 선택된 버튼 스타일을 재사용한다.
+- 로컬 lint·TypeScript, 앱 단위 테스트 334개, 검토 스크립트 58개, 운영·staging 빌드와 번들 분리 검사를 통과했다. [배포 소스 CI](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/actions/runs/37947502024)는 보안 규칙·그래프 검증 도구와 합성 Emulator 화면 시나리오 8개를 포함해 전체 성공했다. 새 모달 회귀 검증은 전체 편성 기준 점수·요청 충족·부분 명단·자료 부재·조/조원 선택과 모바일·Esc·포커스 복귀를 포함한다.
+- staging과 운영의 배포 파일 각각 62개를 해당 환경의 로컬 빌드와 SHA-256으로 대조해 모두 일치했다. 로그인된 운영 화면을 직접 열어 조작하는 점검은 수행하지 않았으며 실제 화면 동작은 위 CI 합성 데이터로 검증했다. package/lockfile, annotated tag 및 [GitHub Release](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.1)는 `1.2.1`이고 태그는 배포 소스 `fd980f1`을 가리킨다. 후속 운영 기록 커밋은 앱 빌드를 바꾸지 않는다.
+- 다음 세션은 main의 README·개발 가이드에서 시작한다. B 모달·버튼 ②는 더 이상 미확정 시안이 아니라 적용된 선택이다. 공유 `.ua` 그래프는 기존 stale 상태를 유지하며 배포·CI 성공을 그래프 최신성 승인으로 취급하지 않는다.
+
 ### 이후 릴리스 절차
 
 릴리스는 검토된 커밋을 staging에 배포하고 주요 화면을 확인한 뒤 운영에 반영합니다. 운영 확인 후 package/lockfile의 버전, annotated tag, GitHub Release를 맞춥니다. 배포 이력과 Release가 같은 앱 소스를 가리키는지 확인하세요.
