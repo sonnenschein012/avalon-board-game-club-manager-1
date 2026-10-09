@@ -98,6 +98,15 @@ CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운�
 - staging과 운영 각각 배포 파일 61개의 SHA-256이 해당 환경의 로컬 빌드와 모두 일치했다. 새 편성 Worker 파일도 대조에 포함했다. package/lockfile 버전과 릴리스 태그는 `1.1.0`이며 태그는 배포 소스 `c6fdc24`를 가리킨다. 후속 인수인계 문서 커밋은 앱 빌드를 바꾸지 않는다.
 - [배포 소스 CI](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/actions/runs/37742564541)도 전체 성공했다. 보안 규칙·그래프 검증 도구·로컬 통합 시나리오를 포함한다. 공유 `.ua` 그래프는 기존 stale 상태를 유지하며, 배포 완료를 그래프 최신성 승인으로 취급하지 않는다. 파라미터는 초기 운영값으로 실제 만족도에 따른 보정은 후속 운영 사례에서 판단한다.
 
+### v1.2.0 (2026-10-09)
+
+- 앱 소스 `47f43eb6500c250bf8483bc7ee57b2d82f6c3ca6`을 커밋·푸시하고 main에 반영한 뒤 staging 확인 후 [운영 앱](https://avalondgu.web.app)에 배포했다. 두 환경은 각각 새로 빌드했으며 Hosting만 배포했다. Firestore 규칙·인덱스·업무 데이터와 운영의 named database 설정은 변경하지 않았다. 빌드와 Firebase CLI는 Node 22.23.2에서 실행했다.
+- 동반 요청에서 성을 생략한 이름을 인식하고, 여러 후보는 일일 조 편성 알림을 눌러 모달에서 확인하도록 했다. 확인 결과는 같은 계정·해당 세션의 sessionStorage에 보존하며 자동·수동 편성과 안내가 공유한다. 일일 조 편성의 인라인 안내 스타일도 통일했다. 보호 이후 요청 완화·재회 비용 전액 반영, 첫 동성/이성 효용 0.9/0.25와 강화한 체감, 요청 쌍 교환 탐색을 적용했다. 전체 우선순위·수동 고정·정원 조건은 유지한다.
+- 로컬 lint·TypeScript, 앱 단위 테스트 330개, 검토 스크립트 58개와 운영/staging 빌드 및 번들 분리 검사를 통과했다. 실제 Worker 편성과 복수 동반 후보 모달의 자동·수동 평가를 합성 Emulator 시나리오 2개로 확인했다. [배포 소스 CI](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/actions/runs/37918207995)도 보안 규칙·그래프 검증 도구·전체 Emulator 화면 시나리오를 포함해 성공했다. 사용자가 제공한 자료는 비공개 오프라인 모의 비교에만 사용했다.
+- staging과 운영에서 기존 로그인으로 일일 조 편성 및 개인 효용 평가 창의 새 보호·완화 설명을 조회했다. 확인 시 명단은 미배정 상태여서 실제 개인별 행·후보 선택·자동 편성은 운영 업무 자료로 실행하지 않았으며, 해당 동작은 위 합성 Emulator에서 검증했다. 운영 공개 면접 경로의 잘못된 링크 안내도 확인했다. 조회 과정에서 업무 데이터를 수정하지 않았다.
+- staging과 운영 각각 배포 파일 62개를 해당 환경의 로컬 빌드와 SHA-256으로 대조해 모두 일치했다. 편성 Worker도 포함한다. package/lockfile 버전과 annotated tag 및 [GitHub Release](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.0)는 `1.2.0`이며 태그는 배포 소스 `47f43eb`을 가리킨다. 후속 문서 커밋은 앱 빌드를 바꾸지 않는다.
+- 초기 운영값의 검증과 한계는 [개인 효용 모델](group-utility-model.md)에 기록했다. 모든 모임의 성별 고립 방지나 전역 최적성을 보장하지 않는다. 공유 `.ua` 그래프는 기존 stale 상태를 유지하며, 배포 완료나 CI의 그래프 도구 테스트 성공을 그래프 최신성 승인으로 취급하지 않는다.
+
 ### 이후 릴리스 절차
 
 릴리스는 검토된 커밋을 staging에 배포하고 주요 화면을 확인한 뒤 운영에 반영합니다. 운영 확인 후 package/lockfile의 버전, annotated tag, GitHub Release를 맞춥니다. 배포 이력과 Release가 같은 앱 소스를 가리키는지 확인하세요.
