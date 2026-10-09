@@ -10,7 +10,7 @@ import type {
 
 export type MembersScenarioState = 'default' | 'empty' | 'crowded' | 'long-names';
 export type InterviewScenarioState = 'default' | 'mobile-heavy' | 'change-needed';
-export type AttendanceScenarioState = 'default' | 'empty' | 'crowded';
+export type AttendanceScenarioState = 'default' | 'empty' | 'crowded' | 'companion-request';
 
 function timestampAt(iso: string) {
   const date = new Date(iso);
@@ -83,7 +83,14 @@ export function createAttendanceFixture(state: AttendanceScenarioState): {
   if (state === 'empty') return { members: [], attendees: [], groups: [] };
   const size = state === 'crowded' ? 28 : 10;
   const members = Array.from({ length: size - 2 }, (_, index) => makeMember(index));
+  if (state === 'companion-request') {
+    members[2]!.name = '김민수';
+    members[4]!.name = '박민수';
+  }
   const attendees = Array.from({ length: size }, (_, index) => makeAttendee(index, members[index]));
+  if (state === 'companion-request') {
+    attendees[0]!.request = '민수와 함께 하고 싶어요.\n처음 참석하는 친구와 함께 신청했습니다. 같은 조에서 게임 규칙을 배울 수 있도록 부탁드립니다.\n어떤 분을 말하는지는 운영진에게 따로 전달했습니다.\n가능하면 처음 하는 게임은 설명을 들으면서 천천히 배우고 싶습니다.\n게임 종류는 조원들과 함께 정하겠습니다.';
+  }
   const groupCount = state === 'crowded' ? 6 : 2;
   const groups = Array.from({ length: groupCount }, (_, groupIndex) => ({
     id: `scenario-group-${groupIndex + 1}`,

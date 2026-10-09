@@ -55,6 +55,8 @@ npm.cmd run scenario-lab:test  # canonical scenario와 390/768/1440px 검증
 
 예: `/design.html#/members/crowded`, `/design.html#/interview/mobile-heavy`, `/design.html#/attendance/empty`. 상단의 Page, State, Viewport 선택기로 같은 상태를 즉시 전환할 수 있습니다.
 
+동반 상대 선택 모달은 `/design.html#/attendance/companion-request`에서 바로 열립니다. 후보 선택을 반영하거나 취소할 수 있으며, 닫은 뒤 조 안의 동반 요청 알림을 누르면 다시 열립니다. 모두 로컬 합성 데이터입니다.
+
 ### Emulator Design Lab
 
 Emulator Design Lab은 실제 앱 UI와 hook/service를 그대로 사용하면서 Authentication과 Firestore를 로컬 Emulator에만 연결합니다. 실제 Firebase 프로젝트 접근 권한 없이 통합 동작과 보안 규칙을 검증할 수 있으며, 시작할 때 Mock 데이터를 새로 구성합니다.

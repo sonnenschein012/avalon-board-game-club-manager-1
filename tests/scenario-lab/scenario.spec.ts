@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 const scenarios = [
   ['members', 'default'], ['members', 'empty'], ['members', 'crowded'], ['members', 'long-names'],
   ['interview', 'default'], ['interview', 'mobile-heavy'], ['interview', 'change-needed'],
-  ['attendance', 'default'], ['attendance', 'empty'], ['attendance', 'crowded'],
+  ['attendance', 'default'], ['attendance', 'empty'], ['attendance', 'crowded'], ['attendance', 'companion-request'],
 ] as const;
 
 function recordBackendRequests(page: Page) {

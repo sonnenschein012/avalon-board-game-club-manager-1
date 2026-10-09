@@ -30,6 +30,7 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
     : `${allIds.length}명을 ${initialGroups.length}개 조에 4~10명씩 배치할 수 없습니다. 조 수를 조정해주세요.`);
   const capacities = new Map(sizing.assignments.map(g => [g.id, g.size]));
   const movable = new Set(availableIds);
+  const movablePairs = [...context.requests.values()].filter(([a, b]) => movable.has(a) && movable.has(b));
   const cache = new Map<string, AssignmentScore>();
   const evaluate = (ids: string[]) => {
     const key = JSON.stringify([...ids].sort());
@@ -63,10 +64,10 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
     for (const group of groups) while (group.memberIds.length < group.targetSize) group.memberIds.push(remaining.pop()!);
     const scores = groups.map(g => evaluate(g.memberIds));
     let currentScore = combineScores(scores, context.parameters);
-    const swap = (a: number, ai: number, b: number, bi: number) => {
+    const exchange = (a: number, ais: number[], b: number, bis: number[]) => {
       const ga = groups[a]!, gb = groups[b]!;
       const left = [...ga.memberIds], right = [...gb.memberIds];
-      [left[ai], right[bi]] = [right[bi]!, left[ai]!];
+      ais.forEach((ai, i) => { const bi = bis[i]!; [left[ai], right[bi]] = [right[bi]!, left[ai]!]; });
       const sa = evaluate(left), sb = evaluate(right);
       const candidateScores = [...scores]; candidateScores[a] = sa; candidateScores[b] = sb;
       const candidateScore = combineScores(candidateScores, context.parameters);
@@ -75,6 +76,7 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
       currentScore = candidateScore;
       return true;
     };
+    const swap = (a: number, ai: number, b: number, bi: number) => exchange(a, [ai], b, [bi]);
     sample(currentScore);
     if (groups.length > 1 && availableIds.length > 1) {
       for (let step = 0; step < 2000; step++) {
@@ -85,15 +87,38 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
         if (movable.has(ga.memberIds[ai]!) && movable.has(gb.memberIds[bi]!)) swap(a, ai, b, bi);
         if (step % 100 === 0) sample(currentScore);
       }
-      // Bounded polishing; termination does not certify a global optimum.
-      for (let pass = 0; pass < 3; pass++) {
+      const polishSingles = () => {
         let improved = false;
         for (let a = 0; a < groups.length; a++) for (let b = a + 1; b < groups.length; b++) {
           for (let ai = 0; ai < groups[a]!.memberIds.length; ai++) for (let bi = 0; bi < groups[b]!.memberIds.length; bi++) {
             if (movable.has(groups[a]!.memberIds[ai]!) && movable.has(groups[b]!.memberIds[bi]!)) improved = swap(a, ai, b, bi) || improved;
           }
         }
+        return improved;
+      };
+      // Complete the existing search first, so additional moves cannot worsen its result.
+      for (let pass = 0; pass < 3; pass++) if (!polishSingles()) break;
+      // Fulfilled requests can otherwise trap single-person swaps. Move both endpoints
+      // together, using the same whole-assignment comparator and a per-start budget.
+      let pairAttempts = 0;
+      for (let pass = 0; pass < 3; pass++) {
+        let improved = false;
+        pairPolish: for (const [first, second] of movablePairs) {
+          for (let b = 0; b < groups.length; b++) {
+            for (let bi = 0; bi < groups[b]!.memberIds.length; bi++) for (let bj = bi + 1; bj < groups[b]!.memberIds.length; bj++) {
+              if (pairAttempts >= 2000) break pairPolish;
+              // An accepted move can change the pair's location during this sweep.
+              const a = groups.findIndex(g => g.memberIds.includes(first) && g.memberIds.includes(second));
+              if (a < 0 || a === b) continue;
+              const target = groups[b]!.memberIds;
+              if (!movable.has(target[bi]!) || !movable.has(target[bj]!)) continue;
+              pairAttempts++;
+              improved = exchange(a, [groups[a]!.memberIds.indexOf(first), groups[a]!.memberIds.indexOf(second)], b, [bi, bj]) || improved;
+            }
+          }
+        }
         if (!improved) break;
+        polishSingles();
       }
     }
     const score = currentScore;

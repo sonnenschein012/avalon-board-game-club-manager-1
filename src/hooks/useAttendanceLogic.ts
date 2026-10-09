@@ -54,7 +54,8 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
   const { sessionName, setSessionName, sessionDate, setSessionDate, groups, setGroups,
-    isAutoMode, setIsAutoMode, resetDraft } = useAttendanceDraft(draftScope ?? null);
+    isAutoMode, setIsAutoMode, resetDraft, requestSelections, setRequestSelections } = useAttendanceDraft(draftScope ?? null);
+  const [requestChoiceKey, setRequestChoiceKey] = useState<string | null>(null);
 
   // Modals state
   const [isCostModalOpen, setIsCostModalOpen] = useState(false);
@@ -89,19 +90,27 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
 
   const utilityState = useMemo(() => {
     if (!assignmentReady) return { context: null, error: '' };
-    try { return { context: buildUtilityContext({ attendees, members, sessions, assignmentDate: sessionDate }), error: '' }; }
+    try { return { context: buildUtilityContext({ attendees, members, sessions, assignmentDate: sessionDate, requestSelections }), error: '' }; }
     catch (error) { return { context: null, error: error instanceof Error ? error.message : '명단을 확인해주세요.' }; }
-  }, [attendees, members, sessions, sessionDate, assignmentReady]);
+  }, [attendees, members, sessions, sessionDate, assignmentReady, requestSelections]);
   const costContext = utilityState.context;
+  const requestChoices = costContext?.requestChoices ?? [];
+  const activeRequestChoice = requestChoices.find(choice => choice.key === requestChoiceKey) ?? null;
+  const confirmRequestChoice = (key: string, signature: string, recipientId: string | null) => {
+    const choice = requestChoices.find(choice => choice.key === key && choice.signature === signature);
+    if (!choice || (recipientId !== null && !choice.candidates.some(candidate => candidate.id === recipientId && candidate.memberId))) return;
+    setRequestSelections(current => ({ ...current, [key]: { signature, recipientId } }));
+    setRequestChoiceKey(null);
+  };
   const [isAssigning, setIsAssigning] = useState(false);
   const assignmentController = useRef<AbortController | null>(null);
-  useEffect(() => () => { assignmentController.current?.abort(); }, [groups, attendees, members, sessions, sessionDate, assignmentReady]);
+  useEffect(() => () => { assignmentController.current?.abort(); }, [groups, attendees, members, sessions, sessionDate, assignmentReady, requestSelections]);
   const [lastAssignment, setLastAssignment] = useState<{
     groups: SessionGroup[]; attendees: Attendee[]; members: Member[]; sessions: Session[];
-    date: string; sizingNotices: string[]; fixed: Record<string, string>;
+    date: string; sizingNotices: string[]; fixed: Record<string, string>; context: typeof costContext;
   } | null>(null);
   const currentRun = lastAssignment?.groups === groups && lastAssignment.attendees === attendees &&
-    lastAssignment.members === members && lastAssignment.sessions === sessions && lastAssignment.date === sessionDate ? lastAssignment : null;
+    lastAssignment.members === members && lastAssignment.sessions === sessions && lastAssignment.date === sessionDate && lastAssignment.context === costContext ? lastAssignment : null;
   const assignmentNotices = [
     ...(utilityState.error ? [utilityState.error] : []),
     ...(currentRun?.sizingNotices ?? []),
@@ -174,7 +183,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     setImporting(true);
     try {
       const success = await importAttendanceRows(input, attendees, members);
-      if (success) setGroups([]);
+      if (success) { setGroups([]); setRequestSelections({}); setRequestChoiceKey(null); }
       return success;
     } finally {
       setImporting(false);
@@ -185,6 +194,8 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     const success = await clearAllAttendees(attendees);
     if (success) {
       setGroups([]);
+      setRequestSelections({});
+      setRequestChoiceKey(null);
     }
   };
 
@@ -216,7 +227,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
       if (controller.signal.aborted) return;
       if (exportOnly) {
         const report = {
-          model: 'personal-utility-v2-relative-provisional', session_date: sessionDate,
+          model: 'personal-utility-v3-protect-then-attenuate-provisional', session_date: sessionDate,
           parameters: costContext.parameters, sizes: result.sizing.sizes,
           selected: { requestProduct: String(result.score.requestProduct), requestScore: result.score.requestScore,
             boardMissing: result.score.boardMissing, boardMissingNonFour: result.score.boardMissingNonFour,
@@ -229,7 +240,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         toast.success('개인 효용 평가 데이터가 다운로드되었습니다.');
       } else {
         setLastAssignment({ groups: result.updatedGroups, attendees, members, sessions, date: sessionDate,
-          sizingNotices: getSizingNotices(result.sizing, groups), fixed: result.fixed });
+          sizingNotices: getSizingNotices(result.sizing, groups), fixed: result.fixed, context: costContext });
         setGroups(result.updatedGroups);
         setIsAutoMode(false);
         toast.success('자동 편성되었습니다. 요청 및 인원 조정 안내를 확인해주세요.');
@@ -350,6 +361,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     importing,
     activeRequestId,
     setActiveRequestId,
+    requestChoices, activeRequestChoice, setRequestChoiceKey, confirmRequestChoice,
     sessionName,
     setSessionName,
     sessionDate,

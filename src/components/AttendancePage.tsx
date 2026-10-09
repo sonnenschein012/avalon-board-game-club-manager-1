@@ -11,6 +11,7 @@ import { useAttendanceLogic } from '../hooks/useAttendanceLogic';
 import { AttendanceDragAndDrop } from './AttendanceDragAndDrop';
 import AttendanceCsvImportModal from './AttendanceCsvImportModal';
 import AttendanceMemberRegistrationModal from './AttendanceMemberRegistrationModal';
+import CompanionRequestModal from './CompanionRequestModal';
 
 interface AttendancePageProps {
   draftScope: string;
@@ -27,6 +28,7 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
     importing,
     activeRequestId,
     setActiveRequestId,
+    requestChoices, activeRequestChoice, setRequestChoiceKey, confirmRequestChoice,
     sessionName,
     setSessionName,
     sessionDate,
@@ -143,6 +145,8 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
           assignmentReady={assignmentReady}
           assignmentNotices={assignmentNotices}
           getAssignmentWarnings={getAssignmentWarnings}
+          requestChoices={requestChoices}
+          onRequestChoiceOpen={setRequestChoiceKey}
           editingGroupId={editingGroupId}
           setEditingGroupId={setEditingGroupId}
           editingGroupName={editingGroupName}
@@ -164,6 +168,9 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
 
       {importOpen && <AttendanceCsvImportModal members={members} existingCount={attendees.length} groupCount={groups.length}
         onClose={() => setImportOpen(false)} onConfirm={handleImportAttendance} />}
+      {activeRequestChoice && <CompanionRequestModal key={activeRequestChoice.signature} choice={activeRequestChoice}
+        onClose={() => setRequestChoiceKey(null)}
+        onConfirm={recipientId => confirmRequestChoice(activeRequestChoice.key, activeRequestChoice.signature, recipientId)} />}
       {registeringAttendee && <AttendanceMemberRegistrationModal key={registeringAttendee.id} attendee={registeringAttendee}
         onSave={handleRegisterMember} onClose={() => setRegisteringAttendee(null)} />}
       <ManualAddModal

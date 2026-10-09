@@ -62,7 +62,7 @@ test('manual mapping handles changed questions and requires renewed confirmation
   await expect(page.getByRole('button', { name: '파일 업로드' })).toBeFocused();
 });
 
-test('duplicate, unknown response and empty uploads preserve the roster; reopened dialog is fresh', async ({ page }) => {
+test('duplicate, unknown response and empty uploads preserve the roster; reopened dialog is fresh', async ({ page }, testInfo) => {
   const originalCount = await page.locator('[data-attendee-id]').count();
   await page.getByRole('button', { name: '파일 업로드' }).click();
   await upload(page, '이름,음료,뒤풀이\n23 업로드테스트,차,아마도\n23 업로드테스트,차,네\n');
@@ -70,6 +70,12 @@ test('duplicate, unknown response and empty uploads preserve the roster; reopene
   await expect(dialog.getByRole('button', { name: '2명 명단 반영' })).toBeDisabled();
   await expect(dialog.getByRole('table')).toContainText('해석할 수 없습니다');
   await expect(dialog.getByRole('table')).toContainText('중복되었습니다');
+  await dialog.getByRole('table').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath('attendance-import-notices-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.getByRole('article').first().scrollIntoViewIfNeeded();
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('attendance-import-notices-mobile.png') });
   await upload(page, '이름,음료,뒤풀이\n');
   await expect(dialog.getByText('가져올 응답이 없습니다.', { exact: false })).toBeVisible();
   await expect(dialog.getByRole('button', { name: '0명 명단 반영' })).toBeDisabled();

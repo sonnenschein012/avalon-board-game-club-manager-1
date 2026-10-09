@@ -1,6 +1,7 @@
 import { useEffect, useState, type SetStateAction } from 'react';
 import type { SessionGroup } from '../types';
 import { getDefaultSessionName, getTodaySessionMetadata } from '../domain/attendance/sessionMetadata';
+import { isRequestSelections, type RequestSelections } from '../domain/matching/companionRequests';
 
 export interface AttendanceDraft {
   sessionName: string;
@@ -8,12 +9,14 @@ export interface AttendanceDraft {
   isSessionNameCustom: boolean;
   groups: SessionGroup[];
   isAutoMode: boolean;
+  requestSelections?: RequestSelections;
 }
 
 const drafts = new Map<string, AttendanceDraft>();
 const storageKey = (scope: string) => `avalon:attendance-draft:v1:${scope}`;
+const emptySelections: RequestSelections = {};
 const defaultDraft = (): AttendanceDraft => ({
-  ...getTodaySessionMetadata(), isSessionNameCustom: false, groups: [], isAutoMode: false,
+  ...getTodaySessionMetadata(), isSessionNameCustom: false, groups: [], isAutoMode: false, requestSelections: {},
 });
 
 function isDraft(value: unknown): value is AttendanceDraft {
@@ -21,6 +24,7 @@ function isDraft(value: unknown): value is AttendanceDraft {
   const draft = value as AttendanceDraft;
   return typeof draft.sessionName === 'string' && typeof draft.sessionDate === 'string'
     && typeof draft.isSessionNameCustom === 'boolean' && typeof draft.isAutoMode === 'boolean'
+    && (draft.requestSelections === undefined || isRequestSelections(draft.requestSelections))
     && Array.isArray(draft.groups) && draft.groups.every(group => group && typeof group.id === 'string'
       && Array.isArray(group.memberIds) && group.memberIds.every(id => typeof id === 'string')
       && Array.isArray(group.gameIds) && group.gameIds.every(id => typeof id === 'string')
@@ -57,6 +61,10 @@ export function useAttendanceDraft(scope: string | null, initial?: AttendanceDra
   const setSessionName = (sessionName: string) => setDraft(current => ({ ...current, sessionName, isSessionNameCustom: true }));
   const setSessionDate = (sessionDate: string) => setDraft(current => ({
     ...current, sessionDate, sessionName: current.isSessionNameCustom ? current.sessionName : getDefaultSessionName(sessionDate),
+    requestSelections: current.sessionDate === sessionDate ? current.requestSelections ?? emptySelections : {},
+  }));
+  const setRequestSelections = (update: SetStateAction<RequestSelections>) => setDraft(current => ({
+    ...current, requestSelections: typeof update === 'function' ? update(current.requestSelections ?? emptySelections) : update,
   }));
   const setIsAutoMode = (update: SetStateAction<boolean>) => setDraft(current => ({
     ...current, isAutoMode: typeof update === 'function' ? update(current.isAutoMode) : update,
@@ -69,5 +77,6 @@ export function useAttendanceDraft(scope: string | null, initial?: AttendanceDra
     }
     setDraft(next);
   };
-  return { ...draft, setGroups, setSessionName, setSessionDate, setIsAutoMode, resetDraft };
+  return { ...draft, requestSelections: draft.requestSelections ?? emptySelections, setRequestSelections,
+    setGroups, setSessionName, setSessionDate, setIsAutoMode, resetDraft };
 }

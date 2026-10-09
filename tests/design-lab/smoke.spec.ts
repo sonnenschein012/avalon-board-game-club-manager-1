@@ -190,6 +190,15 @@ test('개인 효용 자동 편성은 수동 배치와 정원을 유지하고 안
   expect(saved.groups[1]!.memberIds).toContain('attendee-02');
   expect(saved.groups[0]!.notes).toBe('수동 유지');
   expect(new Set(saved.groups.flatMap(g => g.memberIds)).size).toBe(9);
+  await expect(page.getByRole('button', { name: /자동 조편성/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: '조편성 시작', exact: true })).toHaveCount(0);
+  await expect(page.getByText(/수동 배치를 유지하여 서로 다른 조/)).toHaveCount(2);
+  await expect(page.getByText(/장예린님은 불참하여/)).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('attendance-notices-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.locator('[data-attendance-canvas]').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('attendance-notices-mobile.png'), fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole('button', { name: /비용평가지표/ }).click();
   const dialog = page.getByRole('dialog', { name: '개인 효용 평가' });
   await expect(dialog.getByText('개인 순효용 합:', { exact: false })).toBeVisible();
@@ -200,4 +209,89 @@ test('개인 효용 자동 편성은 수동 배치와 정원을 유지하고 안
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('utility-mobile.png') });
+});
+
+test('복수 동반 후보는 알림에서 모달로 선택하고 자동·수동 평가에 같은 상대를 사용한다', async ({ page, request }, testInfo) => {
+  const root = 'http://127.0.0.1:8080/v1/projects/demo-avalon-manager/databases/(default)/documents';
+  const headers = { Authorization: 'Bearer owner' }; // Synthetic local emulator only.
+  const raw = '민수와 함께 하고 싶어요.\n처음 참석하는 친구와 함께 신청했습니다. 같은 조에서 게임 규칙을 배울 수 있도록 부탁드립니다.\n어떤 분을 말하는지는 운영진에게 따로 전달했습니다.\n가능하면 처음 하는 게임은 설명을 들으면서 천천히 배우고 싶습니다.\n게임 종류는 조원들과 함께 정하겠습니다.';
+  const changes = [
+    ['members/member-03', { name: { stringValue: '김민수' } }],
+    ['members/member-08', { name: { stringValue: '박민수' } }],
+    ['attendees/attendee-03', { name: { stringValue: '김민수' } }],
+    ['attendees/attendee-08', { name: { stringValue: '박민수' } }],
+    ['attendees/attendee-01', { request: { stringValue: raw } }],
+  ] as const;
+  for (const [path, fields] of changes) {
+    const response = await request.patch(`${root}/${path}?updateMask.fieldPaths=${Object.keys(fields).join(',')}`, { headers, data: { fields } });
+    expect(response.ok()).toBe(true);
+  }
+  await page.goto('/attendance');
+  const pending = page.getByRole('button', { name: /상대 확인 필요: 김민준/ });
+  await expect(pending).toHaveCount(1);
+  await pending.click();
+  const dialog = page.getByRole('dialog', { name: '동반 상대 선택' });
+  await expect(dialog.getByRole('radio', { name: '상대 미확정', exact: true })).toBeChecked();
+  await dialog.getByRole('radio', { name: /김민수.*22학번/ }).check();
+  await dialog.getByRole('button', { name: '취소', exact: true }).click();
+  await pending.click();
+  await expect(dialog.getByRole('radio', { name: '상대 미확정', exact: true })).toBeChecked();
+  const excerpt = dialog.locator('summary > span').first();
+  const collapsedHeight = await excerpt.evaluate(element => element.clientHeight);
+  await dialog.getByText('원문 전체 보기', { exact: true }).click();
+  expect(await excerpt.evaluate(element => element.clientHeight)).toBeGreaterThan(collapsedHeight);
+  await dialog.getByText('원문 접기', { exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('companion-modal-desktop.png') });
+  await page.setViewportSize({ width: 390, height: 600 });
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await dialog.getByRole('radio', { name: /박민수.*24학번/ }).check();
+  await expect(dialog.getByRole('radio', { name: /박민수.*24학번/ })).toBeChecked();
+  await dialog.getByRole('radio', { name: /김민수.*22학번/ }).check();
+  const confirm = dialog.getByRole('button', { name: '선택 반영', exact: true });
+  const box = (await confirm.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(600);
+  await page.screenshot({ path: testInfo.outputPath('companion-modal-mobile.png') });
+  await confirm.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /동반 상대 확인: 김민준.*김민수/ })).toHaveCount(1);
+  const date = await page.getByLabel('세션 날짜').inputValue();
+  await page.evaluate(date => {
+    const key = Object.keys(sessionStorage).find(key => key.startsWith('avalon:attendance-draft:v1:'))!;
+    const draft = JSON.parse(sessionStorage.getItem(key)!);
+    draft.groups = [
+      { id: 'choice-one', name: '요청자 조', memberIds: ['attendee-01'], gameIds: [] },
+      { id: 'choice-two', name: '다른 조', memberIds: ['attendee-02'], gameIds: [] },
+    ];
+    draft.sessionDate = date;
+    draft.isAutoMode = true;
+    sessionStorage.setItem(key, JSON.stringify(draft));
+  }, date);
+  await page.reload();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(page.getByRole('button', { name: /동반 상대 확인: 김민준.*김민수/ })).toHaveCount(1);
+  await page.getByRole('button', { name: '조편성 시작', exact: true }).click();
+  await expect(page.getByText('자동 편성되었습니다. 요청 및 인원 조정 안내를 확인해주세요.', { exact: true })).toBeVisible();
+  const firstGroup = page.locator('[data-group-id="choice-one"]');
+  await expect(firstGroup.locator('[data-attendee-id="attendee-03"]')).toBeVisible();
+  await expect(page.getByText(/동반 요청 미충족: 김민준님과 김민수님/)).toHaveCount(0);
+  await firstGroup.locator('[data-attendee-id="attendee-03"]').getByRole('button').click();
+  await expect(firstGroup.getByText(/동반 요청 미충족: 김민준님과 김민수님/)).toBeVisible();
+  await firstGroup.getByRole('button', { name: /동반 상대 확인/ }).click();
+  await expect(dialog.getByRole('radio', { name: /김민수.*22학번/ })).toBeChecked();
+  await dialog.getByRole('radio', { name: /박민수.*24학번/ }).check();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(firstGroup.getByRole('button', { name: /동반 상대 확인/ })).toBeFocused();
+  await firstGroup.getByRole('button', { name: /동반 상대 확인/ }).click();
+  await expect(dialog.getByRole('radio', { name: /김민수.*22학번/ })).toBeChecked();
+  await dialog.getByRole('radio', { name: '상대 미확정', exact: true }).check();
+  await dialog.getByRole('button', { name: '선택 반영', exact: true }).click();
+  await expect(pending).toHaveCount(1);
+  await expect(firstGroup.getByText(/동반 요청 미충족: 김민준님과 김민수님/)).toHaveCount(0);
+  await pending.click();
+  await dialog.getByRole('radio', { name: /박민수.*24학번/ }).check();
+  await dialog.getByRole('button', { name: '선택 반영', exact: true }).click();
+  await expect(firstGroup.getByRole('button', { name: /동반 상대 확인: 김민준.*박민수/ })).toHaveCount(1);
+  const attendee = await (await request.get(`${root}/attendees/attendee-01`, { headers })).json();
+  expect(attendee.fields.request.stringValue).toBe(raw);
 });

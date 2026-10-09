@@ -13,7 +13,7 @@ class TestWorker {
 }
 const input: AutoAssignInput = {
   availableIds: [], initialGroups: [],
-  context: { people: new Map(), requests: new Map(), absentRequests: [], exposures: new Map(), parameters: REVIEW_PARAMETERS },
+  context: { people: new Map(), requests: new Map(), absentRequests: [], requestChoices: [], exposures: new Map(), parameters: REVIEW_PARAMETERS },
 };
 beforeEach(() => vi.stubGlobal('Worker', TestWorker));
 afterEach(() => vi.unstubAllGlobals());

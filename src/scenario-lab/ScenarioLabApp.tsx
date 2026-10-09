@@ -20,8 +20,8 @@ const pageDefinitions = {
   },
   attendance: {
     label: '일일 조 편성',
-    states: ['default', 'empty', 'crowded'],
-    stateLabels: { default: '기본', empty: '빈 명단', crowded: '혼잡' },
+    states: ['default', 'empty', 'crowded', 'companion-request'],
+    stateLabels: { default: '기본', empty: '빈 명단', crowded: '혼잡', 'companion-request': '동반 상대 선택' },
   },
 } as const;
 

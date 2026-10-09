@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, Check, FileUp, Loader2, X } from 'lucide-react';
+import { Check, FileUp, Loader2, X } from 'lucide-react';
 import Papa from 'papaparse';
 import type { Member } from '../types';
 import { attendanceFields, detectAttendanceMapping, previewAttendanceCsv,
   type AttendanceField, type AttendanceImportInput, type AttendancePreviewRow } from '../domain/attendance/csvParser';
 import CsvColumnSelect from './CsvColumnSelect';
+import AttendanceNotice from './AttendanceNotice';
 
 interface Props {
   members: readonly Member[];
@@ -100,7 +101,7 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
           <span className="min-w-0"><span className="block break-all">{filename || 'CSV 파일 선택'}</span><span className="mt-1 block text-xs font-normal text-slate-500">{filename ? '다른 파일을 선택하려면 누르세요' : '설문 응답 시트에서 내려받은 파일을 선택하세요'}</span></span>
           <input type="file" accept=".csv,text/csv" aria-label="참석자 CSV 파일" disabled={busy} className="sr-only" onChange={event => { loadFile(event.target.files?.[0]); event.target.value = ''; }} />
         </label>
-        {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <AttendanceNotice severity="error" role="alert">{error}</AttendanceNotice>}
         {input && <>
           <fieldset disabled={busy} className="min-w-0 rounded-2xl bg-slate-50 p-4">
             <legend className="sr-only">파일 열 연결</legend>
@@ -113,7 +114,7 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
                 onChange={index => { setInput({ ...input, mapping: { ...input.mapping, [field]: index } }); setConfirmed(false); setPage(0); }} />)}
             </div>
           </fieldset>
-          {!!preview?.mappingErrors.length && <div role="alert" className="space-y-1 rounded-xl bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">{preview.mappingErrors.map((message, index) => <p key={index}>{message}</p>)}</div>}
+          {!!preview?.mappingErrors.length && <AttendanceNotice severity="error" role="alert"><div className="space-y-1">{preview.mappingErrors.map((message, index) => <p key={index}>{message}</p>)}</div></AttendanceNotice>}
           {preview && !preview.mappingErrors.length && <section aria-label="참석자 미리보기" className="space-y-3">
             <h3 className="text-sm font-black">2. 가져올 명단 확인</h3>
             <div aria-live="polite" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -123,9 +124,9 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
               <Summary label="오류" value={`${preview.counts.errors}명`} error={preview.counts.errors > 0} />
             </div>
             <p className="text-xs leading-relaxed text-slate-500">뒤풀이 불참 {preview.counts.absent}명 · 미응답/미확인 {preview.counts.unanswered}명 · 미등록 {preview.counts.unregistered}명</p>
-            {!!preview.counts.errors && <p role="alert" className="rounded-xl bg-red-50 p-3 text-xs leading-relaxed text-red-700">오류가 있는 행을 확인해주세요. 열 연결을 변경하거나 원본 CSV를 수정해 다시 선택하면 검토 결과가 갱신됩니다.</p>}
+            {!!preview.counts.errors && <AttendanceNotice severity="error" role="alert">오류가 있는 행을 확인해주세요. 열 연결을 변경하거나 원본 CSV를 수정해 다시 선택하면 검토 결과가 갱신됩니다.</AttendanceNotice>}
             <label className="flex min-h-11 w-fit items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={errorsOnly} onChange={event => { setErrorsOnly(event.target.checked); setPage(0); }} className="size-4 accent-navy" />오류 행만 보기</label>
-            {!preview.counts.total && <p role="alert" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">가져올 응답이 없습니다. 기존 명단은 유지됩니다.</p>}
+            {!preview.counts.total && <AttendanceNotice role="alert">가져올 응답이 없습니다. 기존 명단은 유지됩니다.</AttendanceNotice>}
             <div className="space-y-3 sm:hidden">{visible.map(row => <article key={row.sourceRowNumber} className={`rounded-2xl border p-4 ${row.errors.length ? 'border-red-200 bg-red-50/40' : 'border-slate-200'}`}>
               <div className="mb-3 flex items-start justify-between gap-3"><strong className="break-words text-sm">{row.data.studentIdPrefix && `${row.data.studentIdPrefix}학번 `}{row.data.name || '이름 없음'}</strong><span className="shrink-0 text-xs text-slate-500">{row.sourceRowNumber}행</span></div>
               <dl className="grid grid-cols-[3rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm"><dt className="text-slate-500">음료</dt><dd className="break-words">{row.data.drink || '미응답 / 사용 안 함'}</dd><dt className="text-slate-500">뒤풀이</dt><dd>{partyLabel(row)}</dd><dt className="text-slate-500">희망</dt><dd className="whitespace-pre-wrap break-words">{row.data.request || '없음'}</dd></dl>
@@ -152,7 +153,7 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
 
 const partyLabel = (row: AttendancePreviewRow) => row.data.afterparty === true ? '참석' : row.data.afterparty === false ? '불참' : row.rawAfterparty ? '확인 필요' : '미응답 / 사용 안 함';
 function RowStatus({ row }: { row: AttendancePreviewRow }) {
-  return <div className="space-y-1 text-xs leading-relaxed">{row.errors.map(message => <p key={message} className="text-red-700"><AlertCircle size={12} className="mr-1 inline" />{message}</p>)}{row.warnings.map(message => <p key={message} className="text-amber-800">{message}</p>)}{!row.errors.length && !row.warnings.length && <span className="text-emerald-700">정상</span>}</div>;
+  return <div className="space-y-1.5 text-xs leading-relaxed">{row.errors.map(message => <AttendanceNotice key={message} severity="error">{message}</AttendanceNotice>)}{row.warnings.map(message => <AttendanceNotice key={message}>{message}</AttendanceNotice>)}{!row.errors.length && !row.warnings.length && <span className="text-emerald-700">정상</span>}</div>;
 }
 function Summary({ label, value, error = false }: { label: string; value: string; error?: boolean }) {
   return <div className={`rounded-xl p-3 ${error ? 'bg-red-50 text-red-700' : 'bg-slate-50 text-navy'}`}><p className="text-xs">{label}</p><p className="mt-1 text-xl font-black">{value}</p></div>;

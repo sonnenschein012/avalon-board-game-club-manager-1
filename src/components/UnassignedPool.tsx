@@ -1,8 +1,9 @@
 import React from 'react';
 import { Attendee, Member } from '../types';
-import { X, AlertTriangle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import BoardMemberBadge from './BoardMemberBadge';
+import AttendanceNotice from './AttendanceNotice';
 import { AttendanceDraggableCard, AttendanceDropZone } from './AttendanceDragAndDrop';
 
 export interface UnassignedPoolProps {
@@ -86,9 +87,7 @@ export default function UnassignedPool({
               </div>
               {a.request && <p className="text-[10px] text-orange-500 mt-1 italic leading-tight bg-orange-50 p-1.5 rounded">"{a.request}"</p>}
               {(!isRegistered || memberAttendanceCount[m?.id || ''] === 0) && (
-                <div className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1.5 rounded-md font-bold flex items-center gap-1.5 mt-1 border border-orange-100/50 w-fit">
-                  <AlertTriangle size={12} className="shrink-0" /> ⚠️ 처음 왔어요
-                </div>
+                <AttendanceNotice className="mt-1 w-fit">처음 왔어요</AttendanceNotice>
               )}
             </AttendanceDraggableCard>
           );

@@ -12,6 +12,8 @@ import type { Attendee, InterviewAssignment, Member } from '../types';
 import { useAttendanceDraft } from '../hooks/useAttendanceDraft';
 import { AttendanceDragAndDrop } from '../components/AttendanceDragAndDrop';
 import AttendanceCsvImportModal from '../components/AttendanceCsvImportModal';
+import CompanionRequestModal from '../components/CompanionRequestModal';
+import { resolveCompanionRequests } from '../domain/matching/companionRequests';
 import { previewAttendanceCsv } from '../domain/attendance/csvParser';
 import { moveAttendee } from '../domain/attendance/moveAttendee';
 import {
@@ -191,17 +193,25 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
   const fixture = useMemo(() => createAttendanceFixture(state), [state]);
   const [members, setMembers] = useState(fixture.members);
   const [attendees, setAttendees] = useState(fixture.attendees);
-  const { groups, setGroups, sessionName, setSessionName, sessionDate, setSessionDate, isAutoMode, setIsAutoMode } = useAttendanceDraft(draftScope, {
+  const { groups, setGroups, sessionName, setSessionName, sessionDate, setSessionDate, isAutoMode, setIsAutoMode, requestSelections, setRequestSelections } = useAttendanceDraft(draftScope, {
     groups: fixture.groups, sessionName: '2026-08-27 정기 모임', sessionDate: '2026-08-27', isSessionNameCustom: false, isAutoMode: false,
   });
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [requestChoiceKey, setRequestChoiceKey] = useState<string | null>(() => state === 'companion-request'
+    ? JSON.stringify([fixture.attendees[0]!.id, '민수']) : null);
 
   const assignedIds = new Set(groups.flatMap(group => group.memberIds));
   const unassignedAttendees = attendees.filter(attendee => !assignedIds.has(attendee.id));
   const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => members.find(member =>
     member.name === name && (!studentIdPrefix || member.studentId.startsWith(studentIdPrefix)));
+  const memberToAttendee = new Map(attendees.flatMap(attendee => {
+    const member = getMemberFromInfo(attendee.name, attendee.studentIdPrefix);
+    return member ? [[member.id, attendee.id] as const] : [];
+  }));
+  const { choices } = resolveCompanionRequests({ attendees, members, memberToAttendee, assignmentDate: sessionDate, selections: requestSelections });
+  const activeChoice = choices.find(choice => choice.key === requestChoiceKey);
   const memberAttendanceCount = Object.fromEntries(members.map((member, index) => [member.id, (index * 3) % 11]));
   const removeFromGroups = (attendeeId: string) => setGroups(current => current.map(group => ({ ...group, memberIds: group.memberIds.filter(id => id !== attendeeId) })));
 
@@ -219,6 +229,11 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
         setAttendees(preview.rows.map((row, index) => ({ ...row.data, id: `csv-${index}`, importDate: fixture.attendees[0]?.importDate, importId: 'scenario', status: '대기' } as Attendee)));
         setGroups([]);
         return true;
+      }} />}
+    {activeChoice && <CompanionRequestModal key={activeChoice.signature} choice={activeChoice}
+      onClose={() => setRequestChoiceKey(null)} onConfirm={recipientId => {
+        setRequestSelections(current => ({ ...current, [activeChoice.key]: { signature: activeChoice.signature, recipientId } }));
+        setRequestChoiceKey(null);
       }} />}
     <AttendanceDragAndDrop onMoveAttendee={(attendeeId, target) => setGroups(current => moveAttendee(current, attendeeId, target))}>
     <div className="grid min-h-[500px] grid-cols-1 gap-6 md:grid-cols-4">
@@ -244,6 +259,7 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
         attendees={attendees} getMemberFromInfo={getMemberFromInfo} memberAttendanceCount={memberAttendanceCount}
         activeRequestId={activeRequestId} setActiveRequestId={setActiveRequestId}
         getReunionWarnings={() => []}
+        requestChoices={choices} onRequestChoiceOpen={setRequestChoiceKey}
         calculateGroupAverageStudentId={ids => ids.length ? 23 : '-'}
         calculateGroupAverageAttendance={ids => ids.length ? 4.5 : 0}
       />

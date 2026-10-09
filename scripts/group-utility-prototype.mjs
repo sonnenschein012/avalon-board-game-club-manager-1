@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 // Independent review values matched to initial defaults; not satisfaction-fitted.
 export const EXAMPLE_PARAMETERS = Object.freeze({
-  sameA: 3, sameK: 1.2, otherA: 4, otherK: 0.35,
+  sameA: 1.2, sameK: Math.log(4), otherA: 5 / 7, otherK: -Math.log(0.65),
   yearB: 3, yearH: 0.3, yearT: 0.75,
   attenuationK: 0.25,
   reunionRho: 0.35, reunionPower: 2, reunionA: 0.6,
@@ -23,22 +23,27 @@ export function yearCost(distances, p = EXAMPLE_PARAMETERS) {
 
 // Independent softplus form of the centered, fixed-scale welfare.
 // The derivative includes the shift in the whole-assignment mean.
-export function protectUtilities(utilities, p = EXAMPLE_PARAMETERS) {
-  if (!Number.isFinite(p.protectionS) || p.protectionS <= 0 || utilities.some(u => !Number.isFinite(u))) throw new TypeError('invalid protection input');
-  const mean = utilities.reduce((sum, u) => sum + u / (utilities.length || 1), 0);
+export function protectUtilities(utilities, p = EXAMPLE_PARAMETERS, attenuations = utilities.map(() => 1)) {
+  if (!Number.isFinite(p.protectionS) || p.protectionS <= 0 || utilities.some(u => !Number.isFinite(u)) ||
+    attenuations.length !== utilities.length || attenuations.some(w => !Number.isFinite(w) || w < 0 || w > 1)) throw new TypeError('invalid protection input');
+  const maximum = attenuations.reduce((max, w) => Math.max(max, w), 0);
+  const normalized = attenuations.map(w => maximum ? w / maximum : 1);
+  const mass = normalized.reduce((sum, w) => sum + w, 0) || 1;
+  const mean = utilities.reduce((sum, u, i) => sum + u * (normalized[i] / mass), 0);
   const converted = utilities.map(u => (u - mean) / p.protectionS);
   const sigmoids = converted.map(v => {
     const z = -v;
     return z >= 0 ? 1 / (1 + Math.exp(-z)) : Math.exp(z) / (1 + Math.exp(z));
   });
-  const averageSigmoid = sigmoids.reduce((sum, value) => sum + value / (utilities.length || 1), 0);
+  const averageSigmoid = sigmoids.reduce((sum, value, i) => sum + value * (normalized[i] / mass), 0);
   const weights = sigmoids.map(g => 1.5 + 0.5 * (g - averageSigmoid));
+  const effectiveWeights = weights.map((weight, i) => weight * attenuations[i]);
   const contributions = utilities.map((u, i) => {
     const z = -converted[i];
     const softplus = Math.max(z, 0) + Math.log1p(Math.exp(-Math.abs(z)));
-    return 1.5 * u - 0.5 * p.protectionS * (softplus - Math.LN2);
+    return attenuations[i] * (1.5 * u - 0.5 * p.protectionS * (softplus - Math.LN2));
   });
-  return { mean, converted, weights, contributions, welfare: contributions.reduce((sum, value) => sum + value, 0) };
+  return { mean, converted, weights, effectiveWeights, contributions, welfare: contributions.reduce((sum, value) => sum + value, 0) };
 }
 
 function key(a, b) { return JSON.stringify([a, b].sort()); }
@@ -125,16 +130,18 @@ export function evaluateAssignment({ members, groups, requests = [], fixed = {},
     });
     const reunionCost = reunionByPeer.reduce((sum, peer) => sum + peer.cost, 0);
     const attenuation = Math.exp(-p.attenuationK * n);
+    const baseUtility = sameUtility + otherUtility - ageCost - reunionCost;
     const utility = attenuation * (sameUtility + otherUtility - ageCost) - reunionCost;
     return {
       id: member.id, requestCount: n, requestUtility: Math.log1p(n),
       sameUtility, otherUtility, yearCost: ageCost, attenuation,
-      reunionByPeer, reunionCost, utility,
+      reunionByPeer, reunionCost, baseUtility, utility,
     };
   });
-  const protection = protectUtilities(rawPeople.map(person => person.utility), p);
+  const protection = protectUtilities(rawPeople.map(person => person.baseUtility), p, rawPeople.map(person => person.attenuation));
   const people = rawPeople.map((person, i) => ({ ...person,
-    convertedUtility: protection.converted[i], protectedUtility: protection.contributions[i], protectionWeight: protection.weights[i],
+    convertedUtility: protection.converted[i], protectedUtility: protection.contributions[i] - (1 - person.attenuation) * person.reunionCost,
+    protectionWeight: protection.weights[i], effectiveWeight: protection.effectiveWeights[i],
   }));
   // Sum(log(1+n)) = log(product(1+n)). Compare the integer product exactly:
   // floating-point near-ties must not allow lower priorities to win.
@@ -150,7 +157,7 @@ export function evaluateAssignment({ members, groups, requests = [], fixed = {},
     boardMissing: uncovered.length,
     boardMissingNonFour: uncovered.filter(group => group.capacity !== 4).length,
     totalUtility: people.reduce((sum, person) => sum + person.utility, 0),
-    welfare: protection.welfare,
+    welfare: people.reduce((sum, person) => sum + person.protectedUtility, 0),
     people, unmetRequests,
     canonical: JSON.stringify(canonical),
   };

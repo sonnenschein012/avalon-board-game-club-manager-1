@@ -5,7 +5,9 @@ import { useAttendanceLogic } from './useAttendanceLogic';
 import { archiveDailyPlanning } from '../services/dailyPlanningService';
 import { createAttendanceMemberDraft } from '../domain/members/attendanceRegistration';
 
-const mocks = vi.hoisted(() => ({ commit: vi.fn(), get: vi.fn(), set: vi.fn(), update: vi.fn(), register: vi.fn(), extraAttendees: [] as unknown[], clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
+const mocks = vi.hoisted(() => ({ commit: vi.fn(), get: vi.fn(), set: vi.fn(), update: vi.fn(), register: vi.fn(),
+  extraAttendees: [] as unknown[], extraMembers: [] as unknown[], primaryRequest: '쉬운 게임',
+  clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
 vi.mock('../lib/firebase', () => ({ db: {}, handleFirestoreError: vi.fn(), OperationType: { WRITE: 'write' } }));
 vi.mock('../services/auditService', () => ({ addAuditEventToTransaction: vi.fn() }));
 vi.mock('../services/dailyPlanningService', () => ({ archiveDailyPlanning: vi.fn() }));
@@ -26,7 +28,9 @@ vi.mock('./useFirestore', () => {
     attendees: [{ id: 'a1', name: '김테스트', studentIdPrefix: '26', drink: '아이스티', request: '쉬운 게임' }],
     members: [{ id: 'm1', name: '김테스트', studentId: '260001', semester: '2026-2', gender: '남' }], sessions: [],
   };
-  return { useFirestore: (collection: string) => ({ data: collection === 'attendees' ? [...data.attendees!, ...mocks.extraAttendees] : data[collection], loading: false }) };
+  return { useFirestore: (collection: string) => ({ data: collection === 'attendees'
+    ? [...data.attendees!.map(attendee => ({ ...attendee as object, request: mocks.primaryRequest })), ...mocks.extraAttendees]
+    : collection === 'members' ? [...data.members!, ...mocks.extraMembers] : data[collection], loading: false }) };
 });
 
 describe('attendance working draft', () => {
@@ -51,6 +55,8 @@ describe('attendance working draft', () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.clearAllMocks();
     mocks.extraAttendees = [];
+    mocks.extraMembers = [];
+    mocks.primaryRequest = '쉬운 게임';
     mocks.commit.mockResolvedValue(undefined);
     mocks.get.mockResolvedValue({ exists: () => false, data: () => undefined });
     mocks.clear.mockResolvedValue(true);
@@ -197,5 +203,70 @@ describe('attendance working draft', () => {
     expect(latest.groups).toEqual([]);
     act(() => latest.setSessionDate('2026-09-15'));
     expect(latest.sessionName).toBe('2026. 9. 15. 정기 모임');
+  });
+
+  const arrangeRequest = () => {
+    mocks.primaryRequest = '민수와 함께 하고 싶어요';
+    mocks.extraMembers = [
+      { id: 'm2', name: '김민수', studentId: '230001', gender: '남' },
+      { id: 'm3', name: '박민수', studentId: '240001', gender: '남' },
+    ];
+    mocks.extraAttendees = [
+      { id: 'a2', name: '김민수', studentIdPrefix: '23', request: '', status: '대기' },
+      { id: 'a3', name: '박민수', studentIdPrefix: '24', request: '', status: '대기' },
+    ];
+    mount();
+  };
+
+  it('persists operator selections with the draft, recalculates manual notices and supports clearing the choice', () => {
+    arrangeRequest();
+    const choice = latest.requestChoices[0]!;
+    act(() => latest.setRequestChoiceKey(choice.key));
+    expect(latest.activeRequestChoice?.selectedId).toBeNull();
+    act(() => latest.confirmRequestChoice(choice.key, choice.signature, 'a2'));
+    expect(latest.activeRequestChoice).toBeNull();
+    expect(latest.costContext!.requests.size).toBe(1);
+    leave(); mount();
+    expect(latest.requestChoices[0]!.selectedId).toBe('a2');
+    act(() => latest.setGroups([{ id: 'one', memberIds: ['a1'], gameIds: [] }, { id: 'two', memberIds: ['a2'], gameIds: [] }]));
+    expect(latest.getAssignmentWarnings(['a1'])).toEqual([expect.stringContaining('김민수')]);
+    act(() => latest.handleMoveAttendee('a2', 'one'));
+    expect(latest.getAssignmentWarnings(['a1', 'a2'])).toEqual([]);
+    act(() => latest.confirmRequestChoice(choice.key, choice.signature, null));
+    expect(latest.costContext!.requests.size).toBe(0);
+    expect(latest.attendees[0]!.request).toBe(mocks.primaryRequest);
+  });
+
+  it('keeps choices private to the draft owner and clears them when the date or roster is replaced', async () => {
+    arrangeRequest();
+    let choice = latest.requestChoices[0]!;
+    act(() => latest.confirmRequestChoice(choice.key, choice.signature, 'a2'));
+    mount(`${scope}-other`);
+    expect(latest.requestChoices[0]!.selectedId).toBeNull();
+    mount(scope);
+    expect(latest.requestChoices[0]!.selectedId).toBe('a2');
+    act(() => latest.setSessionDate('2026-10-10'));
+    expect(latest.requestChoices[0]!.selectedId).toBeNull();
+    choice = latest.requestChoices[0]!;
+    act(() => latest.confirmRequestChoice(choice.key, choice.signature, 'a2'));
+    const input = { headers: [], rows: [], mapping: { name: 0, studentIdPrefix: -2, drink: -2, afterparty: -2, request: -2 } };
+    mocks.importRows.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    await act(async () => { await latest.handleImportAttendance(input); });
+    expect(latest.requestChoices[0]!.selectedId).toBe('a2');
+    await act(async () => { await latest.handleImportAttendance(input); });
+    expect(latest.requestChoices[0]!.selectedId).toBeNull();
+    choice = latest.requestChoices[0]!;
+    act(() => latest.confirmRequestChoice(choice.key, choice.signature, 'a2'));
+    await act(async () => { await latest.clearRecords(); });
+    expect(latest.requestChoices[0]!.selectedId).toBeNull();
+  });
+
+  it('rejects confirmations from an outdated dialog after the request changes', () => {
+    arrangeRequest();
+    const previous = latest.requestChoices[0]!;
+    mocks.primaryRequest += ' 부탁해요'; mount();
+    act(() => latest.confirmRequestChoice(previous.key, previous.signature, 'a2'));
+    expect(latest.costContext!.requests.size).toBe(0);
+    expect(latest.requestChoices[0]!.selectedId).toBeNull();
   });
 });

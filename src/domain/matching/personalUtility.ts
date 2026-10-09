@@ -1,10 +1,12 @@
 import type { Attendee, Member, Session, SessionGroup } from '../../types';
 import { getMemberFromAttendee } from './getMemberFromAttendee';
 import { getLocalDateKey } from '../attendance/sessionMetadata';
+import { resolveCompanionRequests, type AbsentRequest, type RequestChoice, type RequestSelections } from './companionRequests';
 
 // Initial operating values; observational satisfaction calibration remains open.
 export const REVIEW_PARAMETERS = Object.freeze({
-  sameA: 3, sameK: 1.2, otherA: 4, otherK: 0.35,
+  // First gains 0.9 / 0.25; each additional gain retains 25% / 65%.
+  sameA: 1.2, sameK: Math.log(4), otherA: 5 / 7, otherK: -Math.log(0.65),
   yearB: 3, yearH: 0.3, yearT: 0.75, attenuationK: 0.25,
   reunionRho: 0.35, reunionPower: 2, reunionA: 0.6,
   protectionS: 2,
@@ -17,16 +19,17 @@ export interface UtilityPerson {
 export interface UtilityContext {
   people: Map<string, UtilityPerson>;
   requests: Map<string, [string, string]>;
-  absentRequests: { requesterId: string; requester: string; recipient: string }[];
+  absentRequests: AbsentRequest[];
+  requestChoices: RequestChoice[];
   exposures: Map<string, Map<string, number>>;
   parameters: UtilityParameters;
 }
 interface PersonUtility {
   id: string; name: string; requestCount: number; sameUtility: number; otherUtility: number;
-  yearCost: number; attenuation: number; reunionCost: number; utility: number;
+  yearCost: number; attenuation: number; reunionCost: number; baseUtility: number; utility: number;
 }
 export interface PersonScore extends PersonUtility {
-  convertedUtility: number; protectionWeight: number; protectedUtility: number;
+  convertedUtility: number; protectionWeight: number; effectiveWeight: number; protectedUtility: number;
 }
 export interface AssignmentScore {
   requestProduct: bigint; requestScore: number; boardMissing: number; boardMissingNonFour: number;
@@ -35,33 +38,41 @@ export interface AssignmentScore {
 export const pairKey = (a: string, b: string) => JSON.stringify([a, b].sort());
 const saturation = (n: number, a: number, k: number) => -a * Math.expm1(-k * n);
 
-/** Translation-invariant protection over the entire assignment, with fixed scale.
- * W = 1.5 sum(u) - 0.5 s sum(log(cosh((u - mean(u)) / (2s)))).
- * dW/du_i = 1.5 - 0.25 (tanh(z_i/2) - mean(tanh(z/2))) in [1, 2].
- * Contributions decompose W; they are not u_i multiplied by its marginal weight.
+/** Protect unattenuated utilities, then attenuate each contribution.
+ * A weighted center keeps the actual marginal effect w_i times a factor in [1, 2].
+ * An unweighted center followed by unequal weights can produce negative derivatives.
+ * Contributions decompose welfare; they are not utility times marginal importance.
  */
-export function relativeProtection(utilities: number[], scale: number) {
-  if (!Number.isFinite(scale) || scale <= 0 || utilities.some(u => !Number.isFinite(u))) throw new Error('보호 평가 입력을 확인해주세요.');
-  const mean = utilities.reduce((sum, u) => sum + u / (utilities.length || 1), 0);
+export function relativeProtection(utilities: number[], scale: number, attenuations: number[] = utilities.map(() => 1)) {
+  if (!Number.isFinite(scale) || scale <= 0 || utilities.some(u => !Number.isFinite(u)) ||
+    attenuations.length !== utilities.length || attenuations.some(w => !Number.isFinite(w) || w < 0 || w > 1)) throw new Error('보호 평가 입력을 확인해주세요.');
+  // Normalize before averaging to preserve extremely small (or underflowed) weights.
+  const maximum = attenuations.reduce((max, w) => Math.max(max, w), 0);
+  const normalized = attenuations.map(w => maximum ? w / maximum : 1);
+  const mass = normalized.reduce((sum, w) => sum + w, 0) || 1;
+  const mean = utilities.reduce((sum, u, i) => sum + u * (normalized[i]! / mass), 0);
   const converted = utilities.map(u => (u - mean) / scale);
   const tangents = converted.map(z => Math.tanh(z / 2));
-  const averageTangent = tangents.reduce((sum, t) => sum + t / (utilities.length || 1), 0);
+  const averageTangent = tangents.reduce((sum, t, i) => sum + t * (normalized[i]! / mass), 0);
   const weights = tangents.map(t => 1.5 - 0.25 * (t - averageTangent));
+  const effectiveWeights = weights.map((weight, i) => attenuations[i]! * weight);
   const contributions = utilities.map((u, i) => {
     const x = Math.abs(converted[i]! / 2);
     const logCosh = x + Math.log1p(Math.exp(-2 * x)) - Math.LN2;
-    return 1.5 * u - 0.5 * scale * logCosh;
+    return attenuations[i]! * (1.5 * u - 0.5 * scale * logCosh);
   });
-  return { mean, converted, weights, contributions, welfare: contributions.reduce((sum, c) => sum + c, 0) };
+  return { mean, converted, weights, effectiveWeights, contributions, welfare: contributions.reduce((sum, c) => sum + c, 0) };
 }
 
 function protectPeople(people: PersonUtility[], parameters: UtilityParameters) {
-  const protection = relativeProtection(people.map(p => p.utility), parameters.protectionS);
+  const protection = relativeProtection(people.map(p => p.baseUtility), parameters.protectionS, people.map(p => p.attenuation));
+  // Reunion costs remain unattenuated: restore the portion lost by scaling the contribution.
+  const contributions = people.map((person, i) => protection.contributions[i]! - (1 - person.attenuation) * person.reunionCost);
   return {
-    welfare: protection.welfare,
+    welfare: contributions.reduce((sum, contribution) => sum + contribution, 0),
     people: people.map((person, i): PersonScore => ({ ...person,
       convertedUtility: protection.converted[i]!, protectionWeight: protection.weights[i]!,
-      protectedUtility: protection.contributions[i]!,
+      effectiveWeight: protection.effectiveWeights[i]!, protectedUtility: contributions[i]!,
     })),
   };
 }
@@ -76,7 +87,7 @@ export function validateUtilityParameters(p: UtilityParameters) {
 
 /** IDs in this context are attendee IDs; stored history is converted via memberId. */
 export function buildUtilityContext(input: {
-  attendees: Attendee[]; members: Member[]; sessions: Session[]; assignmentDate: string;
+  attendees: Attendee[]; members: Member[]; sessions: Session[]; assignmentDate: string; requestSelections?: RequestSelections;
 }, parameters: UtilityParameters = REVIEW_PARAMETERS): UtilityContext {
   validateUtilityParameters(parameters);
   const { attendees, members, sessions, assignmentDate } = input;
@@ -97,18 +108,8 @@ export function buildUtilityContext(input: {
     memberToAttendee.set(member.id, attendee.id);
   }
   const requests = new Map<string, [string, string]>();
-  const absentRequests: UtilityContext['absentRequests'] = [];
-  for (const attendee of attendees) {
-    const requester = people.get(attendee.id);
-    if (!requester || !attendee.request) continue;
-    for (const member of members) {
-      // Deliberately preserve the existing full-member-name substring matching.
-      if (member.id === requester.memberId || !attendee.request.includes(member.name)) continue;
-      const recipientId = memberToAttendee.get(member.id);
-      if (recipientId) requests.set(pairKey(attendee.id, recipientId), [attendee.id, recipientId]);
-      else absentRequests.push({ requesterId: attendee.id, requester: requester.name, recipient: member.name });
-    }
-  }
+  const resolved = resolveCompanionRequests({ attendees, members, memberToAttendee, assignmentDate, selections: input.requestSelections ?? {} });
+  for (const pair of resolved.requests) requests.set(pairKey(...pair), pair);
   const past = sessions.map(session => ({ session, date: session.date?.toDate?.() }))
     .filter((item): item is { session: Session; date: Date } => Boolean(item.date && Number.isFinite(item.date.getTime()) && getLocalDateKey(item.date) < assignmentDate))
     .sort((a, b) => b.date.getTime() - a.date.getTime() || a.session.id.localeCompare(b.session.id));
@@ -127,7 +128,7 @@ export function buildUtilityContext(input: {
     }
     exposures.set(person.id, exposure);
   }
-  return { people, requests, absentRequests, exposures, parameters };
+  return { people, requests, absentRequests: resolved.absentRequests, requestChoices: resolved.choices, exposures, parameters };
 }
 
 export function evaluateUtilityGroup(ids: string[], context: UtilityContext): AssignmentScore {
@@ -151,8 +152,9 @@ export function evaluateUtilityGroup(ids: string[], context: UtilityContext): As
     const reunionCost = peers.reduce((sum, peer) => sum + (context.requests.has(pairKey(person.id, peer.id)) ? 0 :
       p.reunionA * (context.exposures.get(person.id)?.get(peer.id) ?? 0) ** p.reunionPower), 0);
     const attenuation = Math.exp(-p.attenuationK * requestCount);
+    const baseUtility = sameUtility + otherUtility - yearCost - reunionCost;
     const utility = attenuation * (sameUtility + otherUtility - yearCost) - reunionCost;
-    return { id: person.id, name: person.name, requestCount, sameUtility, otherUtility, yearCost, attenuation, reunionCost, utility };
+    return { id: person.id, name: person.name, requestCount, sameUtility, otherUtility, yearCost, attenuation, reunionCost, baseUtility, utility };
   });
   const uncovered = members.length > 0 && !members.some(person => person.board);
   return {

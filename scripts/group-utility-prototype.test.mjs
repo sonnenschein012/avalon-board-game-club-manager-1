@@ -190,6 +190,21 @@ test('relative protection ignores common shifts, keeps a fixed scale and stays f
   assert.equal(protectUtilities([]).welfare, 0);
 });
 
+test('protection precedes unequal attenuation with bounded actual derivatives', () => {
+  const values = [-10, -2, 5, 20], attenuations = [1, 0.78, 0.1, 0];
+  const score = protectUtilities(values, p, attenuations);
+  for (let i = 0; i < values.length; i++) {
+    assert.ok(score.weights[i] >= 1 && score.weights[i] <= 2);
+    const plus = [...values], minus = [...values]; plus[i] += 1e-5; minus[i] -= 1e-5;
+    const derivative = (protectUtilities(plus, p, attenuations).welfare - protectUtilities(minus, p, attenuations).welfare) / 2e-5;
+    assert.ok(Math.abs(derivative - attenuations[i] * score.weights[i]) < 1e-7);
+  }
+  const shifted = protectUtilities(values.map(u => u + 5), p, attenuations);
+  close(shifted.welfare - score.welfare, 7.5 * attenuations.reduce((sum, w) => sum + w, 0));
+  assert.equal(protectUtilities(values, p, [0, 0, 0, 0]).welfare, 0);
+  assert.throws(() => protectUtilities(values, p, [1]), /protection input/);
+});
+
 test('evaluation is order-independent and does not mutate inputs', () => {
   const input = { members: syntheticMembers(), groups: structuredClone(groups), requests: [['A', 'B'], ['B', 'C']] };
   const original = structuredClone(input);

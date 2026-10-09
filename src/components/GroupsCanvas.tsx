@@ -1,7 +1,10 @@
 import React from 'react';
 import { SessionGroup, Attendee, Member } from '../types';
-import { CheckCircle2, Activity, ArrowRight, Trash2, X, AlertTriangle, Plus, Loader2 } from 'lucide-react';
+import { CheckCircle2, Activity, ArrowRight, Trash2, X, Plus, Loader2 } from 'lucide-react';
 import BoardMemberBadge from './BoardMemberBadge';
+import AttendanceNotice from './AttendanceNotice';
+import CompanionRequestNotice from './CompanionRequestNotice';
+import type { RequestChoice } from '../domain/matching/companionRequests';
 import { AttendanceDraggableCard, AttendanceDropZone } from './AttendanceDragAndDrop';
 
 export interface GroupsCanvasProps {
@@ -22,6 +25,8 @@ export interface GroupsCanvasProps {
   assignmentReady?: boolean;
   assignmentNotices?: string[];
   getAssignmentWarnings?: (ids: string[]) => string[];
+  requestChoices?: RequestChoice[];
+  onRequestChoiceOpen?: (key: string) => void;
   editingGroupId: string | null;
   setEditingGroupId: (id: string | null) => void;
   editingGroupName: string;
@@ -70,9 +75,12 @@ export default function GroupsCanvas({
   activeRequestId,
   setActiveRequestId,
   getReunionWarnings,
+  requestChoices = [],
+  onRequestChoiceOpen = () => {},
   calculateGroupAverageStudentId,
   calculateGroupAverageAttendance,
 }: GroupsCanvasProps) {
+  const unassignedRequestChoices = requestChoices.filter(choice => !groups.some(group => group.memberIds.includes(choice.requesterId)));
   return (
     <div className="md:col-span-3">
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col h-full">
@@ -126,10 +134,12 @@ export default function GroupsCanvas({
         </div>
         
         <div data-attendance-canvas className="p-6 flex-1 overflow-y-auto bg-slate-50/30">
-          {assignmentNotices.length > 0 && <div role="status" className="mb-4 space-y-2">
-            {assignmentNotices.map((notice, index) => <div key={`${index}-${notice}`} className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
-              <AlertTriangle size={14} className="mt-0.5 shrink-0" /><span>{notice}</span>
-            </div>)}
+          {assignmentNotices.length > 0 && <div role="status" className="mb-4 space-y-1.5">
+            {assignmentNotices.map((notice, index) => <AttendanceNotice key={`${index}-${notice}`}>{notice}</AttendanceNotice>)}
+          </div>}
+          {unassignedRequestChoices.length > 0 && <div className="mb-4 space-y-1.5">
+            {unassignedRequestChoices.map(choice =>
+              <CompanionRequestNotice key={choice.key} choice={choice} onOpen={onRequestChoiceOpen} />)}
           </div>}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {groups.map((group, idx) => (
@@ -229,9 +239,7 @@ export default function GroupsCanvas({
                             )}
                           </div>
                           {(!m || memberAttendanceCount[m.id] === 0) && (
-                            <div className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1.5 rounded-md font-bold flex items-center gap-1.5 border border-orange-100/50">
-                              <AlertTriangle size={12} className="shrink-0" /> ⚠️ 처음 왔어요
-                            </div>
+                            <AttendanceNotice>처음 왔어요</AttendanceNotice>
                           )}
                         </AttendanceDraggableCard>
                       );
@@ -241,14 +249,12 @@ export default function GroupsCanvas({
                     )}
                   </div>
                   
-                  <div className="mt-4">
-                    {getAssignmentWarnings(group.memberIds).map((notice, i) => <div key={`assignment-${i}`} role="status" className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 p-3 text-xs text-orange-800">
-                      <AlertTriangle size={14} className="mt-0.5 shrink-0" /><span>{notice}</span>
-                    </div>)}
+                  <div className="mt-4 space-y-1.5">
+                    {requestChoices.filter(choice => group.memberIds.includes(choice.requesterId)).map(choice =>
+                      <CompanionRequestNotice key={choice.key} choice={choice} onOpen={onRequestChoiceOpen} />)}
+                    {getAssignmentWarnings(group.memberIds).map((notice, i) => <AttendanceNotice key={`assignment-${i}`} role="status">{notice}</AttendanceNotice>)}
                     {getReunionWarnings(group.memberIds).map((warn, i) => (
-                      <div key={i} className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1.5 rounded-md font-bold flex items-center gap-1.5 mb-1.5 border border-orange-100/50">
-                        <AlertTriangle size={12} className="shrink-0" /> ⚠️ 재회 주의: {warn}님은 최근 자주 같은 조였습니다.
-                      </div>
+                      <AttendanceNotice key={`reunion-${i}`} role="status">재회 주의: {warn}님은 최근 자주 같은 조였습니다.</AttendanceNotice>
                     ))}
                   </div>
                 </AttendanceDropZone>

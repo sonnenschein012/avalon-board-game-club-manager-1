@@ -23,6 +23,40 @@ const groups = (a: string[] = [], b: string[] = []): SessionGroup[] => [
 const session = (day: string, ids: string[]): Session => ({ id: day, name: day, date: date(day), groups: [{ id: 'past', memberIds: ids, gameIds: [] }] });
 
 describe('personal assignment integration', () => {
+  it('applies the same marginal importance to both gender benefits after protection and attenuation', () => {
+    const input = fixture(); input.attendees[0]!.request = '회원01';
+    const context = buildUtilityContext(input);
+    const parts = [['a0', 'a1', 'a2', 'a3'], ['a4', 'a5', 'a6', 'a7']].map(ids => evaluateUtilityGroup(ids, context));
+    const baseline = combineScores(parts, context.parameters);
+    const change = (field: 'sameUtility' | 'otherUtility', delta: number) => combineScores(parts.map(part => ({
+      ...part, people: part.people.map(person => person.id === 'a0' ? {
+        ...person, [field]: person[field] + delta,
+        baseUtility: person.baseUtility + delta, utility: person.utility + person.attenuation * delta,
+      } : person),
+    })), context.parameters).welfare;
+    const derivative = (field: 'sameUtility' | 'otherUtility', gain: number) =>
+      (change(field, 1e-5 * gain) - change(field, -1e-5 * gain)) / 2e-5;
+    const person = baseline.people.find(p => p.id === 'a0')!;
+    expect(derivative('sameUtility', 1)).toBeCloseTo(person.effectiveWeight, 8);
+    expect(derivative('otherUtility', 1)).toBeCloseTo(person.effectiveWeight, 8);
+    expect(derivative('sameUtility', 0.9) / derivative('otherUtility', 0.25)).toBeCloseTo(3.6, 7);
+    expect(person.effectiveWeight).toBeGreaterThanOrEqual(person.attenuation);
+    expect(person.effectiveWeight).toBeLessThanOrEqual(2 * person.attenuation);
+  });
+
+  it('keeps three minority peers together in a whole thirty-person assignment with the new defaults', () => {
+    const input = fixture(30);
+    input.members.forEach((m, i) => { m.gender = i < 3 ? '여' : '남'; m.studentId = '24'; m.isBoardMember = true; });
+    const context = buildUtilityContext(input);
+    const result = simulateAutoAssign({ context, availableIds: [...context.people.keys()],
+      initialGroups: [8, 6, 6, 5, 5].map((targetSize, i) => ({ id: `g${i}`, targetSize, memberIds: [], gameIds: [] })),
+    });
+    const femaleCounts = result.updatedGroups.map(g => g.memberIds.filter(id => context.people.get(id)!.gender === '여').length);
+    expect(femaleCounts.filter(n => n > 0)).toEqual([3]);
+    expect(result.updatedGroups.map(g => g.memberIds.length)).toEqual([8, 6, 6, 5, 5]);
+    expect(new Set(result.updatedGroups.flatMap(g => g.memberIds)).size).toBe(30);
+  }, 15_000);
+
   it('uses shift-invariant importance with a fixed scale and keeps common improvements valuable', () => {
     const a = relativeProtection([2, 4, 6], 2), b = relativeProtection([-4, -2, 0], 2);
     expect(a.converted).toEqual(b.converted);
@@ -67,6 +101,56 @@ describe('personal assignment integration', () => {
     const actual = combineScores(result.updatedGroups.map(g => evaluateUtilityGroup(g.memberIds, context)), context.parameters);
     expect(result.score).toEqual(actual);
   });
+  it('protects before attenuation and preserves positive actual marginal effects with unequal weights', () => {
+    const values = [-12, -3, 1, 20];
+    for (const weights of [[1, 0.78, 0.1, 0], [0.01, 1, 0.2, 0.7], [1e-300, 2e-300, 0, 4e-300], [0, 0, 0, 0]]) {
+      const score = relativeProtection(values, 2, weights);
+      expect(score.weights.every(w => w >= 1 && w <= 2)).toBe(true);
+      expect(score.effectiveWeights.every((w, i) => w >= weights[i]! && w <= 2 * weights[i]!)).toBe(true);
+      const shifted = relativeProtection(values.map(u => u + 7), 2, weights);
+      shifted.converted.forEach((z, i) => expect(z).toBeCloseTo(score.converted[i]!, 12));
+      expect(shifted.welfare - score.welfare).toBeCloseTo(1.5 * 7 * weights.reduce((sum, w) => sum + w, 0), 10);
+      for (let i = 0; i < values.length; i++) {
+        const plus = [...values], minus = [...values]; plus[i]! += 1e-5; minus[i]! -= 1e-5;
+        const derivative = (relativeProtection(plus, 2, weights).welfare - relativeProtection(minus, 2, weights).welfare) / 2e-5;
+        expect(derivative).toBeCloseTo(score.effectiveWeights[i]!, 7);
+        const improved = [...values]; improved[i]! += 1;
+        const gain = relativeProtection(improved, 2, weights).welfare - score.welfare;
+        expect(gain).toBeGreaterThanOrEqual(weights[i]! - 1e-10);
+        expect(gain).toBeLessThanOrEqual(2 * weights[i]! + 1e-10);
+      }
+    }
+    expect(() => relativeProtection([1], 2, [])).toThrow();
+    expect(() => relativeProtection([1], 2, [NaN])).toThrow();
+    expect(() => relativeProtection([1], 2, [-1])).toThrow();
+  });
+
+  it('bases protection on unattenuated utility and restores reunion costs after attenuation globally', () => {
+    const input = fixture(); input.attendees[0]!.request = '회원01';
+    input.sessions = [session('2026-10-01', ['m0', 'm1', 'm2', 'm3'])];
+    const context = buildUtilityContext(input);
+    const first = evaluateUtilityGroup(['a0', 'a1', 'a2', 'a3'], context);
+    const second = evaluateUtilityGroup(['a4', 'a5', 'a6', 'a7'], context);
+    const all = combineScores([first, second]);
+    const protection = relativeProtection(all.people.map(p => p.baseUtility), context.parameters.protectionS, all.people.map(p => p.attenuation));
+    all.people.forEach((person, i) => {
+      expect(person.baseUtility).toBeCloseTo(person.sameUtility + person.otherUtility - person.yearCost - person.reunionCost, 12);
+      expect(person.convertedUtility).toBeCloseTo(protection.converted[i]!, 12);
+      expect(person.protectionWeight).toBeCloseTo(protection.weights[i]!, 12);
+      expect(person.effectiveWeight).toBeCloseTo(person.attenuation * person.protectionWeight, 12);
+      expect(person.protectedUtility).toBeCloseTo(protection.contributions[i]! - (1 - person.attenuation) * person.reunionCost, 12);
+      // An extra reunion cost must still count in full, even for fulfilled requests.
+      const step = 1e-5;
+      const changed = (sign: number) => combineScores([{ ...all, people: all.people.map(p => p.id === person.id
+        ? { ...p, baseUtility: p.baseUtility - sign * step, reunionCost: p.reunionCost + sign * step } : p) }]);
+      const costImportance = (changed(-1).welfare - changed(1).welfare) / (2 * step);
+      expect(costImportance).toBeCloseTo(1 - person.attenuation + person.effectiveWeight, 7);
+      expect(costImportance).toBeGreaterThanOrEqual(1 - 1e-8);
+    });
+    expect(all.welfare).toBeCloseTo(all.people.reduce((sum, p) => sum + p.protectedUtility, 0), 12);
+    expect(combineScores([combineScores([first]), second])).toEqual(all);
+    expect(all.people.find(p => p.id === 'a0')!.baseUtility).not.toBe(all.people.find(p => p.id === 'a0')!.utility);
+  });
   it('agrees with the independent review evaluator for every eight-person two-group partition', () => {
     const input = fixture(); input.attendees[0]!.request = '회원01 회원02';
     input.attendees[3]!.request = '회원04';
@@ -89,6 +173,12 @@ describe('personal assignment integration', () => {
       expect(score.boardMissing).toBe(reference.boardMissing);
       expect(score.totalUtility).toBeCloseTo(reference.totalUtility, 12);
       expect(score.welfare).toBeCloseTo(reference.welfare, 12);
+      score.people.forEach((person, i) => {
+        expect(person.baseUtility).toBeCloseTo(reference.people[i]!.baseUtility, 12);
+        expect(person.convertedUtility).toBeCloseTo(reference.people[i]!.convertedUtility, 12);
+        expect(person.protectionWeight).toBeCloseTo(reference.people[i]!.protectionWeight, 12);
+        expect(person.effectiveWeight).toBeCloseTo(reference.people[i]!.effectiveWeight, 12);
+      });
     }
   });
   it('keeps name substring matching, deduplicates reciprocal requests and reports absent recipients only', () => {
