@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { CalendarClock, ClipboardList, Plus, Users } from 'lucide-react';
+import { CalendarClock, ClipboardList, Plus, Users, X } from 'lucide-react';
 import GroupsCanvas from '../components/GroupsCanvas';
 import InterviewSchedulePanel from '../components/InterviewSchedulePanel';
 import MemberFilters from '../components/MemberFilters';
@@ -16,6 +16,8 @@ import CompanionRequestModal from '../components/CompanionRequestModal';
 import { resolveCompanionRequests } from '../domain/matching/companionRequests';
 import { previewAttendanceCsv } from '../domain/attendance/csvParser';
 import { moveAttendee } from '../domain/attendance/moveAttendee';
+import { buildUtilityContext } from '../domain/matching/personalUtility';
+import { EvaluationProposal, attendanceButtonProposals, type AttendanceButtonProposal } from './AttendanceDesignProposal';
 import {
   createAttendanceFixture,
   createInterviewFixture,
@@ -188,17 +190,21 @@ export function InterviewScenario({ state }: { state: InterviewScenarioState }) 
   </div>;
 }
 
-export function AttendanceScenario({ state, draftScope = null }: { state: AttendanceScenarioState; draftScope?: string | null }) {
+export function AttendanceScenario({ state, draftScope = null, buttonProposal }: { state: AttendanceScenarioState; draftScope?: string | null; buttonProposal?: AttendanceButtonProposal }) {
   const [importOpen, setImportOpen] = useState(false);
   const fixture = useMemo(() => createAttendanceFixture(state), [state]);
   const [members, setMembers] = useState(fixture.members);
   const [attendees, setAttendees] = useState(fixture.attendees);
   const { groups, setGroups, sessionName, setSessionName, sessionDate, setSessionDate, isAutoMode, setIsAutoMode, requestSelections, setRequestSelections } = useAttendanceDraft(draftScope, {
-    groups: fixture.groups, sessionName: '2026-08-27 정기 모임', sessionDate: '2026-08-27', isSessionNameCustom: false, isAutoMode: false,
+    groups: fixture.groups, sessionName: '2026-08-27 정기 모임', sessionDate: '2026-08-27', isSessionNameCustom: false, isAutoMode: Boolean(buttonProposal),
   });
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingGroupName, setEditingGroupName] = useState('');
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [evaluationOpen, setEvaluationOpen] = useState(false);
+  const buttonAppearance = buttonProposal ? attendanceButtonProposals[buttonProposal] : undefined;
+  const costContext = useMemo(() => buttonProposal ? buildUtilityContext({ attendees, members, sessions: [], assignmentDate: sessionDate, requestSelections }) : null,
+    [attendees, members, sessionDate, requestSelections, buttonProposal]);
   const [requestChoiceKey, setRequestChoiceKey] = useState<string | null>(() => state === 'companion-request'
     ? JSON.stringify([fixture.attendees[0]!.id, '민수']) : null);
 
@@ -215,12 +221,18 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
   const memberAttendanceCount = Object.fromEntries(members.map((member, index) => [member.id, (index * 3) % 11]));
   const removeFromGroups = (attendeeId: string) => setGroups(current => current.map(group => ({ ...group, memberIds: group.memberIds.filter(id => id !== attendeeId) })));
 
-  return <div className="space-y-6" data-scenario-page="attendance">
+  return <div className="space-y-6" data-scenario-page="attendance" data-design-proposal={buttonProposal}>
+    {buttonProposal && <div className="rounded-2xl bg-slate-50 px-5 py-4 text-sm leading-6 text-slate-600" aria-label="디자인 검토 범위">
+      <strong className="font-semibold text-navy">B 모달 · {buttonProposal === 'a' ? '버튼 ① 테두리와 네이비' : '버튼 ② 가벼운 종료와 청회색'}</strong>
+      <p className="mt-1 text-xs">출석 명단과 조 편성 영역은 기존 컴포넌트입니다. 이번 시안은 버튼과 평가 모달만 비교합니다.</p>
+    </div>}
     <PageHeader
       title="일일 조 편성"
       subtitle="Operations / Team Formation"
       icon={ClipboardList}
-      actions={<div className="flex gap-2"><button type="button" onClick={() => setImportOpen(true)} className="min-h-11 rounded-xl bg-slate-50 px-4 text-xs font-bold">파일 업로드</button><button type="button" onClick={() => setIsAutoMode(current => !current)} className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow ${isAutoMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-slate-600'}`}>{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</button></div>}
+      actions={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => setImportOpen(true)} className="min-h-11 rounded-xl bg-slate-50 px-4 text-xs font-bold">파일 업로드</button><button type="button" onClick={() => setIsAutoMode(current => !current)} className={buttonAppearance?.mode ?? `rounded-xl px-4 py-2.5 text-xs font-bold shadow ${isAutoMode ? 'bg-orange-100 text-orange-700' : 'bg-white text-slate-600'}`}>
+        {buttonAppearance && (isAutoMode ? <X size={16} /> : <ClipboardList size={16} />)}{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}
+      </button></div>}
     />
     {importOpen && <AttendanceCsvImportModal members={members} existingCount={attendees.length} groupCount={groups.length}
       onClose={() => setImportOpen(false)} onConfirm={async input => {
@@ -250,7 +262,8 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
         sessionDate={sessionDate} setSessionDate={setSessionDate}
         groups={groups} setGroups={setGroups} isAutoMode={isAutoMode}
         onAutoAssign={() => setGroups(current => current.map((group, index) => ({ ...group, memberIds: [...group.memberIds, ...unassignedAttendees.filter((_, attendeeIndex) => attendeeIndex % Math.max(current.length, 1) === index).map(attendee => attendee.id)] })))}
-        onCostModalOpen={() => undefined} onExportSimulation={() => undefined} onMoveToRecord={() => undefined}
+        onCostModalOpen={() => { if (buttonProposal) setEvaluationOpen(true); }} onExportSimulation={() => undefined} onMoveToRecord={() => undefined}
+        {...(buttonAppearance ? { buttonAppearance, evaluationButtonLabel: '편성 평가' } : {})}
         editingGroupId={editingGroupId} setEditingGroupId={setEditingGroupId}
         editingGroupName={editingGroupName} setEditingGroupName={setEditingGroupName}
         onUpdateTargetSize={(groupId, size) => setGroups(current => current.map(group => group.id === groupId ? { ...group, targetSize: size } : group))}
@@ -265,5 +278,6 @@ export function AttendanceScenario({ state, draftScope = null }: { state: Attend
       />
     </div>
     </AttendanceDragAndDrop>
+    {evaluationOpen && costContext && <EvaluationProposal groups={groups} context={costContext} onClose={() => setEvaluationOpen(false)} />}
   </div>;
 }

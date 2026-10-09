@@ -20,8 +20,8 @@ const pageDefinitions = {
   },
   attendance: {
     label: '일일 조 편성',
-    states: ['default', 'empty', 'crowded', 'companion-request'],
-    stateLabels: { default: '기본', empty: '빈 명단', crowded: '혼잡', 'companion-request': '동반 상대 선택' },
+    states: ['default', 'empty', 'crowded', 'companion-request', 'design-a', 'design-b'],
+    stateLabels: { default: '기본', empty: '빈 명단', crowded: '혼잡', 'companion-request': '동반 상대 선택', 'design-a': 'B 모달 · 버튼 ①', 'design-b': 'B 모달 · 버튼 ②' },
   },
 } as const;
 
@@ -47,6 +47,7 @@ function isScenarioPage(value: string | undefined): value is ScenarioPage {
 function ScenarioContent({ page, state }: { page: ScenarioPage; state: string }) {
   if (page === 'members') return <MembersScenario state={state as MembersScenarioState} />;
   if (page === 'interview') return <InterviewScenario state={state as InterviewScenarioState} />;
+  if (state === 'design-a' || state === 'design-b') return <AttendanceScenario key={state} state="default" buttonProposal={state === 'design-a' ? 'a' : 'b'} />;
   return <AttendanceScenario state={state as AttendanceScenarioState} />;
 }
 

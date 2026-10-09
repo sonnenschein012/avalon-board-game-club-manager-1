@@ -10,7 +10,7 @@ import type {
 
 export type MembersScenarioState = 'default' | 'empty' | 'crowded' | 'long-names';
 export type InterviewScenarioState = 'default' | 'mobile-heavy' | 'change-needed';
-export type AttendanceScenarioState = 'default' | 'empty' | 'crowded' | 'companion-request';
+export type AttendanceScenarioState = 'default' | 'empty' | 'crowded' | 'companion-request' | 'design-a' | 'design-b';
 
 function timestampAt(iso: string) {
   const date = new Date(iso);

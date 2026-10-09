@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { FileUp, Trash2, ClipboardList, Loader2 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { FileUp, Trash2, ClipboardList, Loader2, X } from 'lucide-react';
+import { attendanceButtonStyles } from './attendanceButtonStyles';
 import PageHeader from './PageHeader';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 import CostEvaluationModal from './CostEvaluationModal';
@@ -89,14 +89,9 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
           <div className="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto justify-end">
             <button 
               onClick={() => setIsAutoMode(!isAutoMode)}
-              className={cn(
-                "flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 rounded-xl text-xs font-bold transition-all shadow-lg",
-                isAutoMode 
-                  ? "bg-orange-100 text-orange-600 border border-orange-200"
-                  : "bg-white text-slate-600 border border-slate-100"
-              )}
+              className={attendanceButtonStyles.mode}
             >
-              <ClipboardList size={16} className="shrink-0" /> <span className="hidden sm:inline">{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</span><span className="sm:hidden">{isAutoMode ? '종료' : '자동편성'}</span>
+              {isAutoMode ? <X size={16} className="shrink-0" /> : <ClipboardList size={16} className="shrink-0" />} <span className="hidden sm:inline">{isAutoMode ? '자동 편성 모드 종료' : '자동 조편성'}</span><span className="sm:hidden">{isAutoMode ? '종료' : '자동편성'}</span>
             </button>
             <button type="button" onClick={() => setImportOpen(true)} disabled={importing} className="flex min-h-11 items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2.5 bg-slate-50 text-navy hover:text-gold border border-slate-100 rounded-xl hover:bg-indigo-100 transition-all text-xs font-bold cursor-pointer">
               {importing ? <Loader2 size={16} className="animate-spin shrink-0" /> : <FileUp size={16} className="shrink-0" />} 

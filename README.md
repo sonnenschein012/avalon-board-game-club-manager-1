@@ -2,7 +2,7 @@
 
 Avalon 보드게임 동아리의 회원, 게임, 정기 모임, 면접을 관리하는 웹 애플리케이션입니다.
 
-현재 안정 기준은 [v1.2.0](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.0)입니다. 개발을 재개할 때는 아래 실행 환경 안내와 [개발 가이드](docs/development.md)에서 시작하세요.
+현재 안정 기준은 [v1.2.1](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.1)입니다. 개발을 재개할 때는 아래 실행 환경 안내와 [개발 가이드](docs/development.md)에서 시작하세요.
 
 ## 주요 기능
 
@@ -56,6 +56,8 @@ npm.cmd run scenario-lab:test  # canonical scenario와 390/768/1440px 검증
 예: `/design.html#/members/crowded`, `/design.html#/interview/mobile-heavy`, `/design.html#/attendance/empty`. 상단의 Page, State, Viewport 선택기로 같은 상태를 즉시 전환할 수 있습니다.
 
 동반 상대 선택 모달은 `/design.html#/attendance/companion-request`에서 바로 열립니다. 후보 선택을 반영하거나 취소할 수 있으며, 닫은 뒤 조 안의 동반 요청 알림을 누르면 다시 열립니다. 모두 로컬 합성 데이터입니다.
+
+자동 편성 버튼·개인 평가 모달의 비교 시안은 `/design.html#/attendance/design-a`(B 모달·버튼 ①)와 `/design.html#/attendance/design-b`(B 모달·버튼 ②)에서 확인할 수 있습니다. 출석 명단과 조 편성은 기존 컴포넌트를 그대로 사용하며, 모달은 선택한 B안을 공통으로 보여줍니다. `편성 평가` 버튼으로 열고 상단 State/Viewport로 버튼 안과 화면 폭을 바꿉니다. 합성 자료로만 작동합니다. 실제 일일 조 편성에는 B 모달과 버튼 ②를 적용했으며, 이 두 시나리오는 같은 모달 컴포넌트와 버튼 스타일을 재사용합니다.
 
 ### Emulator Design Lab
 

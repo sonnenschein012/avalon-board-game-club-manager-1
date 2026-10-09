@@ -4,6 +4,7 @@ const scenarios = [
   ['members', 'default'], ['members', 'empty'], ['members', 'crowded'], ['members', 'long-names'],
   ['interview', 'default'], ['interview', 'mobile-heavy'], ['interview', 'change-needed'],
   ['attendance', 'default'], ['attendance', 'empty'], ['attendance', 'crowded'], ['attendance', 'companion-request'],
+  ['attendance', 'design-a'], ['attendance', 'design-b'],
 ] as const;
 
 function recordBackendRequests(page: Page) {
@@ -21,6 +22,9 @@ function recordForbiddenProductionModules(page: Page) {
   const requests: string[] = [];
   page.on('request', request => {
     const pathname = new URL(request.url()).pathname;
+    // This shared hook only stores a local draft. Its dependencies still pass
+    // through this guard; Firebase, services, and data-fetching hooks stay forbidden.
+    if (pathname === '/src/hooks/useAttendanceDraft.ts') return;
     if (/\/src\/(?:lib\/firebase|services\/|hooks\/use(?:Members|Attendance|Firestore))/.test(pathname)) requests.push(pathname);
   });
   return requests;

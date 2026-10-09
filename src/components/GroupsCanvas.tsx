@@ -1,4 +1,5 @@
 import React from 'react';
+import { attendanceButtonStyles } from './attendanceButtonStyles';
 import { SessionGroup, Attendee, Member } from '../types';
 import { CheckCircle2, Activity, ArrowRight, Trash2, X, Plus, Loader2 } from 'lucide-react';
 import BoardMemberBadge from './BoardMemberBadge';
@@ -23,6 +24,8 @@ export interface GroupsCanvasProps {
   saving?: boolean;
   isAssigning?: boolean;
   assignmentReady?: boolean;
+  buttonAppearance?: { autoAssign: string; evaluation: string };
+  evaluationButtonLabel?: string;
   assignmentNotices?: string[];
   getAssignmentWarnings?: (ids: string[]) => string[];
   requestChoices?: RequestChoice[];
@@ -60,6 +63,8 @@ export default function GroupsCanvas({
   saving = false,
   isAssigning = false,
   assignmentReady = true,
+  buttonAppearance,
+  evaluationButtonLabel,
   assignmentNotices = [],
   getAssignmentWarnings = () => [],
   editingGroupId,
@@ -102,16 +107,16 @@ export default function GroupsCanvas({
               <button 
                 onClick={onAutoAssign}
                 disabled={isAssigning || !assignmentReady}
-                className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-orange-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-orange-100 hover:bg-orange-600 transition animate-pulse whitespace-nowrap"
+                className={buttonAppearance?.autoAssign ?? attendanceButtonStyles.autoAssign}
               >
                 {isAssigning ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} className="shrink-0" />} <span>{isAssigning ? '편성 중…' : '조편성 시작'}</span>
               </button>
             )}
             <button 
               onClick={onCostModalOpen}
-              className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap"
+              className={buttonAppearance?.evaluation ?? attendanceButtonStyles.evaluation}
             >
-              <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">비용평가지표</span><span className="sm:hidden">지표</span>
+              <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">{evaluationButtonLabel ?? '편성 평가'}</span><span className="sm:hidden">{evaluationButtonLabel ?? '편성 평가'}</span>
             </button>
             {isAdminModeActive && (
               <button 
