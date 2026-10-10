@@ -96,7 +96,7 @@ for (const width of [390, 1280]) test(`edits and selects same-year namesakes at 
   const visibleRow = (label: string) => dialog.getByLabel(label, { exact: true }).filter({ visible: true });
   await expect(dialog.getByRole('button', { name: '3명 명단 반영' })).toBeDisabled();
   await expect(dialog.getByLabel(/행 제외|행 복원/)).toHaveCount(0);
-  await visibleRow('2행 회원 선택').selectOption({ label: 'avalon4 · 2024' });
+  await visibleRow('2행 회원 선택').selectOption({ label: 'avalon4 · 24-2' });
   await visibleRow('3행 회원 선택').selectOption('scenario-member-16');
   await visibleRow('4행 수정').click();
   await dialog.getByLabel('4행 뒤풀이 참석 여부', { exact: true }).fill('네');

@@ -113,7 +113,7 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
     const linked = row.memberId && row.candidates.find(member => member.id === row.memberId);
     return <div className={`${row.errors.length || row.warnings.length ? 'mt-2' : ''} flex min-w-0 items-center gap-1.5`}>
     {row.candidates.length > 1 && <label className="min-w-0 flex-1">
-      <span className="sr-only">닉네임과 가입년도로 회원 선택</span>
+      <span className="sr-only">닉네임과 가입학기로 회원 선택</span>
       <select aria-label={`${row.sourceRowNumber}행 회원 선택`} disabled={busy} value={row.memberId || ''}
         onChange={event => updateReview(row.sourceRowNumber, { memberId: event.target.value })}
         className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs font-bold text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy sm:h-9">
@@ -167,7 +167,7 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
               <Summary label="오류" value={`${preview.counts.errors}명`} error={preview.counts.errors > 0} />
             </div>
             <p className="text-xs leading-relaxed text-slate-500">뒤풀이 불참 {preview.counts.absent}명 · 미응답/미확인 {preview.counts.unanswered}명 · 미등록 {preview.counts.unregistered}명</p>
-            {!!preview.counts.errors && <AttendanceNotice severity="error" role="alert">오류 행을 수정해주세요. 동명이인은 닉네임과 가입년도를 확인해 회원을 선택해야 합니다.</AttendanceNotice>}
+            {!!preview.counts.errors && <AttendanceNotice severity="error" role="alert">오류 행을 수정해주세요. 동명이인은 닉네임과 가입학기를 확인해 회원을 선택해야 합니다.</AttendanceNotice>}
             <label className="flex min-h-11 w-fit items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={errorsOnly} onChange={event => { setErrorsOnly(event.target.checked); setPage(0); }} className="size-4 accent-navy" />오류 행만 보기</label>
             {!preview.counts.total && <AttendanceNotice role="alert">가져올 응답이 없습니다. 기존 명단은 유지됩니다.</AttendanceNotice>}
             {editing && <fieldset ref={editorRef} disabled={busy} className="rounded-2xl bg-slate-50 p-4">

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import Papa from 'papaparse';
-import { detectAttendanceMapping, previewAttendanceCsv, parseAfterparty, type AttendanceImportInput } from './csvParser';
+import { attendanceMemberLabel, detectAttendanceMapping, previewAttendanceCsv, parseAfterparty, type AttendanceImportInput } from './csvParser';
 import type { Member } from '../../types';
 
 const headers = ['타임스탬프', '학번 및 이름', '주문할 음료', '개강총회에 참석하시나요?', '뒤풀이에 참석하시나요?', '희망사항'];
@@ -98,6 +98,17 @@ describe('reviewed identities and row corrections', () => {
     { id: 'first', name: '김테스트', studentId: '20230001', nickname: '별' },
     { id: 'second', name: '김테스트', studentId: '20230002', nickname: '달' },
   ] as Member[];
+  it('shows the short year and semester and distinguishes otherwise identical namesakes', () => {
+    const first = { ...members[0]!, semester: '2024-1' };
+    const second = { ...first, id: 'second', semester: '2024-2' };
+    expect(attendanceMemberLabel(first)).toBe('별 · 24-1');
+    expect(attendanceMemberLabel(second)).toBe('별 · 24-2');
+    expect(attendanceMemberLabel({ ...first, semester: ' 26-1 ' })).toBe('별 · 26-1');
+    expect(attendanceMemberLabel({ ...first, semester: '' })).toBe('별 · 가입학기 없음');
+    const draft = input([['23 김테스트', '차', '네']], ['이름', '음료', '뒤풀이']);
+    draft.review = { 2: { memberId: 'second' } };
+    expect(previewAttendanceCsv(draft, [first, second]).canImport).toBe(true);
+  });
   it('requires a nickname selection for same-year namesakes and detects duplicate selections', () => {
     const draft = input([['23 김테스트', '차', '네'], ['23 김테스트', '물', '아니오']], ['이름', '음료', '뒤풀이']);
     expect(previewAttendanceCsv(draft, members).canImport).toBe(false);

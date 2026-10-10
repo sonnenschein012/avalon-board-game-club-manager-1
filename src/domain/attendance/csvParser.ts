@@ -76,8 +76,8 @@ const prefixOf = (value: string) => value.match(/^20(\d{2})|^(\d{2})/)?.slice(1)
 
 export const attendanceMemberLabel = (member: Member) => {
   const semester = member.semester?.trim();
-  const joinedYear = semester?.match(/^\d{4}/)?.[0] || semester || '가입년도 없음';
-  return `${member.nickname?.trim() || member.name} · ${joinedYear}`;
+  const joinedSemester = semester?.replace(/^\d{2}(\d{2}-[12])$/, '$1') || '가입학기 없음';
+  return `${member.nickname?.trim() || member.name} · ${joinedSemester}`;
 };
 
 export function previewAttendanceCsv(input: AttendanceImportInput, members: readonly Member[] = []) {
@@ -106,8 +106,8 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
     const selected = review?.memberId ? matches.find(member => member.id === review.memberId) : undefined;
     if (review?.memberId && !selected) errors.push('선택한 회원이 현재 이름·학번과 일치하지 않습니다. 다시 선택해주세요.');
     else if (selected && matches.filter(member => attendanceMemberLabel(member) === attendanceMemberLabel(selected)).length > 1)
-      errors.push('닉네임과 가입년도가 같은 회원이 있습니다. 회원 명부에서 닉네임을 구분한 뒤 다시 선택해주세요.');
-    else if (matches.length > 1 && !selected) errors.push('동명이인입니다. 닉네임과 가입년도를 확인하고 회원을 선택해주세요.');
+      errors.push('닉네임과 가입학기가 같은 회원이 있습니다. 회원 명부에서 닉네임을 구분한 뒤 다시 선택해주세요.');
+    else if (matches.length > 1 && !selected) errors.push('동명이인입니다. 닉네임과 가입학기를 확인하고 회원을 선택해주세요.');
     else if (!matches.length) warnings.push(namesakes.length
       ? '이름은 있지만 학번이 일치하지 않습니다. 수정하거나 미등록 상태로 가져오세요.'
       : '명부에 이름이 없습니다. 수정하거나 미등록 상태로 가져오세요.');
