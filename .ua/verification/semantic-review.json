@@ -1,304 +1,720 @@
 {
-  "version": "2.0.0",
+  "version": "3.0.0",
   "status": "passed",
-  "reviewedAt": "2026-09-12T05:03:57.475Z",
-  "reviewer": "main-agent-independent-of-file-analysis",
-  "scope": "공식 graph-reviewer 9개 구조 검사와 프로젝트 6개 질의의 소스 대조. 이전 대화나 로컬 임시 증거를 필수 입력으로 사용하지 않는 공유 보고서.",
-  "analysisCommit": "a71185137f754f21a960bb2131fb337855214e45",
-  "inputDigest": "9cb0372fa430a6c67555f90359b4b97744691726c96d0fdfe5ba7e21204492a3",
-  "graphHash": "0f80a27129433d25bf321fe1ebeb35de2d88954f269223bf931040f9ae47b9a9",
-  "domainHash": "cd40326c6709d5357c8f1c8361591d700dbd20a057c405f421ea499b6a2a0d6c",
+  "reviewedAt": "2026-10-10T02:55:51.889Z",
+  "reviewer": "independent UA reviewer without inherited conversation; parent verifies exact hashes and execution evidence",
+  "scope": "전체 공유 입력329개, 공식 graph-reviewer9개 구조 검사, 현재 소스와 대조한 필수6개 사례 및 업무 흐름 검토. 실제 업무 데이터·인증·빌드 산출물은 기존 제외 규칙 유지.",
+  "analysisCommit": "f3f2b1d5240e1264890f356a174e52bc9ca17c0d",
+  "inputDigest": "b73e3a982d5082c9a401d0a56c81ed6b3d419c05957bf08047b3a77536ef2440",
+  "graphHash": "729ede2d4a3453e914272e58155bc18b0605b71774aadff3b95e1c512d4e7b74",
+  "domainHash": "cd7f0f206893272931da042f2a46c29ecc7a6a51f304e6e64b8136d45fd77b45",
   "graphReview": {
-    "scriptCompleted": true,
+    "approved": true,
     "issues": [],
     "warnings": [
-      "Orphan node 'file:eslint.config.js'",
-      "Orphan node 'file:public/site.webmanifest'",
-      "Orphan node 'file:src/react-test-env.d.ts'",
-      "Orphan node 'file:.gitattributes'",
-      "Node 'table:firestore.rules:members' lacks expected migrates/defines_schema relation"
+      "Orphan node 'file:eslint.config.js' has zero connecting edges",
+      "Orphan node 'file:public/site.webmanifest' has zero connecting edges",
+      "Orphan node 'file:src/react-test-env.d.ts' has zero connecting edges",
+      "Orphan node 'file:tests/scenario-lab/attendance-draft.spec.ts' has zero connecting edges",
+      "Orphan node 'file:.gitattributes' has zero connecting edges",
+      "Node 'table:firestore.rules:members' lacks expected migrates/defines_schema relationship"
     ],
     "stats": {
-      "totalNodes": 715,
-      "totalEdges": 2300,
+      "totalNodes": 802,
+      "totalEdges": 2606,
       "totalLayers": 8,
-      "tourSteps": 9,
+      "tourSteps": 15,
       "nodeTypes": {
-        "file": 281,
-        "function": 414,
+        "file": 309,
+        "function": 466,
         "class": 2,
         "pipeline": 1,
+        "step": 1,
         "config": 9,
-        "document": 5,
-        "table": 3
+        "document": 10,
+        "table": 4
       },
       "edgeTypes": {
-        "contains": 526,
-        "exports": 344,
-        "imports": 663,
-        "calls": 553,
-        "depends_on": 67,
-        "tested_by": 80,
-        "reads_from": 14,
-        "defines_schema": 2,
+        "contains": 588,
+        "exports": 382,
+        "imports": 731,
+        "calls": 599,
+        "tested_by": 100,
+        "depends_on": 81,
+        "defines_schema": 4,
+        "reads_from": 17,
         "writes_to": 6,
-        "triggers": 4,
-        "configures": 14,
-        "documents": 19,
-        "related": 5,
+        "related": 8,
+        "triggers": 9,
+        "configures": 19,
+        "documents": 59,
         "validates": 3
       }
     }
   },
   "domainReview": {
-    "scriptCompleted": true,
+    "approved": true,
     "issues": [],
     "warnings": [
-      "Zero layers",
-      "Zero tour steps",
-      "Tour count 0 outside 5-15"
+      "Graph has zero layers",
+      "Graph has zero tour steps",
+      "Tour count 0 outside expected 5-15"
     ],
     "stats": {
-      "totalNodes": 47,
-      "totalEdges": 48,
+      "totalNodes": 103,
+      "totalEdges": 108,
       "totalLayers": 0,
       "tourSteps": 0,
       "nodeTypes": {
-        "domain": 5,
-        "flow": 9,
-        "step": 33
+        "domain": 6,
+        "flow": 19,
+        "step": 78
       },
       "edgeTypes": {
-        "contains_flow": 9,
-        "flow_step": 33,
-        "cross_domain": 6
+        "contains_flow": 19,
+        "flow_step": 78,
+        "cross_domain": 11
       }
     }
   },
   "cases": [
     {
       "id": "attendee-member-identity",
-      "answer": "편성의 attendee ID는 이름·학번 접두어로 회원을 조회해 member ID로 변환하며 미매칭은 원래 attendee ID를 유지한다. 접두어가 맞지 않으면 첫 이름 일치 회원으로 fallback한다.",
-      "paths": [
-        "src/domain/attendance/sessionGroups.ts",
-        "src/domain/matching/getMemberFromAttendee.ts",
-        "src/domain/matching/isSameName.ts",
-        "src/hooks/useAttendanceLogic.ts"
+      "sourceFinding": "The editable SessionGroup canvas contains attendee IDs. convertAttendeeIdsToMemberIds maps each attendee ID through the attendee name/studentIdPrefix to the roster member ID, preserving the original attendee ID when no member resolves. StoredSessionGroup and DailyPlanning contain member IDs, allowing sessions, stats and exports to join the roster rather than the replaceable attendee documents. isSameName strips whitespace/zero-width characters and a leading two-digit number and lowercases. getMemberFromAttendee filters normalized names, prefers a normalized year/full student ID prefix match, then falls back to the first same-name member if that prefix does not match; no name yields undefined. The meeting-start caller rejects assigned unregistered attendees before saving and saves a member-linked attendee snapshot.",
+      "sourceCitations": [
+        "src/types.ts:49",
+        "src/types.ts:58",
+        "src/domain/attendance/sessionGroups.ts:5",
+        "src/domain/attendance/sessionGroups.ts:13",
+        "src/domain/attendance/dailyPlanning.ts:3",
+        "src/domain/matching/isSameName.ts:10",
+        "src/domain/matching/getMemberFromAttendee.ts:13",
+        "src/hooks/useAttendanceLogic.ts:286",
+        "src/hooks/useAttendanceLogic.ts:294",
+        "src/hooks/useAttendanceLogic.ts:318"
       ],
-      "tests": [
-        "src/domain/matching/getMemberFromAttendee.test.ts",
-        "src/domain/matching/isSameName.test.ts"
+      "existingTests": [
+        "src/domain/matching/getMemberFromAttendee.test.ts:14 (name matching)",
+        "src/domain/matching/getMemberFromAttendee.test.ts:19 (same name/year prefix)",
+        "src/domain/matching/getMemberFromAttendee.test.ts:28 (unmatched undefined)",
+        "src/domain/matching/isSameName.test.ts:13 (spaces)",
+        "src/domain/matching/isSameName.test.ts:18 (leading year)",
+        "src/hooks/useAttendanceLogic.test.tsx:152 (member-linked planning drinks/requests)"
       ],
-      "limit": "변환 함수 자체를 호출하는 직접 테스트는 검색에서 찾지 못했다. 접두어 불일치 fallback과 공백 정규화가 모두 getMemberFromAttendee 테스트에 있다는 주장은 하지 않는다.",
-      "graphNodeIds": [
-        "file:src/domain/attendance/sessionGroups.ts",
-        "function:src/domain/attendance/sessionGroups.ts:convertAttendeeIdsToMemberIds",
-        "file:src/domain/matching/getMemberFromAttendee.ts",
-        "function:src/domain/matching/getMemberFromAttendee.ts:getMemberFromAttendee",
-        "file:src/domain/matching/isSameName.ts",
-        "function:src/domain/matching/isSameName.ts:isSameName",
-        "file:src/hooks/useAttendanceLogic.ts",
-        "function:src/hooks/useAttendanceLogic.ts:useAttendanceLogic"
+      "omissionsAndLimits": [
+        "No direct dedicated converter test exists: repository test search finds convertAttendeeIdsToMemberIds only in its implementation and production caller. Related matching/caller tests do not establish direct converter fallback coverage.",
+        "getMemberFromAttendee.test.ts has no explicit unmatched-prefix fallback test. Its misleading comment at line23 describes a successful prefix21 match as fallback; the assertion correctly selects member4.",
+        "isSameName test title mentions zero-width characters, but its assertions at lines14-15 use ordinary whitespace only. The zero-width behavior is source-confirmed, not directly asserted there."
       ],
-      "status": "passed"
+      "graphFinding": {
+        "status": "passed",
+        "answer": "Candidate converter and matching summaries explain attendee→member identity, normalized name/year-prefix preference, first same-name fallback and original attendee-ID unmatched fallback; type/planning summaries and tour3/8 connect this to persisted member joins. Matching has a tested_by edge to its real test file; converter has no tested_by edge. Source review explicitly establishes missing direct converter coverage rather than inferring it from graph absence.",
+        "nodeIds": [
+          "function:src/domain/attendance/sessionGroups.ts:convertAttendeeIdsToMemberIds",
+          "function:src/domain/matching/getMemberFromAttendee.ts:getMemberFromAttendee",
+          "file:src/types.ts",
+          "file:src/domain/attendance/dailyPlanning.ts"
+        ],
+        "tourOrders": [
+          3,
+          8
+        ],
+        "sourceSupplement": [
+          "Exact regex handling and test assertion limits come from source citations; graph does not itself prove missing tests."
+        ],
+        "domain": {
+          "status": "passed",
+          "nodeIds": [
+            "domain:meeting-operation",
+            "flow:start-meeting",
+            "step:start-meeting:validate",
+            "step:start-meeting:convert"
+          ],
+          "answer": "Meeting domain and start-meeting flow distinguish canvas attendee IDs from stored member IDs, pre-save registration guard and the converter original-ID fallback. Exact name/prefix matching and missing direct converter coverage remain the source/knowledge answer; domain steps do not claim an executed converter test."
+        }
+      }
     },
     {
-      "id": "board-snapshot",
-      "answer": "boardMemberIds 부재는 현재 회원 임원 플래그 fallback, 명시적 []는 당시 임원 없음이다. CSV와 통계는 optional includes 결과에 nullish fallback을 사용하고 저장은 undefined 부재를 보존한다.",
-      "paths": [
-        "src/domain/stats/getAttendanceRanking.ts",
-        "src/domain/stats/getCorePlayers.ts",
-        "src/domain/exports/clubCsv.ts",
-        "src/domain/sessions/sessionCsv.ts",
-        "src/services/sessionsService.ts"
+      "id": "board-role-snapshot",
+      "sourceFinding": "boardMemberIds absent means legacy history: attendance ranking, core-player stats and session CSV export use the member's current isBoardMember flag. An explicit [] makes includes return false, so nullish fallback does not run and means no board members at that session. parseSessionCsvRows treats the presence of the current 세션명 column as a role-snapshot format, initializes [] and adds marked members; legacy columns leave the property absent. Import spreads the parsed session and therefore preserves absent/empty. New session creation records a snapshot; updates retain an existing snapshot and do not fabricate one for legacy sessions.",
+      "sourceCitations": [
+        "src/types.ts:73",
+        "src/domain/sessions/sessionCsv.ts:42",
+        "src/domain/sessions/sessionCsv.ts:53",
+        "src/domain/sessions/sessionCsv.ts:62",
+        "src/services/sessionsService.ts:36",
+        "src/services/sessionsService.ts:58",
+        "src/services/sessionsService.ts:92",
+        "src/hooks/useAttendanceLogic.ts:332",
+        "src/domain/stats/getAttendanceRanking.ts:13",
+        "src/domain/stats/getCorePlayers.ts:28",
+        "src/domain/exports/clubCsv.ts:82"
       ],
-      "tests": [
-        "src/domain/sessions/sessionCsv.test.ts",
-        "src/services/sessionsService.test.ts",
-        "src/domain/stats/semesterStatistics.test.ts"
+      "existingTests": [
+        "src/domain/sessions/sessionCsv.test.ts:25 (legacy absence)",
+        "src/domain/sessions/sessionCsv.test.ts:36 (marked snapshot)",
+        "src/domain/sessions/sessionCsv.test.ts:38 (explicit empty)",
+        "src/services/sessionsService.test.ts:48 (import absent vs empty)",
+        "src/services/sessionsService.test.ts:58 (retained snapshot)",
+        "src/domain/stats/semesterStatistics.test.ts:35 (ranking snapshot)",
+        "src/domain/stats/archiveGameStatistics.test.ts:57 (core-player snapshot vs current roster)",
+        "src/domain/exports/clubCsv.test.ts:73 (all three export cases)"
       ],
-      "limit": "관련 단위 테스트 통과는 모든 실제 운영 데이터의 무결성을 보증하지 않는다.",
-      "graphNodeIds": [
-        "file:src/domain/exports/clubCsv.ts",
-        "function:src/domain/exports/clubCsv.ts:buildMembersCsv",
-        "function:src/domain/exports/clubCsv.ts:buildGamesCsv",
-        "function:src/domain/exports/clubCsv.ts:buildSessionsCsv",
-        "file:src/domain/stats/getAttendanceRanking.ts",
-        "function:src/domain/stats/getAttendanceRanking.ts:getAttendanceRanking",
-        "file:src/domain/stats/getCorePlayers.ts",
-        "function:src/domain/stats/getCorePlayers.ts:getCorePlayers",
-        "file:src/domain/sessions/sessionCsv.ts",
-        "function:src/domain/sessions/sessionCsv.ts:findMember",
-        "function:src/domain/sessions/sessionCsv.ts:parseSessionCsvRows",
-        "file:src/services/sessionsService.ts",
-        "function:src/services/sessionsService.ts:importSessionRecords",
-        "function:src/services/sessionsService.ts:createSessionRecord",
-        "function:src/services/sessionsService.ts:updateSessionRecord",
-        "function:src/services/sessionsService.ts:updateSessionGroupGames",
-        "function:src/services/sessionsService.ts:deleteSessionRecord"
+      "omissionsAndLimits": [
+        "Stats use identical nullish expressions, but their cited tests cover populated snapshot/legacy fallback; explicit [] stats behavior is source-confirmed, while export and import tests explicitly assert [].",
+        "CSV re-import is an information-transfer format, not a full identity-preserving Firestore backup; unknown roster members are skipped by parseSessionCsvRows."
       ],
-      "status": "passed"
+      "graphFinding": {
+        "status": "passed",
+        "answer": "CSV/import/update/stats/export summaries explain absent versus empty snapshot semantics. Ranking/core-player summaries explicitly say absent uses current roster and [] means no board members; CSV summary and corrected import summary preserve that distinction. Tour3/10 describes snapshots and exchange-format limits; tested_by edges connect stats/CSV/storage/export to actual tests.",
+        "nodeIds": [
+          "function:src/domain/sessions/sessionCsv.ts:parseSessionCsvRows",
+          "function:src/services/sessionsService.ts:importSessionRecords",
+          "function:src/services/sessionsService.ts:updateSessionRecord",
+          "function:src/domain/stats/getAttendanceRanking.ts:getAttendanceRanking",
+          "function:src/domain/stats/getCorePlayers.ts:getCorePlayers",
+          "function:src/domain/exports/clubCsv.ts:buildSessionsCsv"
+        ],
+        "tourOrders": [
+          3,
+          10
+        ],
+        "sourceSupplement": [
+          "The CSV presence-of-세션명 format discriminator and explicit-empty stats test limit are supplied by source review."
+        ],
+        "domain": {
+          "status": "passed",
+          "nodeIds": [
+            "domain:club-history",
+            "step:analyze-session-history:snapshot",
+            "step:export-club-data:session",
+            "step:edit-session-records:parse",
+            "step:edit-session-records:import"
+          ],
+          "answer": "History rules and statistics/export/import steps preserve absent=current-roster fallback and []=no historical board members. Import explicitly creates new group IDs while retaining snapshot semantics; no identity-preserving full-copy guarantee is made."
+        }
+      }
     },
     {
-      "id": "planning-session-preservation",
-      "answer": "DailyPlannings는 운영 계획, sessions는 확정 기록이다. renameDailyPlanningGroup은 트랜잭션에서 두 문서를 따로 읽고 각 문서의 현재 groups에서 대상 이름만 바꾼다. 독립된 게임·메모·회원·다른 조를 유지한다.",
-      "paths": [
-        "src/services/dailyPlanningService.ts",
-        "src/services/sessionsService.ts"
+      "id": "planning-confirmed-persistence",
+      "sourceFinding": "DailyPlannings is a date-keyed operating snapshot (groups, member-linked attendee drinks/requests, optional sessionId, versions); sessions is the separate confirmed record. Meeting start reads both in one transaction, archives an existing planning, updates only assigned attendees, rewrites/merges the planning and creates the session only if absent. renameDailyPlanningGroup reads current planning and linked session in a transaction and maps each current groups array, replacing only the target group's name; it preserves independently recorded games, notes, members and other groups and never recreates a group removed from the session. A valid missing linked session aborts before writes; invalid legacy links leave planning editable. Session deletion queries all matching planning links, removes only sessionId and deletes/audits the session in one batch. Version restoration uses the current sessionId rather than the archived snapshot link, so a detached deleted link is not revived. Planning deletion removes operating snapshot/versions while retaining the session.",
+      "sourceCitations": [
+        "src/domain/attendance/dailyPlanning.ts:3",
+        "src/hooks/useAttendanceLogic.ts:295",
+        "src/hooks/useAttendanceLogic.ts:310",
+        "src/hooks/useAttendanceLogic.ts:327",
+        "src/services/dailyPlanningService.ts:27",
+        "src/services/dailyPlanningService.ts:41",
+        "src/services/dailyPlanningService.ts:56",
+        "src/services/dailyPlanningService.ts:81",
+        "src/services/sessionsService.ts:77",
+        "src/domain/sessions/sessionGroups.ts:15",
+        "src/services/sessionsService.ts:142"
       ],
-      "tests": [
-        "src/services/dailyPlanningService.test.ts",
-        "src/services/sessionsService.test.ts"
+      "existingTests": [
+        "src/services/dailyPlanningService.test.ts:26 (rename preserves games, notes, members and other groups)",
+        "src/services/dailyPlanningService.test.ts:50 (no removed-group recreation)",
+        "src/services/dailyPlanningService.test.ts:59 (invalid legacy link)",
+        "src/services/dailyPlanningService.test.ts:69 (missing session abort)",
+        "src/services/dailyPlanningService.test.ts:77 (detached planning)",
+        "src/services/dailyPlanningService.test.ts:85 (planning-only deletion)",
+        "src/services/dailyPlanningService.test.ts:99 (version restore current linkage)",
+        "src/services/sessionsService.test.ts:28 (session deletion detaches only links)",
+        "src/services/sessionsService.test.ts:39 (lookup/commit failures)",
+        "src/services/sessionsService.test.ts:58 (session save preserves remote games)",
+        "src/hooks/useAttendanceLogic.test.tsx:165 (restart retains existing session)",
+        "tests/design-lab/smoke.spec.ts:87 (synthetic deletion detaches link; exists but not rerun for this refresh)"
       ],
-      "limit": "연결 세션이 없으면 이름 변경이 실패하고, 유효한 연결 ID가 없는 기존 계획은 계획만 편집한다.",
-      "graphNodeIds": [
-        "file:src/services/dailyPlanningService.ts",
-        "function:src/services/dailyPlanningService.ts:archiveDailyPlanning",
-        "function:src/services/dailyPlanningService.ts:restoreDailyPlanningVersion",
-        "function:src/services/dailyPlanningService.ts:deleteDailyPlanning",
-        "function:src/services/dailyPlanningService.ts:renameDailyPlanningGroup",
-        "file:src/services/sessionsService.ts",
-        "function:src/services/sessionsService.ts:importSessionRecords",
-        "function:src/services/sessionsService.ts:createSessionRecord",
-        "function:src/services/sessionsService.ts:updateSessionRecord",
-        "function:src/services/sessionsService.ts:updateSessionGroupGames",
-        "function:src/services/sessionsService.ts:deleteSessionRecord"
+      "omissionsAndLimits": [
+        "Rename uses transaction retry protection. updateSessionRecord and updateSessionGroupGames use a getDoc followed by batch write; preservation of observed edits does not establish complete protection against all concurrent post-read edits.",
+        "deleteSessionRecord makes the fetched link detachment and deletion atomic but does not track a new planning link created after getDocs. It rejects an over500-operation batch; no source claim of race-free query/deletion is warranted.",
+        "The cited version test covers preserving an existing current link. Source line41 confirms detached current planning cannot restore an archived link; this exact detached-restore permutation is not directly tested in that cited test."
       ],
-      "status": "passed"
+      "graphFinding": {
+        "status": "passed",
+        "answer": "Planning/table/hook/service summaries and tour8/9 distinguish operating snapshots from sessions, preserve an existing confirmed record at restart, preserve current linked session records when renaming, and detach only sessionId during deletion. Restore summary explicitly prevents archived deleted links from reappearing. Relevant services have tested_by edges. Tour9 expressly limits getDoc→batch edits and pre-deletion query protection, preventing a concurrency guarantee unsupported by source.",
+        "nodeIds": [
+          "table:firestore.rules:DailyPlannings",
+          "table:firestore.rules:sessions",
+          "function:src/services/dailyPlanningService.ts:renameDailyPlanningGroup",
+          "function:src/services/dailyPlanningService.ts:restoreDailyPlanningVersion",
+          "function:src/services/sessionsService.ts:deleteSessionRecord",
+          "file:src/hooks/useAttendanceLogic.ts"
+        ],
+        "tourOrders": [
+          8,
+          9
+        ],
+        "sourceSupplement": [
+          "Exact notes/member/other-group preservation is established by spread/map source plus the rename test; mocked persistence tests do not prove all emulator races."
+        ],
+        "domain": {
+          "status": "passed",
+          "nodeIds": [
+            "flow:start-meeting",
+            "step:start-meeting:persist",
+            "step:manage-meeting-records:rename",
+            "step:manage-meeting-records:restore",
+            "step:manage-meeting-records:delete",
+            "flow:delete-session-record",
+            "step:delete-session-record:commit"
+          ],
+          "answer": "Flows separate plan from confirmed session, preserve existing confirmed records, retain independent games/notes/members and removed groups during transactional rename, allow detached/invalid-legacy planning-only edits, and abort a valid link to a missing session. Restore retains current linkage; plan deletion retains sessions; session deletion detaches only fetched links and explicitly does not guarantee later-created links are captured."
+        }
+      }
     },
     {
-      "id": "indirect-collection-consumers",
-      "answer": "출석·모임·통계·세션 hooks는 useFirestore로 sessions/members를 직접 구독한다. 서비스 import 그래프만으로 영향 범위를 결정할 수 없으며 members/sessions/DailyPlannings table 노드를 통한 읽기·쓰기 이웃을 함께 조회한다.",
-      "paths": [
-        "src/hooks/useAttendanceLogic.ts",
-        "src/hooks/useMeetingProgressLogic.ts",
-        "src/hooks/useArchiveLogic.ts",
-        "src/hooks/useSessionsLogic.ts",
-        "src/hooks/useMembersLogic.ts",
-        "src/services/dailyPlanningService.ts",
-        "src/services/sessionsService.ts"
+      "id": "shared-firestore-consumers",
+      "sourceFinding": "Explicit source searches find indirect consumers beyond imports/one-hop graph neighbors. Attendance subscribes to attendees, members and confirmed sessions and writes attendees, DailyPlannings, sessions, versions/audit at meeting start. Meeting progress subscribes to members/games/sessions plus selected DailyPlannings, joins its attendee snapshot by memberId for drinks/requests and uses confirmed history for recommendations. Meeting records subscribes to planning parents and versions. Sessions UI subscribes to sessions/members/games and delegates save/import/game updates/deletion to sessionsService. Archive subscribes to sessions/members/games and feeds domain stats. Settings export loaders independently read sessions/members/games; useClubExports calls CSV builders. Member profiles and games UI additionally read sessions for played-history/usage. Attendee registration reads members and batches member creation with corrected attendee data; interview registration is another members writer. Firestore rules secure these shared collections.",
+      "sourceCitations": [
+        "src/hooks/useAttendanceLogic.ts:47",
+        "src/hooks/useAttendanceLogic.ts:295",
+        "src/services/attendeesService.ts:24",
+        "src/hooks/useMeetingProgressLogic.ts:20",
+        "src/hooks/useMeetingProgressLogic.ts:89",
+        "src/hooks/useMeetingProgressLogic.ts:127",
+        "src/hooks/useMeetingProgressLogic.ts:131",
+        "src/hooks/useMeetingRecords.ts:13",
+        "src/hooks/useMeetingRecords.ts:33",
+        "src/hooks/useSessionsLogic.ts:16",
+        "src/hooks/useArchiveLogic.ts:18",
+        "src/services/settingsService.ts:39",
+        "src/services/settingsService.ts:53",
+        "src/hooks/useClubExports.ts:21",
+        "src/hooks/useClubExports.ts:49",
+        "src/components/MemberProfileModal.tsx:24",
+        "src/hooks/useGamesLogic.ts:32",
+        "src/services/interviews/memberRegistrationService.ts:45",
+        "firestore.rules:181",
+        "firestore.rules:222"
       ],
-      "tests": [
-        "src/hooks/useAttendanceLogic.test.tsx",
-        "src/hooks/useMeetingProgressLogic.test.tsx",
-        "src/hooks/useSessionsLogic.test.tsx"
+      "existingTests": [
+        "src/hooks/useAttendanceLogic.test.tsx:86 (only assigned status updates)",
+        "src/hooks/useAttendanceLogic.test.tsx:152 (snapshot independent of roster reset)",
+        "src/hooks/useSessionsLogic.test.tsx:38 (unassigned members after group removal/deletion)",
+        "src/services/sessionsService.test.ts:28 (planning/session shared boundary)",
+        "src/domain/exports/clubCsv.test.ts:28 (member participation counts from sessions)",
+        "src/tests/firestore.rules.test.ts:193 (registered admin access)",
+        "src/tests/firestore.rules.test.ts:395 (non-admin internal data refusal)"
       ],
-      "limit": "명시적으로 모델링한 세 컬렉션 밖의 모든 동적 경로와 간접 관계를 완전히 추출했다는 의미는 아니다.",
-      "graphNodeIds": [
-        "file:src/hooks/useArchiveLogic.ts",
-        "function:src/hooks/useArchiveLogic.ts:useArchiveLogic",
-        "file:src/services/dailyPlanningService.ts",
-        "function:src/services/dailyPlanningService.ts:archiveDailyPlanning",
-        "function:src/services/dailyPlanningService.ts:restoreDailyPlanningVersion",
-        "function:src/services/dailyPlanningService.ts:deleteDailyPlanning",
-        "function:src/services/dailyPlanningService.ts:renameDailyPlanningGroup",
-        "file:src/hooks/useMeetingProgressLogic.ts",
-        "function:src/hooks/useMeetingProgressLogic.ts:useMeetingProgressLogic",
-        "file:src/hooks/useAttendanceLogic.ts",
-        "function:src/hooks/useAttendanceLogic.ts:useAttendanceLogic",
-        "file:src/services/sessionsService.ts",
-        "function:src/services/sessionsService.ts:importSessionRecords",
-        "function:src/services/sessionsService.ts:createSessionRecord",
-        "function:src/services/sessionsService.ts:updateSessionRecord",
-        "function:src/services/sessionsService.ts:updateSessionGroupGames",
-        "function:src/services/sessionsService.ts:deleteSessionRecord",
-        "file:src/hooks/useMembersLogic.ts",
-        "function:src/hooks/useMembersLogic.ts:useMembersLogic",
-        "file:src/hooks/useSessionsLogic.ts",
-        "function:src/hooks/useSessionsLogic.ts:useSessionsLogic"
+      "omissionsAndLimits": [
+        "Collection-based coupling exists without direct imports between feature screens; graph-neighbor absence cannot prove no impact.",
+        "No direct settingsService/useClubExports test file exists. CSV formatting tests and source-confirmed loader joins do not independently test network wiring.",
+        "No browser scenario execution is claimed for the current refresh; existing synthetic scenarios are discovery evidence only."
       ],
-      "status": "passed"
+      "graphFinding": {
+        "status": "passed",
+        "answer": "Candidate storage relations now connect attendance to members/sessions reads and planning/session writes, progress to shared storage reads, sessions and archive to members/sessions reads, settingsService export loaders to members/sessions/games reads, and meeting-record subscriptions to planning reads. Table summaries and tours8-11 explain importless storage coupling. Settings/CSV imports connect loaders through useClubExports to export builders; rules/tests are represented.",
+        "nodeIds": [
+          "table:firestore.rules:members",
+          "table:firestore.rules:sessions",
+          "table:firestore.rules:DailyPlannings",
+          "file:src/hooks/useAttendanceLogic.ts",
+          "file:src/hooks/useMeetingProgressLogic.ts",
+          "file:src/hooks/useMeetingRecords.ts",
+          "file:src/hooks/useSessionsLogic.ts",
+          "file:src/hooks/useArchiveLogic.ts",
+          "file:src/services/settingsService.ts",
+          "file:src/hooks/useClubExports.ts"
+        ],
+        "tourOrders": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "sourceSupplement": [
+          "Not every shared collection has a dedicated table node (e.g. attendees), and not every indirect consumer has a storage edge (e.g. member profile/additional member writers). Source collection search remains required and the six-case report lists those consumers. No graph absence is treated as no impact."
+        ],
+        "domain": {
+          "status": "passed",
+          "nodeIds": [
+            "domain:club-roster",
+            "domain:meeting-operation",
+            "domain:club-history",
+            "step:manage-meeting-records:read",
+            "step:analyze-session-history:read",
+            "flow:export-club-data"
+          ],
+          "answer": "Roster→meeting/history and history→meeting cross-domain edges express shared identity/history inputs. Meeting read, history analysis and export flows name shared collections; domain rules explicitly list indirect session/member/game consumers. This complements, rather than replaces, the source search and knowledge storage edges."
+        }
+      }
     },
     {
-      "id": "public-admin-legacy",
-      "answer": "공개 응답은 활성 bearer token의 허용 필드·일정 슬롯·서버 시각 검사와 관리자 경계를 따른다. 클라이언트의 scheduleId null은 미배정, undefined는 기존 회차 fallback, 문자열은 일정이다. migration은 undefined만 허용한다. Rules accessScheduleId는 비문자열을 null로 정규화하므로 클라이언트와 같은 구분이라고 단정하지 않는다.",
-      "paths": [
-        "src/services/publicInterviewService.ts",
-        "src/services/interviews/schedulesService.ts",
-        "src/hooks/usePublicInterviewLogic.ts",
-        "firestore.rules"
+      "id": "public-token-admin-legacy-schedule",
+      "sourceFinding": "The public /interview/:token path uses an exact interviewAccess bearer-token document. Public clients may get an active token (a missing token may also be fetched for invalid-link UX), cannot list/create/delete tokens or access internal interview collections, and may only update firstAccessedAt once or whitelisted response fields with server timestamps, active survey window, unique allowed slots and completed-interview lock. Active public schedules/rounds are get-readable and not listable to public users; rules do not require proof of token possession when reading an active public config. Admin authorization requires signed-in token.email and an admins document; stored master role or the bootstrap email permits master administration. Client normalizes email for its lookup. Current rules do not check email_verified. InterviewApplicant/InterviewAccess scheduleId optional string|null represents undefined legacy round, explicit null unassigned and ID assigned schedule. Public subscription stops at null, uses interviewPublicRounds on undefined, or schedule plus common-round subscription on ID. Public UI blocks null, permits fixed schedules during initialization, and holds legacy rolling-window initialization. Legacy schedule migration only accepts undefined and writes explicit schedule linkage. Rules accessScheduleId intentionally normalizes non-string/absent/null to null for legacy fallback. KST first-access plus four-day selection is calculated client-side; rules enforce the wider config slot subset, not that personal calendar window.",
+      "sourceCitations": [
+        "src/App.tsx:309",
+        "src/types.ts:245",
+        "src/types.ts:395",
+        "src/services/publicInterviewService.ts:59",
+        "src/services/publicInterviewService.ts:75",
+        "src/services/publicInterviewService.ts:112",
+        "src/hooks/usePublicInterviewLogic.ts:24",
+        "src/hooks/usePublicInterviewLogic.ts:43",
+        "src/hooks/usePublicInterviewLogic.ts:203",
+        "src/services/interviews/schedulesService.ts:475",
+        "src/lib/firebase.ts:146",
+        "firestore.rules:9",
+        "firestore.rules:20",
+        "firestore.rules:47",
+        "firestore.rules:90",
+        "firestore.rules:99",
+        "firestore.rules:125",
+        "firestore.rules:353",
+        "firestore.rules:365"
       ],
-      "tests": [
-        "src/services/publicInterviewService.test.ts",
-        "src/hooks/usePublicInterviewLogic.test.ts",
-        "src/hooks/usePublicInterviewLogic.integration.test.tsx",
-        "src/tests/firestore.rules.test.ts"
+      "existingTests": [
+        "src/tests/firestore.rules.test.ts:193 (admin core access/admins write refusal)",
+        "src/tests/firestore.rules.test.ts:283 (stored master role)",
+        "src/tests/firestore.rules.test.ts:334 (ordinary admin interview operations)",
+        "src/tests/firestore.rules.test.ts:395 (unregistered user denied)",
+        "src/tests/firestore.rules.test.ts:415 (exact active/missing token and list/inactive denial)",
+        "src/tests/firestore.rules.test.ts:441 (assigned schedule response)",
+        "src/tests/firestore.rules.test.ts:457 (token create/delete denial)",
+        "src/tests/firestore.rules.test.ts:470 (response timestamps)",
+        "src/tests/firestore.rules.test.ts:495 (allowed slots/duplicates)",
+        "src/tests/firestore.rules.test.ts:518 (wider round-slot Spark policy)",
+        "src/services/publicInterviewService.test.ts:40 (ID schedule/common-round subscription)",
+        "src/hooks/usePublicInterviewLogic.test.ts:56 (null unassigned)",
+        "src/hooks/usePublicInterviewLogic.test.ts:67 (fixed schedule)",
+        "src/hooks/usePublicInterviewLogic.test.ts:71 (undefined legacy initialization)",
+        "src/domain/interviews/publicTimeWindow.test.ts:18 (next four KST dates)"
       ],
-      "limit": "KST 나흘 범위는 클라이언트 정책이며 Rules는 동일한 달력 계산을 강제하지 않는다. 이번 npm run check에는 Emulator 규칙 테스트가 포함되지 않았다.",
-      "graphNodeIds": [
-        "file:src/hooks/usePublicInterviewLogic.ts",
-        "function:src/hooks/usePublicInterviewLogic.ts:getPublicInterviewState",
-        "function:src/hooks/usePublicInterviewLogic.ts:resolvePublicInitializationState",
-        "function:src/hooks/usePublicInterviewLogic.ts:usePublicInterviewLogic",
-        "file:src/services/publicInterviewService.ts",
-        "function:src/services/publicInterviewService.ts:initializePublicInterviewAccess",
-        "function:src/services/publicInterviewService.ts:subscribeToPublicInterview",
-        "function:src/services/publicInterviewService.ts:savePublicAvailability",
-        "file:src/services/interviews/schedulesService.ts",
-        "function:src/services/interviews/schedulesService.ts:scheduleAuditView",
-        "function:src/services/interviews/schedulesService.ts:subscribeInterviewSchedules",
-        "function:src/services/interviews/schedulesService.ts:assignRoundInterviewerToSchedule",
-        "function:src/services/interviews/schedulesService.ts:subscribeAllInterviewSchedules",
-        "function:src/services/interviews/schedulesService.ts:createInterviewSchedule",
-        "function:src/services/interviews/schedulesService.ts:applyConcreteInterviewScheduleChange",
-        "function:src/services/interviews/schedulesService.ts:deleteInterviewSchedule",
-        "function:src/services/interviews/schedulesService.ts:assignApplicantsToInterviewSchedule",
-        "function:src/services/interviews/schedulesService.ts:migrateLegacyApplicantsToInterviewSchedule",
-        "file:firestore.rules",
-        "table:firestore.rules:members",
-        "table:firestore.rules:sessions",
-        "table:firestore.rules:DailyPlannings"
+      "omissionsAndLimits": [
+        "Current publicInterviewService tests exercise ID schedules but do not directly assert null vs undefined subscription collection choice; source and public-state tests establish those separate boundaries.",
+        "No email_verified enforcement is claimed. No per-token read restriction on active public config documents is claimed.",
+        "Personal KST time-window enforcement is a client behavior, not a Firestore guarantee. Direct API responses within allowed config slots can exceed the personal four-day window.",
+        "Rules normalize null to legacy fallback while the application null state prevents input; the graph must explain the client and rules boundaries separately rather than claim identical three-way behavior everywhere."
       ],
-      "status": "passed"
+      "graphFinding": {
+        "status": "passed",
+        "answer": "Public service file/function summaries explicitly cover null=no schedule subscription, undefined=legacy public round, ID=schedule+common round. Schedule service/migration summaries retain the three-way contract. Rules summary/languageNotes and tour12 describe admin email+role, exact token access, server timestamps/allowed slots, lack of email_verified, client-only KST personal window, active public-config get without token proof, and rules non-string→null fallback separately from client state. Rules and public-state/service files link to actual tests.",
+        "nodeIds": [
+          "file:firestore.rules",
+          "file:src/lib/firebase.ts",
+          "function:src/services/publicInterviewService.ts:subscribeToPublicInterview",
+          "function:src/hooks/usePublicInterviewLogic.ts:getPublicInterviewState",
+          "file:src/services/interviews/schedulesService.ts",
+          "function:src/services/interviews/schedulesService.ts:migrateLegacyApplicantsToInterviewSchedule"
+        ],
+        "tourOrders": [
+          2,
+          12,
+          13
+        ],
+        "sourceSupplement": [
+          "Exact token summary key whitelist, missing-token UX and public-service direct null/undefined test gaps are supplied by source citations. Client/rules distinctions are explicitly retained as limitations, not change requests."
+        ],
+        "domain": {
+          "status": "passed",
+          "nodeIds": [
+            "domain:public-interview",
+            "domain:access-administration",
+            "step:open-public-interview:identity",
+            "step:open-public-interview:view",
+            "step:submit-interview-availability:rules",
+            "step:manage-interview-applicants:migrate",
+            "step:authenticate-admin:rules"
+          ],
+          "answer": "Public domain/steps retain scheduleId undefined/null/ID, round fallback and migration eligibility. Authentication rules preserve email/admin-role authorization and expressly avoid email_verified assumptions. Public config reads do not require token proof; client KST window is distinct from wider rule-allowed slots. Exact response timestamp/field whitelist evidence remains the source and knowledge answer."
+        }
+      }
     },
     {
-      "id": "portable-freshness-and-loss",
-      "answer": "최신성은 공유 소스·문서·제어 입력과 산출물의 SHA-256으로 결정한다. HEAD 이동과 dirty 해제만으로 무효화하지 않는다. agent_docs와 installation 경로는 입력이 아니며 공유 toolchain/AGENTS는 입력이다. validateGraph는 해시가 같은 파일의 기존 심볼과 관계 누락을 거부한다. cosmetic 분류는 명시적인 의미 유지 근거 없이는 승인하지 않는다.",
-      "paths": [
-        "scripts/knowledge-graph.mjs",
-        "scripts/knowledge-graph.test.mjs",
-        "docs/knowledge-graph.md",
-        "docs/new-computer.md",
-        ".gitattributes"
+      "id": "semantic-drift-and-retention",
+      "sourceFinding": "snapshot hashes source/control content and staged/unstaged/new files; unchanged HEAD/signature cannot certify unchanged meaning. freshness compares artifact hashes before input digest. validateGraph checks coverage/references and compares exact old node IDs and source-target-type edge keys for unchanged source files, detecting loss even if node count is retained. accept requires a passed semantic review bound to current inputDigest and exact knowledge/domain hashes, official pinned schema validation and fingerprint/scan equality. Dirty input/baseline cannot use incremental approval. Each official cosmeticFiles entry needs explicit nonempty evidence and unchangedMeaning:true or full analysis; structural/cosmetic classification cannot itself detect semantic changes. The required independent source/graph review is the semantic boundary.",
+      "sourceCitations": [
+        "scripts/knowledge-graph.mjs:45",
+        "scripts/knowledge-graph.mjs:51",
+        "scripts/knowledge-graph.mjs:63",
+        "scripts/knowledge-graph.mjs:96",
+        "scripts/knowledge-graph.mjs:107",
+        "scripts/knowledge-graph.mjs:116",
+        "scripts/knowledge-graph.mjs:142",
+        "scripts/knowledge-graph.mjs:150",
+        "scripts/knowledge-graph.mjs:163",
+        "docs/knowledge-graph.md:44"
       ],
-      "tests": [
-        "scripts/knowledge-graph.test.mjs"
+      "existingTests": [
+        "scripts/knowledge-graph.test.mjs:21 (module declarations/design inventory; local deployment exclusions)",
+        "scripts/knowledge-graph.test.mjs:41 (body-only same-HEAD change plus staged/new Korean path)",
+        "scripts/knowledge-graph.test.mjs:54 (rename/delete inventory)",
+        "scripts/knowledge-graph.test.mjs:79 (artifact corruption)",
+        "scripts/knowledge-graph.test.mjs:89 (portable clone hashes)",
+        "scripts/knowledge-graph.test.mjs:113 (missing file/reference/duplicate rejection)",
+        "scripts/knowledge-graph.test.mjs:122 (unchanged symbol+relationship loss at same node count)",
+        "scripts/knowledge-graph.test.mjs:139 (every cosmetic entry needs source evidence)"
       ],
-      "limit": "자동 구조 검증만으로 본문 의미가 항상 정확하다고 판단할 수 없다. 새 source commit 뒤 분석하고 별도 artifact commit을 공유한다.",
-      "graphNodeIds": [
-        "document:docs/knowledge-graph.md",
-        "document:docs/new-computer.md",
-        "file:.gitattributes",
-        "file:scripts/knowledge-graph.mjs",
-        "function:scripts/knowledge-graph.mjs:inventory",
-        "function:scripts/knowledge-graph.mjs:snapshot",
-        "function:scripts/knowledge-graph.mjs:validateGraph",
-        "function:scripts/knowledge-graph.mjs:freshness",
-        "function:scripts/knowledge-graph.mjs:cosmeticReviewIssues",
-        "function:scripts/knowledge-graph.mjs:main",
-        "file:scripts/knowledge-graph.test.mjs"
+      "historicalOfficialToolEvidence": ".ua/verification/execution-evidence.json records pinned Node22 upstream suite70passed/2skipped/1timeout with targeted retry3passed plus isolated real-project dirty/new/committed incremental and corrupt-output checks from September. It explicitly records body-only return changes being classified cosmetic. These are historical provenance and limitations, not fresh October execution claims; a separate failed Node24/native retry log must not be presented as a passing current suite.",
+      "omissionsAndLimits": [
+        "The verifier cannot prove prose semantics from hashes or schemas. Even a complete structurally valid candidate needs comparison with these current-source answers.",
+        "Unchanged-file retention is keyed by exact node IDs/edge keys, not counts; changed-file removed symbols require review of the prior verified graph and current source/diff.",
+        "Current reviewer sees the accepted graph as stale, and has not yet inspected the final candidate. No graph-passed statement or acceptance is made here."
       ],
-      "status": "passed"
+      "graphFinding": {
+        "status": "passed",
+        "answer": "Verifier function summaries/tour14 explain content/artifact hashes, source coverage, exact unchanged symbol/edge retention, explicit cosmetic semantic evidence and independent review. Official nine checks + pinned schema pass. Independent current candidate versus previous accepted graph (715 nodes/2300 edges) validateGraph returned no coverage/ref/unchanged-retention issues. Historical groupCostContext/groupCostFunction symbols remain present and summaries now correctly identify comparison/regression code, separate from the current personalUtility Worker/evaluation path.",
+        "nodeIds": [
+          "function:scripts/knowledge-graph.mjs:snapshot",
+          "function:scripts/knowledge-graph.mjs:validateGraph",
+          "function:scripts/knowledge-graph.mjs:freshness",
+          "function:scripts/knowledge-graph.mjs:cosmeticReviewIssues",
+          "file:src/domain/matching/groupCostContext.ts",
+          "file:src/domain/matching/groupCostFunction.ts"
+        ],
+        "tourOrders": [
+          7,
+          14
+        ],
+        "sourceSupplement": [
+          "Retained counts alone are not approval. The semantic check compared current critical summaries against source; same-signature semantic drift remains an LLM/source-review responsibility. Official incremental execution results remain historical, distinct from current verifier10 success."
+        ],
+        "domain": {
+          "status": "passed",
+          "nodeIds": [],
+          "answer": "Verifier lifecycle is a tooling responsibility represented in the knowledge graph/source report rather than invented as an app business flow. Independent domain nine-check/pinned-schema review and current-source comparison pass; all 14 previous domain/flow IDs are retained, all78 domain step source paths/available symbol ranges agree with the current knowledge evidence. No counts or schema alone are treated as a semantics guarantee."
+        }
+      }
     }
   ],
-  "execution": {
-    "projectCheck": {
-      "lint": "passed",
+  "independentReview": {
+    "sourceStatus": "passed-with-stated-coverage-limits",
+    "graphStatus": "passed",
+    "evidenceBoundary": "Source answers and candidate graph answers are recorded separately. Both final candidates passed pinned official schema and all nine official deterministic checks plus independent current-source comparison. Existing tests are discovery evidence; parent-provided October execution evidence is distinguished from historical upstream runs. Reviewer did not rerun app suites or use production data.",
+    "executedTests": {
+      "source": ".ua/verification/execution-evidence-current.json",
+      "providedByParent": true,
+      "reviewerReranTests": false,
+      "appUnitTestsPassed": 334,
+      "scriptTestsPassed": 58,
+      "rulesTestsPassed": 24,
+      "graphVerifierTestsPassed": 10,
       "typecheck": "passed",
-      "unitTestFiles": 67,
-      "unitTests": 273,
-      "build": "passed",
-      "productionBundle": "passed"
-    },
-    "portableVerifierTests": 9,
-    "cleanCloneInputFiles": 296,
-    "cleanCloneInputDigestMatches": true,
-    "firestoreRules": "not rerun; rules unchanged",
-    "browserTests": "not rerun; UI unchanged"
+      "lint": "passed for changed verifier and test files",
+      "notRunForThisRefresh": [
+        "production build",
+        "browser scenarios",
+        "deployment"
+      ]
+    }
   },
-  "limits": [
-    "작업자 사용량 제한 이후 기존 UA 작업자가 파일 분석 및 구조 병합 역할을 직접 수행했다. 별도 새 하위 작업자의 독립 검토로 표기하지 않는다. 최종 의미 검토는 부모 작업자가 수행했다.",
-    "전체 그래프의 모든 문장을 소스와 일대일 재검증한 것은 아니다. 주요 데이터 경계와 변경 도구·문서 의미를 확인했다.",
-    "도메인 그래프는 업무 계약 변경이 없어 재사용했고 현재 스키마/참조 검사를 수행했다."
+  "executionEvidence": {
+    "version": 1,
+    "scope": "Knowledge graph refresh and verifier/test fixes; synthetic local tests only",
+    "runtime": "Node 22.23.2",
+    "toolCommit": "5feed1f2ce4f9c368d860f4c0ebc36d98a4693fc",
+    "graphVerifierTests": {
+      "command": "node --test scripts/knowledge-graph.test.mjs",
+      "passed": 10,
+      "failed": 0
+    },
+    "unitTests": {
+      "command": "npm run test",
+      "filesPassed": 72,
+      "testsPassed": 334,
+      "failed": 0,
+      "scriptTestsPassed": 58,
+      "log": ".ua/verification/current-unit-tests-final.log"
+    },
+    "rulesTests": {
+      "command": "npm run test:rules",
+      "testsPassed": 24,
+      "failed": 0,
+      "log": ".ua/verification/current-rules-tests.log",
+      "data": "local Firestore Emulator synthetic fixtures"
+    },
+    "typecheck": {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "status": "passed"
+    },
+    "lint": {
+      "command": "node node_modules/eslint/bin/eslint.js scripts/knowledge-graph.mjs scripts/knowledge-graph.test.mjs src/hooks/useAttendanceLogic.test.tsx",
+      "status": "passed"
+    },
+    "initialFailures": [
+      {
+        "kind": "environment",
+        "detail": "Sandbox blocked temporary Git config writes and Vite realpath access; the identical local checks passed after reviewed unsandboxed execution."
+      },
+      {
+        "kind": "test-fixture",
+        "detail": "Date-reset test used 2026-10-10, which equaled today's default. Explicit starting date 2026-09-12 now guarantees a date change while preserving all owner/privacy/reset assertions."
+      }
+    ],
+    "notRun": [
+      "production build",
+      "browser scenarios",
+      "deployment"
+    ],
+    "limitations": [
+      "Graph changes, inventory verifier fixes and a test fixture date do not change app runtime behavior. Browser and production build success are not claimed for this refresh."
+    ]
+  },
+  "phaseWarnings": {
+    "scanWarnings": [],
+    "batchingWarnings": [
+      "Community sizes 49, 66, 36 and 42 exceeded maximum 35; official alphabetical splitting may decrease modularity.",
+      "src/types.ts has high 1-hop degree 158; official neighborMap retained top 50 cross-batch entries and dropped 82 from that prompt context. Full 731-edge import map remains intact."
+    ],
+    "knownUnsupportedStructures": [
+      "firestore.rules and groupSizing.d.mts require source supplementation after official structural extractor reports unsupported syntax."
+    ],
+    "inputInventoryFix": "Independent verifier now includes .stitch design observations and .mts/.cts declarations and excludes ignored local deployment artifacts; official and independent inventories both contain 329 files."
+  },
+  "analysisMode": "full",
+  "dirtyInput": true,
+  "cosmeticReview": [],
+  "preservedBaseline": {
+    "fixedSectionOk": true,
+    "nodesRecovered": 0,
+    "edgesRestored": 0,
+    "crossBatchEdgesAdded": 0,
+    "typesRemapped": 0,
+    "complexityRemapped": 0,
+    "status": "passed",
+    "inputDigest": "b73e3a982d5082c9a401d0a56c81ed6b3d419c05957bf08047b3a77536ef2440",
+    "candidateNodes": 802,
+    "candidateEdges": 2598,
+    "checks": {
+      "scannedInventoryPaths": 329,
+      "representedInventoryPaths": 329,
+      "unknownSourcePaths": 0,
+      "unknownEdgeEndpoints": 0,
+      "duplicateNodeIds": 0,
+      "invalidNodePrefixes": 0,
+      "invalidComplexities": 0,
+      "expectedImports": 731,
+      "currentImports": 731,
+      "missingImports": 0,
+      "unchangedFiles": 256,
+      "unchangedSymbolsChecked": 361,
+      "missingUnchangedSymbols": 0,
+      "unchangedEdgesChecked": 1877,
+      "missingUnchangedEdges": 0,
+      "changedPreviousSymbolsChecked": 55,
+      "missingChangedPreviousSymbols": 0,
+      "currentInputHashMismatches": 0,
+      "requiredFirestoreTablesRetained": [
+        "members",
+        "sessions",
+        "DailyPlannings",
+        "games"
+      ]
+    },
+    "notes": [
+      "The official merge reported only one unfixable edge: file:src/lib/firebase.ts to file:firebase-applet-config.json. Its importMap recovery correctly restored the existing config:firebase-applet-config.json endpoint with weight 0.7 and recoveredFromImportMap=true. No duplicate file-prefixed configuration node exists, and no manual recovery is necessary.",
+      "The merge's tested-by linker added the tested tag to 19 production nodes and reported no convention-based test-edge supplement. No systemic ID or complexity corrections were reported.",
+      "All 329 scanner paths are represented and all 731 current importMap relationships use existing file-level node IDs. All cross-boundary endpoints resolve to current nodes.",
+      "Compared with accepted-graph.json and the previous/current input hashes, all 361 symbols in unchanged files and all 1877 unchanged-to-unchanged edges remain. All 55 previousSymbols checklist entries from changed-file dispatch contexts are retained; both analyzer reports have no unresolved or confirmed-deleted symbols.",
+      "The four canonical Firestore rule table nodes are retained, including games. Historical groupCostContext/groupCostFunction summaries match current source usage: their active consumers are comparison tests, while current Worker and evaluation UI use personalUtility.",
+      "Five source-backed cross-batch tested_by additions are present. dailyPlanningService to useAttendanceLogic.test was correctly excluded because the test mocks that service.",
+      "No assembled-graph modification was required. Candidate source hashes still match the pending input snapshot. This review covers assembly only; architecture, tour, domain flows and final verification remain parent-owned later phases."
+    ]
+  },
+  "contextualSummaryReview": {
+    "inputDigest": "b73e3a982d5082c9a401d0a56c81ed6b3d419c05957bf08047b3a77536ef2440",
+    "updates": [
+      {
+        "id": "file:src/domain/matching/groupCostContext.ts",
+        "filePath": "src/domain/matching/groupCostContext.ts",
+        "previousSummary": "자동 편성·시뮬레이션·점수 진단이 공유하는 전체 참석자 성비와 학번 분산, 누적 경험·현재 학기 활동, 최근 재회와 희망 조원 정보를 만든다. 참여 이력의 배정일 경계와 최신 3개 세션의 재회 범위를 구분한다.",
+        "summary": "과거 조별 균형 비용 모델을 비교·회귀 테스트하기 위해 참석자 성비·학번 분산·경험·활동·재회·요청 쌍의 입력을 만든다. 현재 자동 편성과 편성 평가 화면은 personalUtility의 문맥과 전체 배치 평가를 사용한다.",
+        "evidence": "Current src/scripts non-test symbol search finds no active app/Worker caller; development.md identifies this pair as comparison-only. Function bodies retain the historical cost calculation."
+      },
+      {
+        "id": "function:src/domain/matching/groupCostContext.ts:buildGroupCostContext",
+        "filePath": "src/domain/matching/groupCostContext.ts",
+        "previousSummary": "참석자를 회원으로 매칭해 전체 균형 기준과 회원별 경험·활동 점수를 계산한다. 최신 세션 3개의 회원 쌍과 마지막 세션 재회를 집계하고 요청 문구에 포함된 회원 이름을 희망 쌍으로 만든다.",
+        "summary": "비교용 과거 모델에서 참석자를 회원으로 매칭해 전체 균형 기준과 경험·활동 점수를 계산하고 최신 3개 세션의 재회 및 이름 기반 요청 쌍을 집계한다. 현재 편성 경로의 buildUtilityContext와는 별도 함수다.",
+        "evidence": "Current src/scripts non-test symbol search finds no active app/Worker caller; development.md identifies this pair as comparison-only. Function bodies retain the historical cost calculation."
+      },
+      {
+        "id": "file:src/domain/matching/groupCostFunction.ts",
+        "filePath": "src/domain/matching/groupCostFunction.ts",
+        "previousSummary": "조 편성과 진단에서 사용하는 학번·성비·누적 출석 경험·현재 학기 활동의 균형 비용 및 재회 페널티와 희망 조원 보상을 계산한다. 경험·활동은 0~1의 고정 척도에서 같은 가중치를 사용한다.",
+        "summary": "과거 조별 비용 모델의 학번·성비·경험·활동 균형 비용, 재회 페널티와 요청 보상을 계산하는 비교·회귀용 코드다. 현재 자동 편성과 편성 평가 화면의 개인 효용 계산에는 사용하지 않는다.",
+        "evidence": "Current src/scripts non-test symbol search finds no active app/Worker caller; development.md identifies this pair as comparison-only. Function bodies retain the historical cost calculation."
+      },
+      {
+        "id": "function:src/domain/matching/groupCostFunction.ts:getGroupCostDets",
+        "filePath": "src/domain/matching/groupCostFunction.ts",
+        "previousSummary": "학번 분산·경험·활동·성비·재회 비용을 합산하고 희망 조원 보상은 별도 항목으로 반환한다. 빈 조는 모든 항목을 0으로 처리해 편성 알고리즘과 진단 화면에 같은 분해 결과를 제공한다.",
+        "summary": "비교용 과거 모델에서 학번 분산·경험·활동·성비·재회 비용을 합산하고 요청 보상을 별도 항목으로 반환한다. 빈 조의 모든 항목은 0이며 현재 Worker와 편성 평가 모달은 personalUtility의 전체 배치 평가를 사용한다.",
+        "evidence": "Current src/scripts non-test symbol search finds no active app/Worker caller; development.md identifies this pair as comparison-only. Function bodies retain the historical cost calculation."
+      }
+    ]
+  },
+  "crossBatchTestReview": {
+    "added": [
+      {
+        "source": "file:src/domain/matching/personalUtility.ts",
+        "target": "file:src/components/CostEvaluationModal.test.tsx",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/domain/matching/autoAssignAlgorithm.ts",
+        "target": "file:src/domain/matching/autoAssignAlgorithm.test.ts",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/domain/matching/personalUtility.ts",
+        "target": "file:src/domain/matching/autoAssignAlgorithm.test.ts",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:scripts/group-utility-prototype.mjs",
+        "target": "file:src/domain/matching/personalUtility.test.ts",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      },
+      {
+        "source": "file:src/domain/attendance/csvParser.ts",
+        "target": "file:src/services/attendeesService.test.ts",
+        "type": "tested_by",
+        "direction": "forward",
+        "weight": 0.5
+      }
+    ],
+    "alreadyPresent": [],
+    "skipped": [
+      {
+        "edge": {
+          "source": "file:src/services/dailyPlanningService.ts",
+          "target": "file:src/hooks/useAttendanceLogic.test.tsx",
+          "type": "tested_by",
+          "direction": "forward",
+          "weight": 0.5
+        },
+        "reason": "The hook test mocks dailyPlanningService; it verifies interaction with the mock, not the production implementation."
+      }
+    ]
+  },
+  "reviewCorrections": [
+    "CSV 재가져오기는 조 ID를 새로 생성하며 임원 스냅샷 부재/빈 배열 의미를 유지한다.",
+    "출석·내보내기·계획 기록의 공유 Firestore 조회/저장 관계8개를 보강했다.",
+    "업무 노드103개의 태그를 공식 lowercase-hyphenated 형식으로 정규화했다.",
+    "계획 이름 수정은 연결 없음/잘못된 legacy ID에서는 계획만 수정하고, 유효한 연결 대상 세션이 누락된 경우에만 중단한다.",
+    "동반 요청의 짧은 한국어 이름은 세 글자 성명에서 성을 제외한 두 글자 이름임을 명시했다."
+  ],
+  "workerExecution": {
+    "maxConcurrentWorkers": 2,
+    "model": "existing Codex session settings",
+    "authentication": "existing Codex session",
+    "interruptions": "Usage limits interrupted analysis/review workers; completed fragments were hash-checked and reused after continuation. No exact per-agent token totals exposed.",
+    "complete": true
+  },
+  "limitations": [
+    "그래프·소스·테스트·규칙이 함께 근거이며 그래프는 보조 자료이다.",
+    "커밋·push만으로 최신성을 인증하지 않는다. 이 보고서는 미커밋 보정까지 포함한 현재 내용 해시에 연결된다.",
+    "실행한 테스트와 소스에서 확인한 동작, 전용 테스트가 없는 경우를 사례별로 구분했다.",
+    "프로덕션 빌드·브라우저 시나리오·배포는 이번 갱신에서 실행하지 않았다."
   ]
 }

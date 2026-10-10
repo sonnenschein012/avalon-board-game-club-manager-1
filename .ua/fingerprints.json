@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "gitCommitHash": "a71185137f754f21a960bb2131fb337855214e45",
-  "generatedAt": "2026-09-12T05:02:52.032Z",
+  "gitCommitHash": "f3f2b1d5240e1264890f356a174e52bc9ca17c0d",
+  "generatedAt": "2026-10-10T02:55:45.201Z",
   "files": {
     ".firebaserc": {
       "filePath": ".firebaserc",
@@ -25,22 +25,32 @@
     },
     ".github/workflows/ci.yml": {
       "filePath": ".github/workflows/ci.yml",
-      "contentHash": "e34057dc6f8b92c03d5da0e55c67678376231538bc77b360d9b91c4079079602",
+      "contentHash": "c5d3e872400c754902bc23f5362b5531dc55a5e1e531619f6151c76e798620de",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 37,
+      "totalLines": 39,
+      "hasStructuralAnalysis": false
+    },
+    ".stitch/DESIGN.md": {
+      "filePath": ".stitch/DESIGN.md",
+      "contentHash": "1b50bff5c10516585bdb209536229ba6c2d3559d7f2c244b9e840b2638d2253c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 232,
       "hasStructuralAnalysis": false
     },
     "README.md": {
       "filePath": "README.md",
-      "contentHash": "7f2240cab1ec46f5877d4e276e747d4e0cb9d271e0aaebd3d612d6ec3e8e9069",
+      "contentHash": "8c264dda53a13976484034f35e2d0494b614633c908e23bb6b39587c15714bc5",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 106,
+      "totalLines": 110,
       "hasStructuralAnalysis": false
     },
     "design.html": {
@@ -53,19 +63,49 @@
       "totalLines": 15,
       "hasStructuralAnalysis": false
     },
-    "docs/development.md": {
-      "filePath": "docs/development.md",
-      "contentHash": "61084fd708aa33d5da852e471be5932996eef60a20490fd10ebe70519cf7059b",
+    "docs/design-guidelines.md": {
+      "filePath": "docs/design-guidelines.md",
+      "contentHash": "f236935a86b83fb24b373b1bb12e54f546e0653e3f924804e7d15be57545c1e4",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 68,
+      "totalLines": 155,
+      "hasStructuralAnalysis": false
+    },
+    "docs/development.md": {
+      "filePath": "docs/development.md",
+      "contentHash": "86da6c0ce0434d32e0b9ccc0fb101a7844c7955cce49daa0c332ec3e015ff2e4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 91,
+      "hasStructuralAnalysis": false
+    },
+    "docs/group-sizing-model.md": {
+      "filePath": "docs/group-sizing-model.md",
+      "contentHash": "b0babcd933a383268e84ccad7ce54c377ffa4bfce2a1e78a001927eaa8fd59d4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 118,
+      "hasStructuralAnalysis": false
+    },
+    "docs/group-utility-model.md": {
+      "filePath": "docs/group-utility-model.md",
+      "contentHash": "ab21ee7be62b04b4fa1d9fe40684be3d2524785756ba9051d9d1b2451806a2be",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 329,
       "hasStructuralAnalysis": false
     },
     "docs/knowledge-graph.md": {
       "filePath": "docs/knowledge-graph.md",
-      "contentHash": "a36ff28ac27f921c9674e44b345c4bec7e6b70e897dc7fcfde7858217e76ab15",
+      "contentHash": "37f019098de7ebff793990d95288e9d3a268691deb8fd647f78b0e9a195d0019",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -75,7 +115,7 @@
     },
     "docs/new-computer.md": {
       "filePath": "docs/new-computer.md",
-      "contentHash": "34f1b712e575e4ed63c3ed3f9f0622c950daa21f8c9903f016356195b9107294",
+      "contentHash": "c6e30eba01a60b320ab1a247c7972cc8085cafa6e741f52ffa99f3fcb82a0067",
       "functions": [],
       "classes": [],
       "imports": [],
@@ -85,12 +125,22 @@
     },
     "docs/operations.md": {
       "filePath": "docs/operations.md",
-      "contentHash": "46fa03c139fff8487500769390dec3c12ea782b6ac01a925b176c5a00e25997d",
+      "contentHash": "ca508319e0d639b24f594c2c106102b9fb871dc3b3504f52427240dfa8473e22",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 78,
+      "totalLines": 123,
+      "hasStructuralAnalysis": false
+    },
+    "docs/product-completion.md": {
+      "filePath": "docs/product-completion.md",
+      "contentHash": "7610ee6a1971d3cfcfd27daceaa86d0aa984e98982b1a80bab586b61f837c83d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 41,
       "hasStructuralAnalysis": false
     },
     "eslint.config.js": {
@@ -206,12 +256,12 @@
     },
     "firestore.rules": {
       "filePath": "firestore.rules",
-      "contentHash": "da0bb885908cdc12e2c1a87b21fa7cf48f59a0c88659e02e8771f2edbc2b6352",
+      "contentHash": "792d7757e99326dee8c2a9296236d784c3a0056cf06a38fb58701c5822270561",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 338,
+      "totalLines": 385,
       "hasStructuralAnalysis": false
     },
     "index.html": {
@@ -226,12 +276,12 @@
     },
     "package.json": {
       "filePath": "package.json",
-      "contentHash": "0ec27a6d776e0e076b0456f133ceadb59898c97b573eff608a9bfe89f3f2099c",
+      "contentHash": "5595d7daaeba2bf60dae58ad9f9512df2a2e69434c3ab2ceb2efb759d4e9dcf1",
       "functions": [],
       "classes": [],
       "imports": [],
       "exports": [],
-      "totalLines": 80,
+      "totalLines": 82,
       "hasStructuralAnalysis": false
     },
     "playwright.config.ts": {
@@ -279,6 +329,41 @@
       "exports": [],
       "totalLines": 21,
       "hasStructuralAnalysis": false
+    },
+    "scripts/dev-environment.test.mjs": {
+      "filePath": "scripts/dev-environment.test.mjs",
+      "contentHash": "258affb8b12f6a2fedc72f37a582014ca7fd01bb84673fe5569a362bdee0c1bf",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs/promises",
+          "specifiers": [
+            "readFile"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "vite",
+          "specifiers": [
+            "resolveConfig"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
     },
     "scripts/emulator-runtime.mjs": {
       "filePath": "scripts/emulator-runtime.mjs",
@@ -340,9 +425,373 @@
       "totalLines": 71,
       "hasStructuralAnalysis": true
     },
+    "scripts/gender-utility-review.mjs": {
+      "filePath": "scripts/gender-utility-review.mjs",
+      "contentHash": "7280fd8684c9cdff4af222bb1d5a1d74d58cb58934769260982e721fda5561ab",
+      "functions": [
+        {
+          "name": "reviewCurve",
+          "params": [
+            "n",
+            "first",
+            "tail"
+          ],
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "genderUtility",
+          "params": [
+            "n",
+            "same",
+            "parameters"
+          ],
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "evaluateGenderLayout",
+          "params": [
+            "sizes",
+            "minority"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "reviewGenderComposition",
+          "params": [
+            "sizes",
+            "count"
+          ],
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "reviewGenderSuite",
+          "params": [],
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:url",
+          "specifiers": [
+            "pathToFileURL"
+          ]
+        },
+        {
+          "source": "./group-utility-prototype.mjs",
+          "specifiers": [
+            "EXAMPLE_PARAMETERS",
+            "protectUtilities",
+            "saturation"
+          ]
+        }
+      ],
+      "exports": [
+        "GENDER_REVIEW_SIZES",
+        "PREVIOUS_GENDER_PARAMETERS",
+        "reviewCurve",
+        "REVIEW_CURVES",
+        "genderUtility",
+        "evaluateGenderLayout",
+        "reviewGenderComposition",
+        "reviewGenderSuite"
+      ],
+      "totalLines": 115,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/gender-utility-review.test.mjs": {
+      "filePath": "scripts/gender-utility-review.test.mjs",
+      "contentHash": "f756af4a391ff205a1f2ec3d5d31a045800eb9398a253cdd0329e0cb1124a58b",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./gender-utility-review.mjs",
+          "specifiers": [
+            "REVIEW_CURVES",
+            "reviewCurve",
+            "evaluateGenderLayout",
+            "reviewGenderComposition",
+            "genderUtility"
+          ]
+        },
+        {
+          "source": "./utility-calibration-review.mjs",
+          "specifiers": [
+            "parametersFromIncrements"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/group-sizing-prototype.mjs": {
+      "filePath": "scripts/group-sizing-prototype.mjs",
+      "contentHash": "e2b708a3e7357b3f325bb4dd4024f94ad3c70d132096b606b3251b61cbbac44d",
+      "functions": [
+        {
+          "name": "makeGroups",
+          "params": [
+            "count"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:url",
+          "specifiers": [
+            "pathToFileURL"
+          ]
+        },
+        {
+          "source": "../src/domain/matching/groupSizing.mjs",
+          "specifiers": [
+            "solveGroupSizes"
+          ]
+        }
+      ],
+      "exports": [
+        "solveGroupSizes",
+        "PREFERENCE",
+        "makeGroups"
+      ],
+      "totalLines": 23,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/group-sizing-prototype.test.mjs": {
+      "filePath": "scripts/group-sizing-prototype.test.mjs",
+      "contentHash": "f9fd9258c6d198aaf4503246e282d4ab106ff5cf31445510e70c10bc712b3d92",
+      "functions": [
+        {
+          "name": "solve",
+          "params": [
+            "total",
+            "count"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "./group-sizing-prototype.mjs",
+          "specifiers": [
+            "makeGroups",
+            "solveGroupSizes"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 183,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/group-utility-prototype.mjs": {
+      "filePath": "scripts/group-utility-prototype.mjs",
+      "contentHash": "f7f47e4cfb2bbbf54dc97efaeb420da74d4f67f1e53e0f33a63e007e302fde8c",
+      "functions": [
+        {
+          "name": "saturation",
+          "params": [
+            "n",
+            "amplitude",
+            "speed"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "yearCost",
+          "params": [
+            "distances"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "protectUtilities",
+          "params": [
+            "utilities"
+          ],
+          "exported": true,
+          "lineCount": 22
+        },
+        {
+          "name": "key",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "stringOrder",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "validateParameters",
+          "params": [
+            "p"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "evaluateAssignment",
+          "params": [],
+          "exported": true,
+          "lineCount": 94
+        },
+        {
+          "name": "compareAssignments",
+          "params": [
+            "left",
+            "right"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "syntheticMembers",
+          "params": [],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "twoGroups",
+          "params": [
+            "first",
+            "second"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:url",
+          "specifiers": [
+            "pathToFileURL"
+          ]
+        }
+      ],
+      "exports": [
+        "EXAMPLE_PARAMETERS",
+        "saturation",
+        "yearCost",
+        "protectUtilities",
+        "evaluateAssignment",
+        "compareAssignments",
+        "syntheticMembers",
+        "twoGroups"
+      ],
+      "totalLines": 201,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/group-utility-prototype.test.mjs": {
+      "filePath": "scripts/group-utility-prototype.test.mjs",
+      "contentHash": "85450b3050412e445cc60cda630bed24e30af8d0e227aacb7541618d14102350",
+      "functions": [
+        {
+          "name": "evaluate",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "person",
+          "params": [
+            "result",
+            "id"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "close",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "./group-utility-prototype.mjs",
+          "specifiers": [
+            "p",
+            "saturation",
+            "yearCost",
+            "protectUtilities",
+            "evaluateAssignment",
+            "compareAssignments",
+            "syntheticMembers",
+            "twoGroups"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 241,
+      "hasStructuralAnalysis": true
+    },
     "scripts/knowledge-graph.mjs": {
       "filePath": "scripts/knowledge-graph.mjs",
-      "contentHash": "a65c11b2fb3c742d19168326e2d30ea124425ca03638667b8b71a40ba8ef859a",
+      "contentHash": "9756a493952c4a0bfeda2eef6e622d7b6d7023fdfe6e841bd867ac2b35dd3136",
       "functions": [
         {
           "name": "hash",
@@ -515,7 +964,7 @@
     },
     "scripts/knowledge-graph.test.mjs": {
       "filePath": "scripts/knowledge-graph.test.mjs",
-      "contentHash": "823ad110c1c3519f6b036e5745c5dc4655e5b6b2e1a25d594f7aae0fbe3a783e",
+      "contentHash": "a76348e3c4eec6e3744e5618ab5fadc525d14579c560575096932995cdfd7331",
       "functions": [
         {
           "name": "fixture",
@@ -584,7 +1033,82 @@
         }
       ],
       "exports": [],
-      "totalLines": 127,
+      "totalLines": 147,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/member-security-probe.mjs": {
+      "filePath": "scripts/member-security-probe.mjs",
+      "contentHash": "de313f9a1b262c124d9fc726d846d4019396ca579acea0145ae878c4e76559ab",
+      "functions": [
+        {
+          "name": "current",
+          "params": [],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "probe",
+          "params": [
+            "label",
+            "action",
+            "expected"
+          ],
+          "exported": false,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "node:fs",
+          "specifiers": [
+            "readFileSync",
+            "mkdirSync",
+            "writeFileSync"
+          ]
+        },
+        {
+          "source": "@firebase/rules-unit-testing",
+          "specifiers": [
+            "initializeTestEnvironment"
+          ]
+        },
+        {
+          "source": "firebase/app",
+          "specifiers": [
+            "initializeApp",
+            "deleteApp"
+          ]
+        },
+        {
+          "source": "firebase/auth",
+          "specifiers": [
+            "getAuth",
+            "connectAuthEmulator",
+            "createUserWithEmailAndPassword"
+          ]
+        },
+        {
+          "source": "firebase/firestore",
+          "specifiers": [
+            "doc",
+            "setDoc",
+            "updateDoc",
+            "getDoc",
+            "getDocs",
+            "collection",
+            "writeBatch"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 52,
       "hasStructuralAnalysis": true
     },
     "scripts/reset-demo.mjs": {
@@ -810,6 +1334,102 @@
       "exports": [],
       "totalLines": 143,
       "hasStructuralAnalysis": false
+    },
+    "scripts/utility-calibration-review.mjs": {
+      "filePath": "scripts/utility-calibration-review.mjs",
+      "contentHash": "46190d16316f4f8ba933adc19b8a40aa3bf169a1cc9f84b3fbad360b3caa8be8",
+      "functions": [
+        {
+          "name": "parametersFromIncrements",
+          "params": [],
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "calibrationCandidates",
+          "params": [],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "summarizeCalibration",
+          "params": [
+            "result",
+            "context"
+          ],
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "refineCalibrationPairs",
+          "params": [
+            "initialGroups",
+            "requests",
+            "evaluate",
+            "compare"
+          ],
+          "exported": true,
+          "lineCount": 35
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./group-utility-prototype.mjs",
+          "specifiers": [
+            "EXAMPLE_PARAMETERS"
+          ]
+        }
+      ],
+      "exports": [
+        "parametersFromIncrements",
+        "calibrationCandidates",
+        "summarizeCalibration",
+        "refineCalibrationPairs"
+      ],
+      "totalLines": 86,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/utility-calibration-review.test.mjs": {
+      "filePath": "scripts/utility-calibration-review.test.mjs",
+      "contentHash": "8949c36f4aaa07dc26a726ac8cf41faf052ba85ad25de5bcbbda784c95b54e9a",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "node:test",
+          "specifiers": [
+            "test"
+          ]
+        },
+        {
+          "source": "node:assert/strict",
+          "specifiers": [
+            "assert"
+          ]
+        },
+        {
+          "source": "./group-utility-prototype.mjs",
+          "specifiers": [
+            "EXAMPLE_PARAMETERS",
+            "saturation",
+            "evaluateAssignment",
+            "compareAssignments"
+          ]
+        },
+        {
+          "source": "./utility-calibration-review.mjs",
+          "specifiers": [
+            "calibrationCandidates",
+            "parametersFromIncrements",
+            "summarizeCalibration",
+            "refineCalibrationPairs"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 54,
+      "hasStructuralAnalysis": true
     },
     "scripts/verify-production-bundle.mjs": {
       "filePath": "scripts/verify-production-bundle.mjs",
@@ -1756,7 +2376,7 @@
     },
     "src/components/AttendanceCsvImportModal.tsx": {
       "filePath": "src/components/AttendanceCsvImportModal.tsx",
-      "contentHash": "13c905fa181c1c5686e087b0391f5be897b8a9e15dae8226b047914efa5ddc18",
+      "contentHash": "8809bd6bde3b3b1fb2ee642604457005c7378eff650018a147adfaa4437589b0",
       "functions": [
         {
           "name": "AttendanceCsvImportModal",
@@ -1805,7 +2425,6 @@
         {
           "source": "lucide-react",
           "specifiers": [
-            "AlertCircle",
             "Check",
             "FileUp",
             "Loader2",
@@ -1840,17 +2459,23 @@
           "specifiers": [
             "CsvColumnSelect"
           ]
+        },
+        {
+          "source": "./AttendanceNotice",
+          "specifiers": [
+            "AttendanceNotice"
+          ]
         }
       ],
       "exports": [
         "AttendanceCsvImportModal"
       ],
-      "totalLines": 160,
+      "totalLines": 161,
       "hasStructuralAnalysis": true
     },
     "src/components/AttendanceDragAndDrop.tsx": {
       "filePath": "src/components/AttendanceDragAndDrop.tsx",
-      "contentHash": "b432cb6f5f64f4bf39310e763eff65b23d8f96782dd8bda5c1534eeb051b111f",
+      "contentHash": "49bc930bf81f7fd7f257b773fb5fd4ee2edd182024c2920ae6bddb54f1fc412f",
       "functions": [
         {
           "name": "AttendanceDragAndDrop",
@@ -1866,7 +2491,7 @@
             "{ attendeeId, disabled = false, children, className }"
           ],
           "exported": true,
-          "lineCount": 16
+          "lineCount": 17
         },
         {
           "name": "AttendanceDropZone",
@@ -1923,12 +2548,106 @@
         "AttendanceDraggableCard",
         "AttendanceDropZone"
       ],
-      "totalLines": 75,
+      "totalLines": 76,
+      "hasStructuralAnalysis": true
+    },
+    "src/components/AttendanceMemberRegistrationModal.tsx": {
+      "filePath": "src/components/AttendanceMemberRegistrationModal.tsx",
+      "contentHash": "7c209c2e04db8c56b96bd7ebb86901944b42a95aaf18ba762908218f6d5c1cfd",
+      "functions": [
+        {
+          "name": "AttendanceMemberRegistrationModal",
+          "params": [
+            "{ attendee, onSave, onClose }"
+          ],
+          "exported": true,
+          "lineCount": 47
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useState",
+            "FormEvent"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "X"
+          ]
+        },
+        {
+          "source": "../types",
+          "specifiers": [
+            "Attendee"
+          ]
+        },
+        {
+          "source": "../domain/members/attendanceRegistration",
+          "specifiers": [
+            "createAttendanceMemberDraft",
+            "AttendanceMemberDraft"
+          ]
+        },
+        {
+          "source": "../domain/games/gameCatalog",
+          "specifiers": [
+            "GAME_GENRES"
+          ]
+        }
+      ],
+      "exports": [
+        "AttendanceMemberRegistrationModal"
+      ],
+      "totalLines": 54,
+      "hasStructuralAnalysis": true
+    },
+    "src/components/AttendanceNotice.tsx": {
+      "filePath": "src/components/AttendanceNotice.tsx",
+      "contentHash": "d360e5b371d5178a22ec156484ebd35d8bab18d34103dd3094213de94f1e433f",
+      "functions": [
+        {
+          "name": "AttendanceNotice",
+          "params": [
+            "{ children, severity = 'warning', role, className, onClick }"
+          ],
+          "exported": true,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "ReactNode"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "AlertTriangle"
+          ]
+        },
+        {
+          "source": "../lib/utils",
+          "specifiers": [
+            "cn"
+          ]
+        }
+      ],
+      "exports": [
+        "AttendanceNotice"
+      ],
+      "totalLines": 27,
       "hasStructuralAnalysis": true
     },
     "src/components/AttendancePage.tsx": {
       "filePath": "src/components/AttendancePage.tsx",
-      "contentHash": "f347576196fbc0fe6e666e945510f3f9894c28e773d8b595eee6e7ca5af2d1b4",
+      "contentHash": "fe4950e555c5a64081db81e85a7a536f5c17090530fcaa70ecd961ee408cff08",
       "functions": [
         {
           "name": "AttendancePage",
@@ -1936,7 +2655,7 @@
             "{ draftScope, onMoveToRecord, isAdminModeActive = false }"
           ],
           "exported": true,
-          "lineCount": 164
+          "lineCount": 174
         }
       ],
       "classes": [],
@@ -1954,13 +2673,14 @@
             "FileUp",
             "Trash2",
             "ClipboardList",
-            "Loader2"
+            "Loader2",
+            "X"
           ]
         },
         {
-          "source": "../lib/utils",
+          "source": "./attendanceButtonStyles",
           "specifiers": [
-            "cn"
+            "attendanceButtonStyles"
           ]
         },
         {
@@ -2016,12 +2736,24 @@
           "specifiers": [
             "AttendanceCsvImportModal"
           ]
+        },
+        {
+          "source": "./AttendanceMemberRegistrationModal",
+          "specifiers": [
+            "AttendanceMemberRegistrationModal"
+          ]
+        },
+        {
+          "source": "./CompanionRequestModal",
+          "specifiers": [
+            "CompanionRequestModal"
+          ]
         }
       ],
       "exports": [
         "AttendancePage"
       ],
-      "totalLines": 184,
+      "totalLines": 196,
       "hasStructuralAnalysis": true
     },
     "src/components/AutoAssignmentPanel.tsx": {
@@ -2223,6 +2955,91 @@
       "totalLines": 19,
       "hasStructuralAnalysis": true
     },
+    "src/components/CompanionRequestModal.tsx": {
+      "filePath": "src/components/CompanionRequestModal.tsx",
+      "contentHash": "83535b86b3e6b049c5fd5e380a5dccd9da6177016f8303d5c4afc54e8267e035",
+      "functions": [
+        {
+          "name": "studentYear",
+          "params": [
+            "studentId"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "CompanionRequestModal",
+          "params": [
+            "{ choice, onConfirm, onClose }"
+          ],
+          "exported": true,
+          "lineCount": 66
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useEffect",
+            "useRef",
+            "useState"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "ChevronDown",
+            "X"
+          ]
+        },
+        {
+          "source": "../domain/matching/companionRequests",
+          "specifiers": [
+            "RequestChoice"
+          ]
+        }
+      ],
+      "exports": [
+        "CompanionRequestModal"
+      ],
+      "totalLines": 73,
+      "hasStructuralAnalysis": true
+    },
+    "src/components/CompanionRequestNotice.tsx": {
+      "filePath": "src/components/CompanionRequestNotice.tsx",
+      "contentHash": "c8f39c3973fa9d9f4762bbd7f1996a343c7fe789ac8f4bb9153b803761883cd4",
+      "functions": [
+        {
+          "name": "CompanionRequestNotice",
+          "params": [
+            "{ choice, onOpen }"
+          ],
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../domain/matching/companionRequests",
+          "specifiers": [
+            "RequestChoice"
+          ]
+        },
+        {
+          "source": "./AttendanceNotice",
+          "specifiers": [
+            "AttendanceNotice"
+          ]
+        }
+      ],
+      "exports": [
+        "CompanionRequestNotice"
+      ],
+      "totalLines": 11,
+      "hasStructuralAnalysis": true
+    },
     "src/components/ConfirmDeleteModal.tsx": {
       "filePath": "src/components/ConfirmDeleteModal.tsx",
       "contentHash": "9d97d9ab4b6b7c7626f91b6e499eef1a02ab59c73d3a435c1e3c65d2d5d205d1",
@@ -2265,47 +3082,163 @@
       "totalLines": 57,
       "hasStructuralAnalysis": true
     },
-    "src/components/CostEvaluationModal.tsx": {
-      "filePath": "src/components/CostEvaluationModal.tsx",
-      "contentHash": "41452966f4f854a1f65119ccfe99f787b3426e25cb79895611490075d257b258",
+    "src/components/CostEvaluationModal.test.tsx": {
+      "filePath": "src/components/CostEvaluationModal.test.tsx",
+      "contentHash": "a8c70415baaab7d5cf71e117956f2daf7af3b098df6bb5d7dc12784455967179",
       "functions": [
         {
-          "name": "CostEvaluationModal",
+          "name": "render",
           "params": [
-            "{\n  isOpen,\n  onClose,\n  groups,\n  getMember,\n  context,\n}"
+            "props"
           ],
-          "exported": true,
-          "lineCount": 71
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "field",
+          "params": [
+            "label"
+          ],
+          "exported": false,
+          "lineCount": 1
         }
       ],
       "classes": [],
       "imports": [
         {
-          "source": "lucide-react",
+          "source": "react",
           "specifiers": [
-            "Activity",
-            "X"
+            "act"
+          ]
+        },
+        {
+          "source": "react-dom/client",
+          "specifiers": [
+            "createRoot",
+            "Root"
+          ]
+        },
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "beforeEach",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "./CostEvaluationModal",
+          "specifiers": [
+            "CostEvaluationModal"
+          ]
+        },
+        {
+          "source": "../domain/matching/personalUtility",
+          "specifiers": [
+            "combineScores",
+            "evaluateUtilityGroup",
+            "pairKey",
+            "REVIEW_PARAMETERS",
+            "UtilityContext"
           ]
         },
         {
           "source": "../types",
           "specifiers": [
-            "SessionGroup",
-            "Member"
+            "SessionGroup"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 106,
+      "hasStructuralAnalysis": true
+    },
+    "src/components/CostEvaluationModal.tsx": {
+      "filePath": "src/components/CostEvaluationModal.tsx",
+      "contentHash": "336b78a8117da4dc9c1d335d89c7050a6fec0c20249a31e9e4175f779c25a31a",
+      "functions": [
+        {
+          "name": "detailedValues",
+          "params": [
+            "person"
+          ],
+          "returnType": "[string, string][]",
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "Metric",
+          "params": [
+            "{ label, value, note }"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "ReadingGuide",
+          "params": [
+            "{ person, scale }"
+          ],
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "EvaluationDialog",
+          "params": [
+            "{ groups, context, onClose }"
+          ],
+          "exported": false,
+          "lineCount": 78
+        },
+        {
+          "name": "CostEvaluationModal",
+          "params": [
+            "{ isOpen, ...props }"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "react",
+          "specifiers": [
+            "useEffect",
+            "useRef",
+            "useState"
           ]
         },
         {
-          "source": "../domain/matching/groupCostFunction",
+          "source": "lucide-react",
           "specifiers": [
-            "getGroupCostDets",
-            "CostCalculationContext"
+            "ChevronDown",
+            "ChevronRight",
+            "X"
+          ]
+        },
+        {
+          "source": "../domain/matching/personalUtility",
+          "specifiers": [
+            "combineScores",
+            "evaluateUtilityGroup",
+            "PersonScore",
+            "UtilityContext"
+          ]
+        },
+        {
+          "source": "../types",
+          "specifiers": [
+            "SessionGroup"
           ]
         }
       ],
       "exports": [
         "CostEvaluationModal"
       ],
-      "totalLines": 84,
+      "totalLines": 135,
       "hasStructuralAnalysis": true
     },
     "src/components/CsvColumnSelect.tsx": {
@@ -2624,15 +3557,15 @@
     },
     "src/components/GroupsCanvas.tsx": {
       "filePath": "src/components/GroupsCanvas.tsx",
-      "contentHash": "1a26c1ca7702882b440ffb2bf071438f60a35e4320e91966997f8eec1dfbaeb5",
+      "contentHash": "8830554e63c365a2a09df3fe78647b7e2e106283b5ba0c21f20c728a2b7cc0d9",
       "functions": [
         {
           "name": "GroupsCanvas",
           "params": [
-            "{\n  isAdminModeActive,\n  sessionName,\n  setSessionName,\n  sessionDate,\n  setSessionDate,\n  groups,\n  setGroups,\n  isAutoMode,\n  onAutoAssign,\n  onCostModalOpen,\n  onExportSimulation,\n  onMoveToRecord,\n  saving = false,\n  editingGroupId,\n  setEditingGroupId,\n  editingGroupName,\n  setEditingGroupName,\n  onUpdateTargetSize,\n  onCreateGroup,\n  removeFromGroup,\n  attendees,\n  getMemberFromInfo,\n  memberAttendanceCount,\n  activeRequestId,\n  setActiveRequestId,\n  getReunionWarnings,\n  calculateGroupAverageStudentId,\n  calculateGroupAverageAttendance,\n}"
+            "{\n  isAdminModeActive,\n  sessionName,\n  setSessionName,\n  sessionDate,\n  setSessionDate,\n  groups,\n  setGroups,\n  isAutoMode,\n  onAutoAssign,\n  onCostModalOpen,\n  onExportSimulation,\n  onMoveToRecord,\n  saving = false,\n  isAssigning = false,\n  assignmentReady = true,\n  buttonAppearance,\n  evaluationButtonLabel,\n  assignmentNotices = [],\n  getAssignmentWarnings = () => [],\n  editingGroupId,\n  setEditingGroupId,\n  editingGroupName,\n  setEditingGroupName,\n  onUpdateTargetSize,\n  onCreateGroup,\n  removeFromGroup,\n  attendees,\n  getMemberFromInfo,\n  memberAttendanceCount,\n  activeRequestId,\n  setActiveRequestId,\n  getReunionWarnings,\n  requestChoices = [],\n  onRequestChoiceOpen = () => {},\n  calculateGroupAverageStudentId,\n  calculateGroupAverageAttendance,\n}"
           ],
           "exported": true,
-          "lineCount": 226
+          "lineCount": 243
         }
       ],
       "classes": [],
@@ -2641,6 +3574,12 @@
           "source": "react",
           "specifiers": [
             "React"
+          ]
+        },
+        {
+          "source": "./attendanceButtonStyles",
+          "specifiers": [
+            "attendanceButtonStyles"
           ]
         },
         {
@@ -2659,7 +3598,6 @@
             "ArrowRight",
             "Trash2",
             "X",
-            "AlertTriangle",
             "Plus",
             "Loader2"
           ]
@@ -2668,6 +3606,24 @@
           "source": "./BoardMemberBadge",
           "specifiers": [
             "BoardMemberBadge"
+          ]
+        },
+        {
+          "source": "./AttendanceNotice",
+          "specifiers": [
+            "AttendanceNotice"
+          ]
+        },
+        {
+          "source": "./CompanionRequestNotice",
+          "specifiers": [
+            "CompanionRequestNotice"
+          ]
+        },
+        {
+          "source": "../domain/matching/companionRequests",
+          "specifiers": [
+            "RequestChoice"
           ]
         },
         {
@@ -2681,7 +3637,7 @@
       "exports": [
         "GroupsCanvas"
       ],
-      "totalLines": 264,
+      "totalLines": 293,
       "hasStructuralAnalysis": true
     },
     "src/components/InterviewRoundDeleteModal.tsx": {
@@ -4575,7 +5531,7 @@
     },
     "src/components/MeetingDashboardTab.tsx": {
       "filePath": "src/components/MeetingDashboardTab.tsx",
-      "contentHash": "a46aee18d10698add170d7bba84ebae2fbc8cb5167336126dfa99c5e86d872f4",
+      "contentHash": "401e7b255d7775443a9d2352ab86c014ee2617a066ad0dbdf5adccff69e3df12",
       "functions": [
         {
           "name": "MeetingDashboardTab",
@@ -4583,7 +5539,7 @@
             "{\n  dailyPlanning,\n  members,\n  games,\n  editingGroupId,\n  editingGroupName,\n  setEditingGroupId,\n  setEditingGroupName,\n  handleUpdateGroupName,\n  getAttendeeFromMember,\n  setSelectedMember,\n  groupSearchedGameIds,\n  setGroupSearchedGameIds,\n  memberPlayedGames,\n  groupRecModes,\n  setGroupRecModes,\n  recommendGames\n}"
           ],
           "exported": true,
-          "lineCount": 227
+          "lineCount": 228
         }
       ],
       "classes": [],
@@ -4628,7 +5584,7 @@
       "exports": [
         "MeetingDashboardTab"
       ],
-      "totalLines": 253,
+      "totalLines": 254,
       "hasStructuralAnalysis": true
     },
     "src/components/MeetingProgressPage.tsx": {
@@ -4705,7 +5661,7 @@
     },
     "src/components/MeetingRecordsModal.test.tsx": {
       "filePath": "src/components/MeetingRecordsModal.test.tsx",
-      "contentHash": "04e2f6296df4e99a32d6e47d638581a686c39b1f2fdc3c6a529023e268a2b8a1",
+      "contentHash": "e37c20a501811b64c0ba4cb5f8bd278023b298b5093ceb0ff9d79283cf033c7f",
       "functions": [
         {
           "name": "button",
@@ -4758,12 +5714,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 74,
+      "totalLines": 93,
       "hasStructuralAnalysis": true
     },
     "src/components/MeetingRecordsModal.tsx": {
       "filePath": "src/components/MeetingRecordsModal.tsx",
-      "contentHash": "1944f692f11330aee3bedfa12973189f74c1432ce197244d5df164f12f6bea88",
+      "contentHash": "dda6efcb0771f2c6eda6b061160bec490ba4c37f5c8e838a3aae63a7e7bda577",
       "functions": [
         {
           "name": "MeetingRecordsModal",
@@ -4830,15 +5786,23 @@
     },
     "src/components/MeetingVersionsPanel.tsx": {
       "filePath": "src/components/MeetingVersionsPanel.tsx",
-      "contentHash": "d33b386db99a1c34141485fdbac451c5df6a080018aebb967170fbfd60db5efd",
+      "contentHash": "88fe0020fd3ec33b0fcf1d454fa5c261119c5f5c5ecac2964557214f200b7aca",
       "functions": [
+        {
+          "name": "archivedLabel",
+          "params": [
+            "version"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
         {
           "name": "MeetingVersionsPanel",
           "params": [
             "{ planningId, members, onBack, onRestored, onBusyChange }"
           ],
           "exported": true,
-          "lineCount": 58
+          "lineCount": 115
         }
       ],
       "classes": [],
@@ -4846,8 +5810,15 @@
         {
           "source": "react",
           "specifiers": [
+            "useLayoutEffect",
             "useRef",
             "useState"
+          ]
+        },
+        {
+          "source": "lucide-react",
+          "specifiers": [
+            "ChevronRight"
           ]
         },
         {
@@ -4867,12 +5838,18 @@
           "specifiers": [
             "Member"
           ]
+        },
+        {
+          "source": "../services/dailyPlanningService",
+          "specifiers": [
+            "DailyPlanningVersion"
+          ]
         }
       ],
       "exports": [
         "MeetingVersionsPanel"
       ],
-      "totalLines": 64,
+      "totalLines": 126,
       "hasStructuralAnalysis": true
     },
     "src/components/MemberFilters.tsx": {
@@ -6271,7 +7248,7 @@
     },
     "src/components/UnassignedPool.tsx": {
       "filePath": "src/components/UnassignedPool.tsx",
-      "contentHash": "a2d3b2bb07b1e346f003d2d91c2cee5355bbb6bdcbf5f5c2ce204c4fc1b86b55",
+      "contentHash": "4d0748b71f10bba1863474e01172dffc4678f5c0df983d9d2d9c3ceec9337ffc",
       "functions": [
         {
           "name": "UnassignedPool",
@@ -6279,7 +7256,7 @@
             "{\n  unassignedAttendees,\n  getMemberFromInfo,\n  memberAttendanceCount,\n  onManualAddOpen,\n  onQuickAddMember,\n  onDeleteAttendee,\n}"
           ],
           "exported": true,
-          "lineCount": 83
+          "lineCount": 81
         }
       ],
       "classes": [],
@@ -6300,8 +7277,7 @@
         {
           "source": "lucide-react",
           "specifiers": [
-            "X",
-            "AlertTriangle"
+            "X"
           ]
         },
         {
@@ -6317,6 +7293,12 @@
           ]
         },
         {
+          "source": "./AttendanceNotice",
+          "specifiers": [
+            "AttendanceNotice"
+          ]
+        },
+        {
           "source": "./AttendanceDragAndDrop",
           "specifiers": [
             "AttendanceDraggableCard",
@@ -6327,7 +7309,20 @@
       "exports": [
         "UnassignedPool"
       ],
-      "totalLines": 100,
+      "totalLines": 99,
+      "hasStructuralAnalysis": true
+    },
+    "src/components/attendanceButtonStyles.ts": {
+      "filePath": "src/components/attendanceButtonStyles.ts",
+      "contentHash": "72d699e4c1b05aa2736a8ad8f1e719d79d13afcb4a6a2b70000e034511ad4c03",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "attendanceButtonBase",
+        "attendanceButtonStyles"
+      ],
+      "totalLines": 10,
       "hasStructuralAnalysis": true
     },
     "src/components/icons/DiamondSvg.tsx": {
@@ -9576,22 +10571,224 @@
       "totalLines": 386,
       "hasStructuralAnalysis": true
     },
+    "src/domain/matching/autoAssign.worker.ts": {
+      "filePath": "src/domain/matching/autoAssign.worker.ts",
+      "contentHash": "5cf14879d13b9a767f25cc04e3b097d594c9d57e73f0413ef7981f4256302586",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./autoAssignAlgorithm",
+          "specifiers": [
+            "simulateAutoAssign",
+            "AutoAssignInput"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "src/domain/matching/autoAssignAlgorithm.test.ts": {
+      "filePath": "src/domain/matching/autoAssignAlgorithm.test.ts",
+      "contentHash": "1a9008448584d991678d35e781bbb3ff6f149d201e3711827bea30f5f2edc369",
+      "functions": [
+        {
+          "name": "fixture",
+          "params": [],
+          "returnType": "UtilityContext",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "groups",
+          "params": [
+            "ids"
+          ],
+          "returnType": "SessionGroup[]",
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "score",
+          "params": [
+            "assignment",
+            "context"
+          ],
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../../types",
+          "specifiers": [
+            "SessionGroup"
+          ]
+        },
+        {
+          "source": "./autoAssignAlgorithm",
+          "specifiers": [
+            "simulateAutoAssign"
+          ]
+        },
+        {
+          "source": "./personalUtility",
+          "specifiers": [
+            "combineScores",
+            "compareUtility",
+            "evaluateUtilityGroup",
+            "pairKey",
+            "REVIEW_PARAMETERS",
+            "UtilityContext"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
     "src/domain/matching/autoAssignAlgorithm.ts": {
       "filePath": "src/domain/matching/autoAssignAlgorithm.ts",
-      "contentHash": "4a1c276b720cf642145e037338dc09df93e11ba23c3f04e220e100f62d14b0d6",
+      "contentHash": "55c557edfe98ab99096ddff7a7810c52efee96984a4422655c8d7d3dbacb4263",
       "functions": [
         {
           "name": "simulateAutoAssign",
           "params": [
-            "availableAttendees",
-            "initialGroups",
-            "getMember",
-            "ctx",
-            "withHistory"
+            "{ availableIds, initialGroups, context, withHistory = false }"
           ],
           "returnType": "AutoAssignResult",
           "exported": true,
-          "lineCount": 121
+          "lineCount": 111
+        },
+        {
+          "name": "getSizingNotices",
+          "params": [
+            "sizing",
+            "groups"
+          ],
+          "returnType": "string[]",
+          "exported": true,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../types",
+          "specifiers": [
+            "SessionGroup"
+          ]
+        },
+        {
+          "source": "./groupSizing.mjs",
+          "specifiers": [
+            "solveGroupSizes",
+            "SizeSolution"
+          ]
+        },
+        {
+          "source": "./personalUtility",
+          "specifiers": [
+            "combineScores",
+            "compareUtility",
+            "evaluateUtilityGroup",
+            "AssignmentScore",
+            "UtilityContext"
+          ]
+        }
+      ],
+      "exports": [
+        "simulateAutoAssign",
+        "getSizingNotices"
+      ],
+      "totalLines": 142,
+      "hasStructuralAnalysis": true
+    },
+    "src/domain/matching/companionRequests.test.ts": {
+      "filePath": "src/domain/matching/companionRequests.test.ts",
+      "contentHash": "4cc8d4d583b6ffce6810470d47372cb5f2baff05b10c0f13d5ab4fc5ede4e8a0",
+      "functions": [
+        {
+          "name": "fixture",
+          "params": [],
+          "exported": false,
+          "lineCount": 12
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "firebase/firestore",
+          "specifiers": [
+            "Timestamp"
+          ]
+        },
+        {
+          "source": "../../types",
+          "specifiers": [
+            "Attendee",
+            "Member",
+            "Session"
+          ]
+        },
+        {
+          "source": "./personalUtility",
+          "specifiers": [
+            "buildUtilityContext",
+            "evaluateUtilityGroup",
+            "getRequestNotices",
+            "pairKey"
+          ]
+        },
+        {
+          "source": "./companionRequests",
+          "specifiers": [
+            "isRequestSelections",
+            "RequestSelections"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 169,
+      "hasStructuralAnalysis": true
+    },
+    "src/domain/matching/companionRequests.ts": {
+      "filePath": "src/domain/matching/companionRequests.ts",
+      "contentHash": "903ffb7108a2febe7a89e88f2831a6b839577288e345137cf17f6e94889944bd",
+      "functions": [
+        {
+          "name": "isRequestSelections",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "resolveCompanionRequests",
+          "params": [
+            "input"
+          ],
+          "exported": true,
+          "lineCount": 63
         }
       ],
       "classes": [],
@@ -9600,22 +10797,15 @@
           "source": "../../types",
           "specifiers": [
             "Attendee",
-            "Member",
-            "SessionGroup"
-          ]
-        },
-        {
-          "source": "./groupCostFunction",
-          "specifiers": [
-            "CostCalculationContext",
-            "getGroupCostDets"
+            "Member"
           ]
         }
       ],
       "exports": [
-        "simulateAutoAssign"
+        "isRequestSelections",
+        "resolveCompanionRequests"
       ],
-      "totalLines": 131,
+      "totalLines": 96,
       "hasStructuralAnalysis": true
     },
     "src/domain/matching/getMemberFromAttendee.test.ts": {
@@ -9963,6 +11153,81 @@
       "totalLines": 118,
       "hasStructuralAnalysis": true
     },
+    "src/domain/matching/groupSizing.d.mts": {
+      "filePath": "src/domain/matching/groupSizing.d.mts",
+      "contentHash": "71f4cd43ee900a54278a61eaab698effe5402f9c86b9c7929e920d768bbdb583",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "src/domain/matching/groupSizing.mjs": {
+      "filePath": "src/domain/matching/groupSizing.mjs",
+      "contentHash": "c8b606ca40094ff3e7d167e2ff20d3a72a65489eb762a315a3e47257646a3f13",
+      "functions": [
+        {
+          "name": "compare",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 6
+        },
+        {
+          "name": "compareIds",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "matchTargets",
+          "params": [
+            "sizes",
+            "groups"
+          ],
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "matchMinimums",
+          "params": [
+            "sizes",
+            "groups"
+          ],
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "evaluate",
+          "params": [
+            "sizes",
+            "deviation"
+          ],
+          "exported": false,
+          "lineCount": 31
+        },
+        {
+          "name": "solveGroupSizes",
+          "params": [],
+          "exported": true,
+          "lineCount": 57
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "PREFERENCE",
+        "solveGroupSizes"
+      ],
+      "totalLines": 178,
+      "hasStructuralAnalysis": true
+    },
     "src/domain/matching/isSameName.test.ts": {
       "filePath": "src/domain/matching/isSameName.test.ts",
       "contentHash": "34a63fde00a341fcb37b7f4b6facc0358626fe8586d39e1402f2ef10453dc5bf",
@@ -10119,6 +11384,258 @@
       "totalLines": 63,
       "hasStructuralAnalysis": true
     },
+    "src/domain/matching/personalUtility.test.ts": {
+      "filePath": "src/domain/matching/personalUtility.test.ts",
+      "contentHash": "c4b70d161e5eb11c0ae7279389574aee3aa6b9680a02ff68288e55a15506635f",
+      "functions": [
+        {
+          "name": "date",
+          "params": [
+            "s"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "fixture",
+          "params": [
+            "count"
+          ],
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "groups",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "SessionGroup[]",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "session",
+          "params": [
+            "day",
+            "ids"
+          ],
+          "returnType": "Session",
+          "exported": false,
+          "lineCount": 1
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "firebase/firestore",
+          "specifiers": [
+            "Timestamp"
+          ]
+        },
+        {
+          "source": "../../types",
+          "specifiers": [
+            "Attendee",
+            "Member",
+            "Session",
+            "SessionGroup"
+          ]
+        },
+        {
+          "source": "./personalUtility",
+          "specifiers": [
+            "buildUtilityContext",
+            "combineScores",
+            "compareUtility",
+            "evaluateUtilityGroup",
+            "getRequestNotices",
+            "pairKey",
+            "relativeProtection"
+          ]
+        },
+        {
+          "source": "./autoAssignAlgorithm",
+          "specifiers": [
+            "simulateAutoAssign",
+            "getSizingNotices"
+          ]
+        },
+        {
+          "source": "./groupSizing.mjs",
+          "specifiers": [
+            "solveGroupSizes"
+          ]
+        },
+        {
+          "source": "../../../scripts/group-utility-prototype.mjs",
+          "specifiers": [
+            "evaluateAssignment"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 308,
+      "hasStructuralAnalysis": true
+    },
+    "src/domain/matching/personalUtility.ts": {
+      "filePath": "src/domain/matching/personalUtility.ts",
+      "contentHash": "43fde14f569220d499e19dc96574b1c39bbb5e087af16932f7e7739d64133469",
+      "functions": [
+        {
+          "name": "pairKey",
+          "params": [
+            "a",
+            "b"
+          ],
+          "exported": true,
+          "lineCount": 1
+        },
+        {
+          "name": "saturation",
+          "params": [
+            "n",
+            "a",
+            "k"
+          ],
+          "exported": false,
+          "lineCount": 1
+        },
+        {
+          "name": "relativeProtection",
+          "params": [
+            "utilities",
+            "scale",
+            "attenuations"
+          ],
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "protectPeople",
+          "params": [
+            "people",
+            "parameters"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "validateUtilityParameters",
+          "params": [
+            "p"
+          ],
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "buildUtilityContext",
+          "params": [
+            "input",
+            "parameters"
+          ],
+          "returnType": "UtilityContext",
+          "exported": true,
+          "lineCount": 44
+        },
+        {
+          "name": "evaluateUtilityGroup",
+          "params": [
+            "ids",
+            "context"
+          ],
+          "returnType": "AssignmentScore",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "combineScores",
+          "params": [
+            "scores",
+            "parameters"
+          ],
+          "returnType": "AssignmentScore",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "compareUtility",
+          "params": [
+            "a",
+            "b"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "getRequestNotices",
+          "params": [
+            "groups",
+            "context",
+            "fixed",
+            "relevantIds"
+          ],
+          "returnType": "string[]",
+          "exported": true,
+          "lineCount": 15
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../types",
+          "specifiers": [
+            "Attendee",
+            "Member",
+            "Session",
+            "SessionGroup"
+          ]
+        },
+        {
+          "source": "./getMemberFromAttendee",
+          "specifiers": [
+            "getMemberFromAttendee"
+          ]
+        },
+        {
+          "source": "../attendance/sessionMetadata",
+          "specifiers": [
+            "getLocalDateKey"
+          ]
+        },
+        {
+          "source": "./companionRequests",
+          "specifiers": [
+            "resolveCompanionRequests",
+            "AbsentRequest",
+            "RequestChoice",
+            "RequestSelections"
+          ]
+        }
+      ],
+      "exports": [
+        "REVIEW_PARAMETERS",
+        "pairKey",
+        "relativeProtection",
+        "validateUtilityParameters",
+        "buildUtilityContext",
+        "evaluateUtilityGroup",
+        "combineScores",
+        "compareUtility",
+        "getRequestNotices"
+      ],
+      "totalLines": 204,
+      "hasStructuralAnalysis": true
+    },
     "src/domain/meeting/progressHelpers.ts": {
       "filePath": "src/domain/meeting/progressHelpers.ts",
       "contentHash": "65adf2f4e61d0fb19b824b36de360e907fa264c6c4ab6cd2357b0e051766de16",
@@ -10158,6 +11675,62 @@
         "generateDrinkOrderText"
       ],
       "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
+    "src/domain/members/attendanceRegistration.ts": {
+      "filePath": "src/domain/members/attendanceRegistration.ts",
+      "contentHash": "1f180a010eb66542deccb5d29e471537acdc363891cb2b6453a0da1712a8d1b8",
+      "functions": [
+        {
+          "name": "createAttendanceMemberDraft",
+          "params": [
+            "attendee"
+          ],
+          "returnType": "AttendanceMemberDraft",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "prepareAttendanceMember",
+          "params": [
+            "input",
+            "members"
+          ],
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../../types",
+          "specifiers": [
+            "Attendee",
+            "Member"
+          ]
+        },
+        {
+          "source": "./memberForm",
+          "specifiers": [
+            "createMemberFormData",
+            "MemberFormData"
+          ]
+        },
+        {
+          "source": "./memberIdentity",
+          "specifiers": [
+            "defaultMemberNickname",
+            "formatMemberPhone",
+            "normalizeMemberName",
+            "normalizeStudentYear"
+          ]
+        }
+      ],
+      "exports": [
+        "createAttendanceMemberDraft",
+        "prepareAttendanceMember"
+      ],
+      "totalLines": 31,
       "hasStructuralAnalysis": true
     },
     "src/domain/members/dormantMemberOrder.test.ts": {
@@ -11768,7 +13341,7 @@
     },
     "src/hooks/useAttendanceDraft.ts": {
       "filePath": "src/hooks/useAttendanceDraft.ts",
-      "contentHash": "c3b561273f84f0ec518dca3d869db890de637614d2777b3af726a317a132f912",
+      "contentHash": "6aff885c24cf7b914559f26a516513d0a7d16c8776d5750f19211cec35cd6e51",
       "functions": [
         {
           "name": "storageKey",
@@ -11791,7 +13364,7 @@
             "value"
           ],
           "exported": false,
-          "lineCount": 12
+          "lineCount": 13
         },
         {
           "name": "readDraft",
@@ -11810,7 +13383,7 @@
             "initial"
           ],
           "exported": true,
-          "lineCount": 29
+          "lineCount": 34
         }
       ],
       "classes": [],
@@ -11835,17 +13408,24 @@
             "getDefaultSessionName",
             "getTodaySessionMetadata"
           ]
+        },
+        {
+          "source": "../domain/matching/companionRequests",
+          "specifiers": [
+            "isRequestSelections",
+            "RequestSelections"
+          ]
         }
       ],
       "exports": [
         "useAttendanceDraft"
       ],
-      "totalLines": 74,
+      "totalLines": 83,
       "hasStructuralAnalysis": true
     },
     "src/hooks/useAttendanceLogic.test.tsx": {
       "filePath": "src/hooks/useAttendanceLogic.test.tsx",
-      "contentHash": "609fa4cad22208cdc5a703f17f6cdde0b562a9a18a6971567b2427bf5ef5ee40",
+      "contentHash": "61f22793f1b7979a4a448701532fb86526eea7cac6dc41264804ca0c355adbd5",
       "functions": [],
       "classes": [],
       "imports": [
@@ -11885,15 +13465,21 @@
           "specifiers": [
             "archiveDailyPlanning"
           ]
+        },
+        {
+          "source": "../domain/members/attendanceRegistration",
+          "specifiers": [
+            "createAttendanceMemberDraft"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 178,
+      "totalLines": 274,
       "hasStructuralAnalysis": true
     },
     "src/hooks/useAttendanceLogic.ts": {
       "filePath": "src/hooks/useAttendanceLogic.ts",
-      "contentHash": "3fd8abb34012ac226e501e1d7994310932e1a63605c8cafb015539f97be2c1e4",
+      "contentHash": "e3da72ac6bc81fd50813869c1e6efdc63163b429568ba056d6c8bf2fb70513a9",
       "functions": [
         {
           "name": "useAttendanceLogic",
@@ -11901,7 +13487,7 @@
             "{ onMoveToRecord, draftScope }"
           ],
           "exported": true,
-          "lineCount": 358
+          "lineCount": 373
         }
       ],
       "classes": [],
@@ -11910,7 +13496,9 @@
           "source": "react",
           "specifiers": [
             "useState",
-            "useMemo"
+            "useMemo",
+            "useEffect",
+            "useRef"
           ]
         },
         {
@@ -11976,7 +13564,26 @@
         {
           "source": "../domain/matching/autoAssignAlgorithm",
           "specifiers": [
-            "simulateAutoAssign"
+            "getSizingNotices"
+          ]
+        },
+        {
+          "source": "../lib/runAutoAssignment",
+          "specifiers": [
+            "runAutoAssignment"
+          ]
+        },
+        {
+          "source": "../domain/matching/personalUtility",
+          "specifiers": [
+            "buildUtilityContext",
+            "getRequestNotices"
+          ]
+        },
+        {
+          "source": "../domain/attendance/sessionMetadata",
+          "specifiers": [
+            "getLocalDateKey"
           ]
         },
         {
@@ -11997,12 +13604,6 @@
           "source": "../domain/attendance/moveAttendee",
           "specifiers": [
             "moveAttendee"
-          ]
-        },
-        {
-          "source": "../domain/matching/groupCostContext",
-          "specifiers": [
-            "buildGroupCostContext"
           ]
         },
         {
@@ -12034,12 +13635,18 @@
           "specifiers": [
             "AttendanceImportInput"
           ]
+        },
+        {
+          "source": "../domain/members/attendanceRegistration",
+          "specifiers": [
+            "AttendanceMemberDraft"
+          ]
         }
       ],
       "exports": [
         "useAttendanceLogic"
       ],
-      "totalLines": 400,
+      "totalLines": 418,
       "hasStructuralAnalysis": true
     },
     "src/hooks/useAuditEvents.ts": {
@@ -12255,7 +13862,7 @@
     },
     "src/hooks/useFirestore.test.tsx": {
       "filePath": "src/hooks/useFirestore.test.tsx",
-      "contentHash": "023bbe4982b7337eb8ba1e89e95cfd1a6e9089f6eee17e8670b6b6ebbcf5db24",
+      "contentHash": "35a806723d2b75faa404ec47f19d235d2e8a09c6893e275b48cb417c722f6efd",
       "functions": [],
       "classes": [],
       "imports": [
@@ -12288,15 +13895,21 @@
           "specifiers": [
             "useFirestore"
           ]
+        },
+        {
+          "source": "sonner",
+          "specifiers": [
+            "toast"
+          ]
         }
       ],
       "exports": [],
-      "totalLines": 79,
+      "totalLines": 90,
       "hasStructuralAnalysis": true
     },
     "src/hooks/useFirestore.ts": {
       "filePath": "src/hooks/useFirestore.ts",
-      "contentHash": "8b91453b89cac1f48eff3bdc1c975df93c74e76b4d3d14c74ff3adb25233012e",
+      "contentHash": "b6db5b68a35bfb284845b243e4a3a8e1b0b800fef44ec804bc48af8e25f39e3d",
       "functions": [
         {
           "name": "useFirestore",
@@ -12306,7 +13919,7 @@
             "orderDirection"
           ],
           "exported": true,
-          "lineCount": 34
+          "lineCount": 48
         }
       ],
       "classes": [],
@@ -12315,7 +13928,15 @@
           "source": "react",
           "specifiers": [
             "useState",
-            "useEffect"
+            "useEffect",
+            "useId",
+            "useCallback"
+          ]
+        },
+        {
+          "source": "sonner",
+          "specifiers": [
+            "toast"
           ]
         },
         {
@@ -12340,7 +13961,7 @@
       "exports": [
         "useFirestore"
       ],
-      "totalLines": 40,
+      "totalLines": 55,
       "hasStructuralAnalysis": true
     },
     "src/hooks/useGamesLogic.ts": {
@@ -13633,7 +15254,7 @@
     },
     "src/lib/firebase.ts": {
       "filePath": "src/lib/firebase.ts",
-      "contentHash": "c481066c2a46dd3eca01cbcf0abcb7784b65ae10d2bd6e806aa30568594b2909",
+      "contentHash": "6eab2c63d5deae56f06877613dc244fbfd4b4cfe795ded367dd85eafff09b95d",
       "functions": [
         {
           "name": "initializeDemoSession",
@@ -13722,6 +15343,92 @@
         "checkAdminStatus"
       ],
       "totalLines": 164,
+      "hasStructuralAnalysis": true
+    },
+    "src/lib/runAutoAssignment.test.ts": {
+      "filePath": "src/lib/runAutoAssignment.test.ts",
+      "contentHash": "8ba66a511d7ff84a6962797a9f849f5a9806188f4ee00d17c77a8125f54fc8b1",
+      "functions": [],
+      "classes": [
+        {
+          "name": "TestWorker",
+          "methods": [
+            "constructor"
+          ],
+          "properties": [
+            "last",
+            "onmessage",
+            "onerror",
+            "terminate",
+            "postMessage"
+          ],
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "afterEach",
+            "beforeEach",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "./runAutoAssignment",
+          "specifiers": [
+            "runAutoAssignment"
+          ]
+        },
+        {
+          "source": "../domain/matching/personalUtility",
+          "specifiers": [
+            "REVIEW_PARAMETERS"
+          ]
+        },
+        {
+          "source": "../domain/matching/autoAssignAlgorithm",
+          "specifiers": [
+            "AutoAssignInput"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": true
+    },
+    "src/lib/runAutoAssignment.ts": {
+      "filePath": "src/lib/runAutoAssignment.ts",
+      "contentHash": "d094ed8cba8027054c13931d3b1634e853a29c44cd99cb847de297e1098f551a",
+      "functions": [
+        {
+          "name": "runAutoAssignment",
+          "params": [
+            "input",
+            "signal"
+          ],
+          "returnType": "Promise<AutoAssignResult>",
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../domain/matching/autoAssignAlgorithm",
+          "specifiers": [
+            "AutoAssignInput",
+            "AutoAssignResult"
+          ]
+        }
+      ],
+      "exports": [
+        "runAutoAssignment"
+      ],
+      "totalLines": 20,
       "hasStructuralAnalysis": true
     },
     "src/lib/utils.ts": {
@@ -13826,9 +15533,57 @@
       "totalLines": 6,
       "hasStructuralAnalysis": true
     },
+    "src/scenario-lab/AttendanceDesignProposal.tsx": {
+      "filePath": "src/scenario-lab/AttendanceDesignProposal.tsx",
+      "contentHash": "a0ab26bb8e2a2aca7011e16ab27fa3d3eeae80e6b6ad07a4f534585992aec6f5",
+      "functions": [
+        {
+          "name": "EvaluationProposal",
+          "params": [
+            "props"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../components/CostEvaluationModal",
+          "specifiers": [
+            "CostEvaluationModal"
+          ]
+        },
+        {
+          "source": "../components/attendanceButtonStyles",
+          "specifiers": [
+            "button",
+            "attendanceButtonStyles"
+          ]
+        },
+        {
+          "source": "../domain/matching/personalUtility",
+          "specifiers": [
+            "UtilityContext"
+          ]
+        },
+        {
+          "source": "../types",
+          "specifiers": [
+            "SessionGroup"
+          ]
+        }
+      ],
+      "exports": [
+        "attendanceButtonProposals",
+        "EvaluationProposal"
+      ],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
     "src/scenario-lab/ScenarioLabApp.tsx": {
       "filePath": "src/scenario-lab/ScenarioLabApp.tsx",
-      "contentHash": "904d68f28878b14846d1b661219740e605f0b03080d595037449d7246c8c8297",
+      "contentHash": "6cbdd8c27a152799d26cce8ea0ca5500e9358de912252d3acf326084e99cd8b4",
       "functions": [
         {
           "name": "isScenarioPage",
@@ -13844,7 +15599,7 @@
             "{ page, state }"
           ],
           "exported": false,
-          "lineCount": 5
+          "lineCount": 6
         },
         {
           "name": "ScenarioShell",
@@ -13924,12 +15679,12 @@
         "SCENARIO_LAB_SENTINEL",
         "ScenarioLabApp"
       ],
-      "totalLines": 149,
+      "totalLines": 150,
       "hasStructuralAnalysis": true
     },
     "src/scenario-lab/ScenarioPages.tsx": {
       "filePath": "src/scenario-lab/ScenarioPages.tsx",
-      "contentHash": "860d21bceb1ffb43e9736f12862100767431691de96fdc68061ab23c2d8cc1d6",
+      "contentHash": "df3c33c04c96a332c60cc8980a5f8daee56e7fe2d0337ff2f59ded5b29868966",
       "functions": [
         {
           "name": "MembersScenario",
@@ -13950,10 +15705,10 @@
         {
           "name": "AttendanceScenario",
           "params": [
-            "{ state, draftScope = null }"
+            "{ state, draftScope = null, buttonProposal }"
           ],
           "exported": true,
-          "lineCount": 65
+          "lineCount": 91
         }
       ],
       "classes": [],
@@ -13972,7 +15727,8 @@
             "CalendarClock",
             "ClipboardList",
             "Plus",
-            "Users"
+            "Users",
+            "X"
           ]
         },
         {
@@ -14051,6 +15807,18 @@
           ]
         },
         {
+          "source": "../components/CompanionRequestModal",
+          "specifiers": [
+            "CompanionRequestModal"
+          ]
+        },
+        {
+          "source": "../domain/matching/companionRequests",
+          "specifiers": [
+            "resolveCompanionRequests"
+          ]
+        },
+        {
           "source": "../domain/attendance/csvParser",
           "specifiers": [
             "previewAttendanceCsv"
@@ -14060,6 +15828,20 @@
           "source": "../domain/attendance/moveAttendee",
           "specifiers": [
             "moveAttendee"
+          ]
+        },
+        {
+          "source": "../domain/matching/personalUtility",
+          "specifiers": [
+            "buildUtilityContext"
+          ]
+        },
+        {
+          "source": "./AttendanceDesignProposal",
+          "specifiers": [
+            "EvaluationProposal",
+            "attendanceButtonProposals",
+            "AttendanceButtonProposal"
           ]
         },
         {
@@ -14079,12 +15861,12 @@
         "InterviewScenario",
         "AttendanceScenario"
       ],
-      "totalLines": 254,
+      "totalLines": 284,
       "hasStructuralAnalysis": true
     },
     "src/scenario-lab/fixtures.ts": {
       "filePath": "src/scenario-lab/fixtures.ts",
-      "contentHash": "2324868bb9a877859b1e260e67f25b42ee27f98fbb7bf6c408654e31b98587d3",
+      "contentHash": "a86f09ccdf1b26c0125079f77281c2eb0b70f8cc512f5e02094b1fdec079e8da",
       "functions": [
         {
           "name": "timestampAt",
@@ -14130,7 +15912,7 @@
           ],
           "returnType": "{\n  members: Member[];\n  attendees: Attendee[];\n  groups: SessionGroup[];\n}",
           "exported": true,
-          "lineCount": 21
+          "lineCount": 28
         },
         {
           "name": "slot",
@@ -14192,7 +15974,7 @@
         "createAttendanceFixture",
         "createInterviewFixture"
       ],
-      "totalLines": 227,
+      "totalLines": 234,
       "hasStructuralAnalysis": true
     },
     "src/scenario-lab/main.tsx": {
@@ -14236,7 +16018,7 @@
     },
     "src/services/attendeesService.test.ts": {
       "filePath": "src/services/attendeesService.test.ts",
-      "contentHash": "92efdc0c50c7586f479c02533fb33b29efcddb3022e618cad83c3245e3a2dfdd",
+      "contentHash": "700cfaf68da0fc2c984a1c2a470b52ee035fc0774c18346ecc1a28b3ac5bf712",
       "functions": [],
       "classes": [],
       "imports": [
@@ -14254,7 +16036,20 @@
           "source": "./attendeesService",
           "specifiers": [
             "importAttendanceRows",
-            "manualAddAttendeeRecord"
+            "manualAddAttendeeRecord",
+            "quickAddMemberRecord"
+          ]
+        },
+        {
+          "source": "../domain/members/attendanceRegistration",
+          "specifiers": [
+            "createAttendanceMemberDraft"
+          ]
+        },
+        {
+          "source": "firebase/firestore",
+          "specifiers": [
+            "getDocs"
           ]
         },
         {
@@ -14278,12 +16073,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 113,
+      "totalLines": 141,
       "hasStructuralAnalysis": true
     },
     "src/services/attendeesService.ts": {
       "filePath": "src/services/attendeesService.ts",
-      "contentHash": "38b796c1387e0c8402f5e569c014f1433dd6367cb738388a78414aee043c5cfc",
+      "contentHash": "92a6b05b332e303e183d4dc7d91cf983d4756764dd555aef860ba7cc234afcf3",
       "functions": [
         {
           "name": "deleteAttendeeRecord",
@@ -14296,10 +16091,11 @@
         {
           "name": "quickAddMemberRecord",
           "params": [
-            "attendee"
+            "attendee",
+            "input"
           ],
           "exported": true,
-          "lineCount": 32
+          "lineCount": 28
         },
         {
           "name": "manualAddAttendeeRecord",
@@ -14339,6 +16135,7 @@
             "writeBatch",
             "doc",
             "collection",
+            "getDocs",
             "serverTimestamp",
             "deleteDoc",
             "Timestamp"
@@ -14383,6 +16180,13 @@
           "specifiers": [
             "addAuditEventToBatch"
           ]
+        },
+        {
+          "source": "../domain/members/attendanceRegistration",
+          "specifiers": [
+            "prepareAttendanceMember",
+            "AttendanceMemberDraft"
+          ]
         }
       ],
       "exports": [
@@ -14392,7 +16196,7 @@
         "importAttendanceRows",
         "clearAllAttendees"
       ],
-      "totalLines": 201,
+      "totalLines": 198,
       "hasStructuralAnalysis": true
     },
     "src/services/auditService.test.ts": {
@@ -14586,7 +16390,7 @@
     },
     "src/services/dailyPlanningService.test.ts": {
       "filePath": "src/services/dailyPlanningService.test.ts",
-      "contentHash": "b54b1e2e4d33d9d7e49f0636aa7d81e595721dbf6cfda517e442a2583e4ce79b",
+      "contentHash": "baeb118dd0ebfcf711fb5ec44417df4ac77faa5d195af1a5e9ba97269f97742e",
       "functions": [
         {
           "name": "storedDocuments",
@@ -14619,7 +16423,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 117,
+      "totalLines": 125,
       "hasStructuralAnalysis": true
     },
     "src/services/dailyPlanningService.ts": {
@@ -16300,7 +18104,7 @@
     },
     "src/services/sessionsService.test.ts": {
       "filePath": "src/services/sessionsService.test.ts",
-      "contentHash": "6fc21261cfce2f94c22b4f40a24362f2d29ca858e714287561b25ff3822020f1",
+      "contentHash": "43d1cf51d2b475948ace335224376daed9d2a265ee48fc4aa0a19ede7b0d3185",
       "functions": [],
       "classes": [],
       "imports": [
@@ -16317,7 +18121,8 @@
         {
           "source": "firebase/firestore",
           "specifiers": [
-            "getDoc"
+            "getDoc",
+            "getDocs"
           ]
         },
         {
@@ -16329,6 +18134,7 @@
         {
           "source": "./sessionsService",
           "specifiers": [
+            "deleteSessionRecord",
             "importSessionRecords",
             "updateSessionGroupGames",
             "updateSessionRecord"
@@ -16336,12 +18142,12 @@
         }
       ],
       "exports": [],
-      "totalLines": 64,
+      "totalLines": 85,
       "hasStructuralAnalysis": true
     },
     "src/services/sessionsService.ts": {
       "filePath": "src/services/sessionsService.ts",
-      "contentHash": "8ef0bf894e43fb2abe19d7485650898ab621de10a3724ca696dd205c9d7d5efe",
+      "contentHash": "40ba630f6c5ca3bb8d3b168ad2aa5716698b51bb4d1fa561ad282154feec2ce4",
       "functions": [
         {
           "name": "dateKey",
@@ -16417,7 +18223,7 @@
             "sessionName"
           ],
           "exported": true,
-          "lineCount": 11
+          "lineCount": 15
         }
       ],
       "classes": [],
@@ -16428,6 +18234,10 @@
             "collection",
             "doc",
             "getDoc",
+            "getDocs",
+            "query",
+            "where",
+            "deleteField",
             "Timestamp",
             "writeBatch"
           ]
@@ -16485,7 +18295,7 @@
         "updateSessionGroupGames",
         "deleteSessionRecord"
       ],
-      "totalLines": 153,
+      "totalLines": 157,
       "hasStructuralAnalysis": true
     },
     "src/services/settingsService.ts": {
@@ -16584,7 +18394,7 @@
     },
     "src/tests/firestore.rules.test.ts": {
       "filePath": "src/tests/firestore.rules.test.ts",
-      "contentHash": "c8f0aed14957823a0b7159ebefa9d15a189e1031662346f5cf4034ca6cf8a65f",
+      "contentHash": "325613d1bbefcc577a6515e7521376f6a48ebd969f46d222d6ea6c061e0a2e46",
       "functions": [
         {
           "name": "seedRegularAdmin",
@@ -16653,7 +18463,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 709,
+      "totalLines": 733,
       "hasStructuralAnalysis": true
     },
     "src/types.ts": {
@@ -16675,7 +18485,7 @@
     },
     "tests/design-lab/smoke.spec.ts": {
       "filePath": "tests/design-lab/smoke.spec.ts",
-      "contentHash": "ce29cd9aa17d02c3434e40659ac2452fd201e705c0f38910ef33e28899c73616",
+      "contentHash": "484a7fa465114b780a83229ed8337beaab66e4f8a4ea24f7554c6fad2417a3c8",
       "functions": [],
       "classes": [],
       "imports": [
@@ -16701,7 +18511,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 89,
+      "totalLines": 320,
       "hasStructuralAnalysis": true
     },
     "tests/scenario-lab/attendance-draft.spec.ts": {
@@ -16761,7 +18571,7 @@
     },
     "tests/scenario-lab/attendance-import.spec.ts": {
       "filePath": "tests/scenario-lab/attendance-import.spec.ts",
-      "contentHash": "b232ae649eb4068d27dc641bedcfacbec2a64f74c062ee9ba13e4bf4e7d9d4d5",
+      "contentHash": "ba8d60d7421a1c96d45c424b22a5a709dee6bca39ff930d6a90121b763daafb1",
       "functions": [
         {
           "name": "upload",
@@ -16785,7 +18595,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 82,
+      "totalLines": 88,
       "hasStructuralAnalysis": true
     },
     "tests/scenario-lab/fixtures/attendance-draft.html": {
@@ -16931,7 +18741,7 @@
     },
     "tests/scenario-lab/scenario.spec.ts": {
       "filePath": "tests/scenario-lab/scenario.spec.ts",
-      "contentHash": "0e943ed9b6a2ab0b47bf7fe1e2f9248351198e8e22961722cb7638b900fc1e3c",
+      "contentHash": "d5af55d3cce6c590fc7d1da3eaadc7d12871418703b8fb97208bcc59249e29ab",
       "functions": [
         {
           "name": "recordBackendRequests",
@@ -16947,7 +18757,7 @@
             "page"
           ],
           "exported": false,
-          "lineCount": 8
+          "lineCount": 11
         }
       ],
       "classes": [],
@@ -16962,7 +18772,7 @@
         }
       ],
       "exports": [],
-      "totalLines": 104,
+      "totalLines": 108,
       "hasStructuralAnalysis": true
     },
     "tsconfig.json": {
@@ -16977,7 +18787,7 @@
     },
     "vite.config.ts": {
       "filePath": "vite.config.ts",
-      "contentHash": "e019ec3914d41d21801643e2084bd4d7230d283018ac6b3c7f13f9a9e116d25b",
+      "contentHash": "6158c144087a52ae796371d1294922adcb2fd255dbc10a1eebb8cd32be135500",
       "functions": [],
       "classes": [],
       "imports": [

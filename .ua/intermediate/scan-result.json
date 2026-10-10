@@ -1,12 +1,13 @@
 {
   "name": "avalon-club-manager",
-  "description": "Avalon 보드게임 동아리의 회원, 게임, 정기 모임과 면접을 관리하는 웹 애플리케이션입니다.",
+  "description": "Avalon 보드게임 동아리의 회원, 보유 게임, 정기 모임과 신입 부원 면접을 관리하는 웹 애플리케이션입니다. 출석 가져오기와 자동 조 편성, 게임 추천, 세션 기록 및 면접 일정·평가·선발 기능을 제공합니다. 참고: 이 프로젝트에는 100개가 넘는 분석 대상 파일이 있으므로 빠른 분석이 필요할 때는 하위 디렉터리로 범위를 한정할 수 있습니다.",
   "languages": [
     "css",
     "html",
     "javascript",
     "json",
     "markdown",
+    "mts",
     "powershell",
     "rules",
     "typescript",
@@ -19,7 +20,9 @@
     "Vite",
     "Vitest",
     "Tailwind CSS",
-    "Firebase"
+    "Firebase",
+    "Playwright",
+    "GitHub Actions"
   ],
   "files": [
     {
@@ -37,13 +40,19 @@
     {
       "path": ".github/workflows/ci.yml",
       "language": "yaml",
-      "sizeLines": 36,
+      "sizeLines": 38,
       "fileCategory": "infra"
+    },
+    {
+      "path": ".stitch/DESIGN.md",
+      "language": "markdown",
+      "sizeLines": 231,
+      "fileCategory": "docs"
     },
     {
       "path": "README.md",
       "language": "markdown",
-      "sizeLines": 105,
+      "sizeLines": 109,
       "fileCategory": "docs"
     },
     {
@@ -53,9 +62,27 @@
       "fileCategory": "markup"
     },
     {
+      "path": "docs/design-guidelines.md",
+      "language": "markdown",
+      "sizeLines": 154,
+      "fileCategory": "docs"
+    },
+    {
       "path": "docs/development.md",
       "language": "markdown",
-      "sizeLines": 67,
+      "sizeLines": 90,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/group-sizing-model.md",
+      "language": "markdown",
+      "sizeLines": 117,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/group-utility-model.md",
+      "language": "markdown",
+      "sizeLines": 328,
       "fileCategory": "docs"
     },
     {
@@ -73,7 +100,13 @@
     {
       "path": "docs/operations.md",
       "language": "markdown",
-      "sizeLines": 77,
+      "sizeLines": 122,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/product-completion.md",
+      "language": "markdown",
+      "sizeLines": 40,
       "fileCategory": "docs"
     },
     {
@@ -127,7 +160,7 @@
     {
       "path": "firestore.rules",
       "language": "rules",
-      "sizeLines": 337,
+      "sizeLines": 384,
       "fileCategory": "code"
     },
     {
@@ -139,7 +172,7 @@
     {
       "path": "package.json",
       "language": "json",
-      "sizeLines": 79,
+      "sizeLines": 81,
       "fileCategory": "config"
     },
     {
@@ -161,9 +194,51 @@
       "fileCategory": "code"
     },
     {
+      "path": "scripts/dev-environment.test.mjs",
+      "language": "javascript",
+      "sizeLines": 31,
+      "fileCategory": "code"
+    },
+    {
       "path": "scripts/emulator-runtime.mjs",
       "language": "javascript",
       "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/gender-utility-review.mjs",
+      "language": "javascript",
+      "sizeLines": 114,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/gender-utility-review.test.mjs",
+      "language": "javascript",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/group-sizing-prototype.mjs",
+      "language": "javascript",
+      "sizeLines": 22,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/group-sizing-prototype.test.mjs",
+      "language": "javascript",
+      "sizeLines": 182,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/group-utility-prototype.mjs",
+      "language": "javascript",
+      "sizeLines": 200,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/group-utility-prototype.test.mjs",
+      "language": "javascript",
+      "sizeLines": 240,
       "fileCategory": "code"
     },
     {
@@ -175,7 +250,13 @@
     {
       "path": "scripts/knowledge-graph.test.mjs",
       "language": "javascript",
-      "sizeLines": 126,
+      "sizeLines": 146,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/member-security-probe.mjs",
+      "language": "javascript",
+      "sizeLines": 51,
       "fileCategory": "code"
     },
     {
@@ -207,6 +288,18 @@
       "language": "powershell",
       "sizeLines": 142,
       "fileCategory": "script"
+    },
+    {
+      "path": "scripts/utility-calibration-review.mjs",
+      "language": "javascript",
+      "sizeLines": 85,
+      "fileCategory": "code"
+    },
+    {
+      "path": "scripts/utility-calibration-review.test.mjs",
+      "language": "javascript",
+      "sizeLines": 53,
+      "fileCategory": "code"
     },
     {
       "path": "scripts/verify-production-bundle.mjs",
@@ -295,19 +388,31 @@
     {
       "path": "src/components/AttendanceCsvImportModal.tsx",
       "language": "typescript",
-      "sizeLines": 159,
+      "sizeLines": 160,
       "fileCategory": "code"
     },
     {
       "path": "src/components/AttendanceDragAndDrop.tsx",
       "language": "typescript",
-      "sizeLines": 74,
+      "sizeLines": 75,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AttendanceMemberRegistrationModal.tsx",
+      "language": "typescript",
+      "sizeLines": 53,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/AttendanceNotice.tsx",
+      "language": "typescript",
+      "sizeLines": 26,
       "fileCategory": "code"
     },
     {
       "path": "src/components/AttendancePage.tsx",
       "language": "typescript",
-      "sizeLines": 183,
+      "sizeLines": 195,
       "fileCategory": "code"
     },
     {
@@ -335,15 +440,33 @@
       "fileCategory": "code"
     },
     {
+      "path": "src/components/CompanionRequestModal.tsx",
+      "language": "typescript",
+      "sizeLines": 72,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/CompanionRequestNotice.tsx",
+      "language": "typescript",
+      "sizeLines": 10,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/components/ConfirmDeleteModal.tsx",
       "language": "typescript",
       "sizeLines": 56,
       "fileCategory": "code"
     },
     {
+      "path": "src/components/CostEvaluationModal.test.tsx",
+      "language": "typescript",
+      "sizeLines": 105,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/components/CostEvaluationModal.tsx",
       "language": "typescript",
-      "sizeLines": 83,
+      "sizeLines": 134,
       "fileCategory": "code"
     },
     {
@@ -391,7 +514,7 @@
     {
       "path": "src/components/GroupsCanvas.tsx",
       "language": "typescript",
-      "sizeLines": 263,
+      "sizeLines": 292,
       "fileCategory": "code"
     },
     {
@@ -529,7 +652,7 @@
     {
       "path": "src/components/MeetingDashboardTab.tsx",
       "language": "typescript",
-      "sizeLines": 252,
+      "sizeLines": 253,
       "fileCategory": "code"
     },
     {
@@ -541,7 +664,7 @@
     {
       "path": "src/components/MeetingRecordsModal.test.tsx",
       "language": "typescript",
-      "sizeLines": 73,
+      "sizeLines": 92,
       "fileCategory": "code"
     },
     {
@@ -553,7 +676,7 @@
     {
       "path": "src/components/MeetingVersionsPanel.tsx",
       "language": "typescript",
-      "sizeLines": 63,
+      "sizeLines": 125,
       "fileCategory": "code"
     },
     {
@@ -679,7 +802,13 @@
     {
       "path": "src/components/UnassignedPool.tsx",
       "language": "typescript",
-      "sizeLines": 99,
+      "sizeLines": 98,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/components/attendanceButtonStyles.ts",
+      "language": "typescript",
+      "sizeLines": 9,
       "fileCategory": "code"
     },
     {
@@ -1073,9 +1202,33 @@
       "fileCategory": "code"
     },
     {
+      "path": "src/domain/matching/autoAssign.worker.ts",
+      "language": "typescript",
+      "sizeLines": 5,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/autoAssignAlgorithm.test.ts",
+      "language": "typescript",
+      "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/domain/matching/autoAssignAlgorithm.ts",
       "language": "typescript",
-      "sizeLines": 130,
+      "sizeLines": 141,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/companionRequests.test.ts",
+      "language": "typescript",
+      "sizeLines": 168,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/companionRequests.ts",
+      "language": "typescript",
+      "sizeLines": 95,
       "fileCategory": "code"
     },
     {
@@ -1115,6 +1268,18 @@
       "fileCategory": "code"
     },
     {
+      "path": "src/domain/matching/groupSizing.d.mts",
+      "language": "mts",
+      "sizeLines": 12,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/groupSizing.mjs",
+      "language": "javascript",
+      "sizeLines": 177,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/domain/matching/isSameName.test.ts",
       "language": "typescript",
       "sizeLines": 31,
@@ -1139,9 +1304,27 @@
       "fileCategory": "code"
     },
     {
+      "path": "src/domain/matching/personalUtility.test.ts",
+      "language": "typescript",
+      "sizeLines": 307,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/matching/personalUtility.ts",
+      "language": "typescript",
+      "sizeLines": 203,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/domain/meeting/progressHelpers.ts",
       "language": "typescript",
       "sizeLines": 65,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/domain/members/attendanceRegistration.ts",
+      "language": "typescript",
+      "sizeLines": 30,
       "fileCategory": "code"
     },
     {
@@ -1375,19 +1558,19 @@
     {
       "path": "src/hooks/useAttendanceDraft.ts",
       "language": "typescript",
-      "sizeLines": 73,
+      "sizeLines": 82,
       "fileCategory": "code"
     },
     {
       "path": "src/hooks/useAttendanceLogic.test.tsx",
       "language": "typescript",
-      "sizeLines": 177,
+      "sizeLines": 273,
       "fileCategory": "code"
     },
     {
       "path": "src/hooks/useAttendanceLogic.ts",
       "language": "typescript",
-      "sizeLines": 399,
+      "sizeLines": 417,
       "fileCategory": "code"
     },
     {
@@ -1417,13 +1600,13 @@
     {
       "path": "src/hooks/useFirestore.test.tsx",
       "language": "typescript",
-      "sizeLines": 78,
+      "sizeLines": 89,
       "fileCategory": "code"
     },
     {
       "path": "src/hooks/useFirestore.ts",
       "language": "typescript",
-      "sizeLines": 39,
+      "sizeLines": 54,
       "fileCategory": "code"
     },
     {
@@ -1547,6 +1730,18 @@
       "fileCategory": "code"
     },
     {
+      "path": "src/lib/runAutoAssignment.test.ts",
+      "language": "typescript",
+      "sizeLines": 43,
+      "fileCategory": "code"
+    },
+    {
+      "path": "src/lib/runAutoAssignment.ts",
+      "language": "typescript",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/lib/utils.ts",
       "language": "typescript",
       "sizeLines": 28,
@@ -1565,21 +1760,27 @@
       "fileCategory": "code"
     },
     {
+      "path": "src/scenario-lab/AttendanceDesignProposal.tsx",
+      "language": "typescript",
+      "sizeLines": 18,
+      "fileCategory": "code"
+    },
+    {
       "path": "src/scenario-lab/ScenarioLabApp.tsx",
       "language": "typescript",
-      "sizeLines": 148,
+      "sizeLines": 149,
       "fileCategory": "code"
     },
     {
       "path": "src/scenario-lab/ScenarioPages.tsx",
       "language": "typescript",
-      "sizeLines": 253,
+      "sizeLines": 283,
       "fileCategory": "code"
     },
     {
       "path": "src/scenario-lab/fixtures.ts",
       "language": "typescript",
-      "sizeLines": 226,
+      "sizeLines": 233,
       "fileCategory": "code"
     },
     {
@@ -1591,13 +1792,13 @@
     {
       "path": "src/services/attendeesService.test.ts",
       "language": "typescript",
-      "sizeLines": 112,
+      "sizeLines": 140,
       "fileCategory": "code"
     },
     {
       "path": "src/services/attendeesService.ts",
       "language": "typescript",
-      "sizeLines": 200,
+      "sizeLines": 197,
       "fileCategory": "code"
     },
     {
@@ -1621,7 +1822,7 @@
     {
       "path": "src/services/dailyPlanningService.test.ts",
       "language": "typescript",
-      "sizeLines": 116,
+      "sizeLines": 124,
       "fileCategory": "code"
     },
     {
@@ -1705,13 +1906,13 @@
     {
       "path": "src/services/sessionsService.test.ts",
       "language": "typescript",
-      "sizeLines": 63,
+      "sizeLines": 84,
       "fileCategory": "code"
     },
     {
       "path": "src/services/sessionsService.ts",
       "language": "typescript",
-      "sizeLines": 152,
+      "sizeLines": 156,
       "fileCategory": "code"
     },
     {
@@ -1723,7 +1924,7 @@
     {
       "path": "src/tests/firestore.rules.test.ts",
       "language": "typescript",
-      "sizeLines": 708,
+      "sizeLines": 732,
       "fileCategory": "code"
     },
     {
@@ -1735,7 +1936,7 @@
     {
       "path": "tests/design-lab/smoke.spec.ts",
       "language": "typescript",
-      "sizeLines": 88,
+      "sizeLines": 319,
       "fileCategory": "code"
     },
     {
@@ -1747,7 +1948,7 @@
     {
       "path": "tests/scenario-lab/attendance-import.spec.ts",
       "language": "typescript",
-      "sizeLines": 81,
+      "sizeLines": 87,
       "fileCategory": "code"
     },
     {
@@ -1783,7 +1984,7 @@
     {
       "path": "tests/scenario-lab/scenario.spec.ts",
       "language": "typescript",
-      "sizeLines": 103,
+      "sizeLines": 107,
       "fileCategory": "code"
     },
     {
@@ -1799,19 +2000,24 @@
       "fileCategory": "code"
     }
   ],
-  "totalFiles": 296,
+  "totalFiles": 329,
   "filteredByIgnore": 11,
   "estimatedComplexity": "large",
   "importMap": {
     ".firebaserc": [],
     ".gitattributes": [],
     ".github/workflows/ci.yml": [],
+    ".stitch/DESIGN.md": [],
     "README.md": [],
     "design.html": [],
+    "docs/design-guidelines.md": [],
     "docs/development.md": [],
+    "docs/group-sizing-model.md": [],
+    "docs/group-utility-model.md": [],
     "docs/knowledge-graph.md": [],
     "docs/new-computer.md": [],
     "docs/operations.md": [],
+    "docs/product-completion.md": [],
     "eslint.config.js": [],
     "firebase-applet-config.demo.json": [],
     "firebase-applet-config.json": [],
@@ -1826,11 +2032,30 @@
     "playwright.config.ts": [],
     "playwright.scenario.config.ts": [],
     "public/site.webmanifest": [],
+    "scripts/dev-environment.test.mjs": [],
     "scripts/emulator-runtime.mjs": [],
+    "scripts/gender-utility-review.mjs": [
+      "scripts/group-utility-prototype.mjs"
+    ],
+    "scripts/gender-utility-review.test.mjs": [
+      "scripts/gender-utility-review.mjs",
+      "scripts/utility-calibration-review.mjs"
+    ],
+    "scripts/group-sizing-prototype.mjs": [
+      "src/domain/matching/groupSizing.mjs"
+    ],
+    "scripts/group-sizing-prototype.test.mjs": [
+      "scripts/group-sizing-prototype.mjs"
+    ],
+    "scripts/group-utility-prototype.mjs": [],
+    "scripts/group-utility-prototype.test.mjs": [
+      "scripts/group-utility-prototype.mjs"
+    ],
     "scripts/knowledge-graph.mjs": [],
     "scripts/knowledge-graph.test.mjs": [
       "scripts/knowledge-graph.mjs"
     ],
+    "scripts/member-security-probe.mjs": [],
     "scripts/reset-demo.mjs": [],
     "scripts/run-demo.mjs": [
       "scripts/emulator-runtime.mjs"
@@ -1840,6 +2065,13 @@
     ],
     "scripts/seed-demo.mjs": [],
     "scripts/setup-demo-java.ps1": [],
+    "scripts/utility-calibration-review.mjs": [
+      "scripts/group-utility-prototype.mjs"
+    ],
+    "scripts/utility-calibration-review.test.mjs": [
+      "scripts/group-utility-prototype.mjs",
+      "scripts/utility-calibration-review.mjs"
+    ],
     "scripts/verify-production-bundle.mjs": [],
     "src/App.tsx": [
       "src/components/AvalonLogo.tsx",
@@ -1909,6 +2141,7 @@
       "src/types.ts"
     ],
     "src/components/AttendanceCsvImportModal.tsx": [
+      "src/components/AttendanceNotice.tsx",
       "src/components/CsvColumnSelect.tsx",
       "src/domain/attendance/csvParser.ts",
       "src/types.ts"
@@ -1916,17 +2149,27 @@
     "src/components/AttendanceDragAndDrop.tsx": [
       "src/lib/utils.ts"
     ],
+    "src/components/AttendanceMemberRegistrationModal.tsx": [
+      "src/domain/games/gameCatalog.ts",
+      "src/domain/members/attendanceRegistration.ts",
+      "src/types.ts"
+    ],
+    "src/components/AttendanceNotice.tsx": [
+      "src/lib/utils.ts"
+    ],
     "src/components/AttendancePage.tsx": [
       "src/components/AttendanceCsvImportModal.tsx",
       "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/AttendanceMemberRegistrationModal.tsx",
+      "src/components/CompanionRequestModal.tsx",
       "src/components/ConfirmDeleteModal.tsx",
       "src/components/CostEvaluationModal.tsx",
       "src/components/GroupsCanvas.tsx",
       "src/components/ManualAddModal.tsx",
       "src/components/PageHeader.tsx",
       "src/components/UnassignedPool.tsx",
-      "src/hooks/useAttendanceLogic.ts",
-      "src/lib/utils.ts"
+      "src/components/attendanceButtonStyles.ts",
+      "src/hooks/useAttendanceLogic.ts"
     ],
     "src/components/AutoAssignmentPanel.tsx": [
       "src/domain/interviews/autoAssignment.ts",
@@ -1940,9 +2183,21 @@
     ],
     "src/components/AvalonLogo.tsx": [],
     "src/components/BoardMemberBadge.tsx": [],
+    "src/components/CompanionRequestModal.tsx": [
+      "src/domain/matching/companionRequests.ts"
+    ],
+    "src/components/CompanionRequestNotice.tsx": [
+      "src/components/AttendanceNotice.tsx",
+      "src/domain/matching/companionRequests.ts"
+    ],
     "src/components/ConfirmDeleteModal.tsx": [],
+    "src/components/CostEvaluationModal.test.tsx": [
+      "src/components/CostEvaluationModal.tsx",
+      "src/domain/matching/personalUtility.ts",
+      "src/types.ts"
+    ],
     "src/components/CostEvaluationModal.tsx": [
-      "src/domain/matching/groupCostFunction.ts",
+      "src/domain/matching/personalUtility.ts",
       "src/types.ts"
     ],
     "src/components/CsvColumnSelect.tsx": [],
@@ -1972,7 +2227,11 @@
     ],
     "src/components/GroupsCanvas.tsx": [
       "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/AttendanceNotice.tsx",
       "src/components/BoardMemberBadge.tsx",
+      "src/components/CompanionRequestNotice.tsx",
+      "src/components/attendanceButtonStyles.ts",
+      "src/domain/matching/companionRequests.ts",
       "src/types.ts"
     ],
     "src/components/InterviewRoundDeleteModal.tsx": [
@@ -2124,6 +2383,7 @@
     ],
     "src/components/MeetingVersionsPanel.tsx": [
       "src/hooks/useMeetingRecords.ts",
+      "src/services/dailyPlanningService.ts",
       "src/types.ts"
     ],
     "src/components/MemberFilters.tsx": [
@@ -2231,10 +2491,12 @@
     ],
     "src/components/UnassignedPool.tsx": [
       "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/AttendanceNotice.tsx",
       "src/components/BoardMemberBadge.tsx",
       "src/lib/utils.ts",
       "src/types.ts"
     ],
+    "src/components/attendanceButtonStyles.ts": [],
     "src/components/icons/DiamondSvg.tsx": [],
     "src/components/icons/RookSvg.tsx": [],
     "src/components/selectionDecisionStyles.ts": [
@@ -2440,8 +2702,25 @@
     "src/domain/interviews/scheduling.ts": [
       "src/types.ts"
     ],
+    "src/domain/matching/autoAssign.worker.ts": [
+      "src/domain/matching/autoAssignAlgorithm.ts"
+    ],
+    "src/domain/matching/autoAssignAlgorithm.test.ts": [
+      "src/domain/matching/autoAssignAlgorithm.ts",
+      "src/domain/matching/personalUtility.ts",
+      "src/types.ts"
+    ],
     "src/domain/matching/autoAssignAlgorithm.ts": [
-      "src/domain/matching/groupCostFunction.ts",
+      "src/domain/matching/groupSizing.mjs",
+      "src/domain/matching/personalUtility.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/companionRequests.test.ts": [
+      "src/domain/matching/companionRequests.ts",
+      "src/domain/matching/personalUtility.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/companionRequests.ts": [
       "src/types.ts"
     ],
     "src/domain/matching/getMemberFromAttendee.test.ts": [
@@ -2469,6 +2748,8 @@
     "src/domain/matching/groupCostFunction.ts": [
       "src/types.ts"
     ],
+    "src/domain/matching/groupSizing.d.mts": [],
+    "src/domain/matching/groupSizing.mjs": [],
     "src/domain/matching/isSameName.test.ts": [
       "src/domain/matching/isSameName.ts"
     ],
@@ -2483,7 +2764,25 @@
       "src/domain/stats/getSemesterRosterCounts.ts",
       "src/types.ts"
     ],
+    "src/domain/matching/personalUtility.test.ts": [
+      "scripts/group-utility-prototype.mjs",
+      "src/domain/matching/autoAssignAlgorithm.ts",
+      "src/domain/matching/groupSizing.mjs",
+      "src/domain/matching/personalUtility.ts",
+      "src/types.ts"
+    ],
+    "src/domain/matching/personalUtility.ts": [
+      "src/domain/attendance/sessionMetadata.ts",
+      "src/domain/matching/companionRequests.ts",
+      "src/domain/matching/getMemberFromAttendee.ts",
+      "src/types.ts"
+    ],
     "src/domain/meeting/progressHelpers.ts": [
+      "src/types.ts"
+    ],
+    "src/domain/members/attendanceRegistration.ts": [
+      "src/domain/members/memberForm.ts",
+      "src/domain/members/memberIdentity.ts",
       "src/types.ts"
     ],
     "src/domain/members/dormantMemberOrder.test.ts": [
@@ -2633,9 +2932,11 @@
     "src/hooks/useAsyncActionState.ts": [],
     "src/hooks/useAttendanceDraft.ts": [
       "src/domain/attendance/sessionMetadata.ts",
+      "src/domain/matching/companionRequests.ts",
       "src/types.ts"
     ],
     "src/hooks/useAttendanceLogic.test.tsx": [
+      "src/domain/members/attendanceRegistration.ts",
       "src/hooks/useAttendanceLogic.ts",
       "src/services/dailyPlanningService.ts"
     ],
@@ -2645,13 +2946,16 @@
       "src/domain/attendance/dailySession.ts",
       "src/domain/attendance/moveAttendee.ts",
       "src/domain/attendance/sessionGroups.ts",
+      "src/domain/attendance/sessionMetadata.ts",
       "src/domain/matching/autoAssignAlgorithm.ts",
       "src/domain/matching/getMemberFromAttendee.ts",
-      "src/domain/matching/groupCostContext.ts",
+      "src/domain/matching/personalUtility.ts",
+      "src/domain/members/attendanceRegistration.ts",
       "src/hooks/useAsyncActionState.ts",
       "src/hooks/useAttendanceDraft.ts",
       "src/hooks/useFirestore.ts",
       "src/lib/firebase.ts",
+      "src/lib/runAutoAssignment.ts",
       "src/services/attendeesService.ts",
       "src/services/auditService.ts",
       "src/services/dailyPlanningService.ts",
@@ -2790,12 +3094,26 @@
     "src/lib/firebase.ts": [
       "firebase-applet-config.json"
     ],
+    "src/lib/runAutoAssignment.test.ts": [
+      "src/domain/matching/autoAssignAlgorithm.ts",
+      "src/domain/matching/personalUtility.ts",
+      "src/lib/runAutoAssignment.ts"
+    ],
+    "src/lib/runAutoAssignment.ts": [
+      "src/domain/matching/autoAssignAlgorithm.ts"
+    ],
     "src/lib/utils.ts": [],
     "src/main.tsx": [
       "src/App.tsx",
       "src/index.css"
     ],
     "src/react-test-env.d.ts": [],
+    "src/scenario-lab/AttendanceDesignProposal.tsx": [
+      "src/components/CostEvaluationModal.tsx",
+      "src/components/attendanceButtonStyles.ts",
+      "src/domain/matching/personalUtility.ts",
+      "src/types.ts"
+    ],
     "src/scenario-lab/ScenarioLabApp.tsx": [
       "src/components/Sidebar.tsx",
       "src/scenario-lab/ScenarioPages.tsx",
@@ -2804,6 +3122,7 @@
     "src/scenario-lab/ScenarioPages.tsx": [
       "src/components/AttendanceCsvImportModal.tsx",
       "src/components/AttendanceDragAndDrop.tsx",
+      "src/components/CompanionRequestModal.tsx",
       "src/components/GroupsCanvas.tsx",
       "src/components/InterviewSchedulePanel.tsx",
       "src/components/MemberFilters.tsx",
@@ -2813,8 +3132,11 @@
       "src/domain/attendance/csvParser.ts",
       "src/domain/attendance/moveAttendee.ts",
       "src/domain/interviews/autoAssignment.ts",
+      "src/domain/matching/companionRequests.ts",
+      "src/domain/matching/personalUtility.ts",
       "src/domain/members/memberForm.ts",
       "src/hooks/useAttendanceDraft.ts",
+      "src/scenario-lab/AttendanceDesignProposal.tsx",
       "src/scenario-lab/fixtures.ts",
       "src/types.ts"
     ],
@@ -2827,12 +3149,14 @@
     ],
     "src/services/attendeesService.test.ts": [
       "src/domain/attendance/csvParser.ts",
+      "src/domain/members/attendanceRegistration.ts",
       "src/services/attendeesService.ts",
       "src/types.ts"
     ],
     "src/services/attendeesService.ts": [
       "src/domain/attendance/csvParser.ts",
       "src/domain/matching/isSameName.ts",
+      "src/domain/members/attendanceRegistration.ts",
       "src/lib/firebase.ts",
       "src/services/auditService.ts",
       "src/types.ts"
