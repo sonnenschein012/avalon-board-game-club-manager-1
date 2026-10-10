@@ -23,6 +23,19 @@ const groups = (a: string[] = [], b: string[] = []): SessionGroup[] => [
 const session = (day: string, ids: string[]): Session => ({ id: day, name: day, date: date(day), groups: [{ id: 'past', memberIds: ids, gameIds: [] }] });
 
 describe('personal assignment integration', () => {
+  it('uses selected same-year identities and excludes explicitly unregistered entries', () => {
+    const input = fixture(3);
+    input.members[1] = { ...input.members[0]!, id: 'm1', nickname: '두번째', gender: '여' };
+    input.attendees[0] = { ...input.attendees[0]!, memberId: 'm1' };
+    input.attendees[1] = { ...input.attendees[1]!, name: input.members[0]!.name, memberId: 'm0' };
+    input.attendees[2] = { ...input.attendees[2]!, name: input.members[0]!.name, memberId: null };
+    const context = buildUtilityContext(input);
+    expect(context.people.get('a0')).toMatchObject({ memberId: 'm1', gender: '여' });
+    expect(context.people.get('a1')?.memberId).toBe('m0');
+    expect(context.people.has('a2')).toBe(false);
+    input.attendees[1]!.memberId = 'm1';
+    expect(() => buildUtilityContext(input)).toThrow('중복');
+  });
   it('applies the same marginal importance to both gender benefits after protection and attenuation', () => {
     const input = fixture(); input.attendees[0]!.request = '회원01';
     const context = buildUtilityContext(input);

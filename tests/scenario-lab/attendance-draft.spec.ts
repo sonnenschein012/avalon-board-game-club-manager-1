@@ -172,8 +172,78 @@ test.describe('touch cards', () => {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y - delta }] });
     }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
+    await expect.poll(() => page.locator('[data-attendance-pool]').evaluate(element => element.scrollTop)).toBeGreaterThan(40);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
     await expect(preview(page)).toHaveCount(0);
     await cdp.detach();
   });
+});
+
+test('pool wheel and keyboard scrolling keep the header and page in place', async ({ page }) => {
+  const pool = page.locator('[data-attendance-pool]');
+  const header = page.getByRole('heading', { name: /출석 명단/ });
+  const headerY = (await header.boundingBox())!.y;
+  await pool.hover();
+  await page.mouse.wheel(0, 180);
+  await expect.poll(() => pool.evaluate(element => element.scrollTop)).toBeGreaterThan(80);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  expect((await header.boundingBox())!.y).toBe(headerY);
+  await pool.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await page.mouse.wheel(0, 500);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await pool.focus();
+  const bottom = await pool.evaluate(element => element.scrollTop);
+  await page.keyboard.press('PageUp');
+  await expect.poll(() => pool.evaluate(element => element.scrollTop)).toBeLessThan(bottom);
+});
+
+test('pool edge dragging scrolls internally, stops at its end, and releases the page outside', async ({ page }) => {
+  const pool = page.locator('[data-attendance-pool]');
+  await startDrag(page, poolCard(page));
+  const bounds = (await pool.boundingBox())!;
+  await page.mouse.move(bounds.x + 40, bounds.y + bounds.height - 5, { steps: 10 });
+  await expect.poll(() => pool.evaluate(element => element.scrollTop)).toBeGreaterThan(50);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await pool.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const bottom = await pool.evaluate(element => element.scrollTop);
+  await page.mouse.move(bounds.x + 40, bounds.y + 5, { steps: 10 });
+  await expect.poll(() => pool.evaluate(element => element.scrollTop)).toBeLessThan(bottom - 30);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  const stopped = await pool.evaluate(element => element.scrollTop);
+  await page.waitForTimeout(150);
+  expect(await pool.evaluate(element => element.scrollTop)).toBe(stopped);
+  await pool.evaluate(element => { element.scrollTop = 0; });
+  await startDrag(page, poolCard(page));
+  await page.mouse.move(1000, 710, { steps: 10 });
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(80);
+  await page.mouse.up();
+});
+
+test('clipped pool content cannot receive a drop below the visible list', async ({ page }) => {
+  const source = page.locator('[data-group-dropzone="scenario-group-1"] [data-attendee-id]').first();
+  const attendeeId = await source.getAttribute('data-attendee-id');
+  const pool = page.locator('[data-attendance-pool]');
+  await startDrag(page, source);
+  const bounds = (await pool.boundingBox())!;
+  await page.mouse.move(bounds.x + 40, bounds.y + bounds.height + 10, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator(`[data-group-dropzone="scenario-group-1"] [data-attendee-id="${attendeeId}"]`)).toHaveCount(1);
+  await expect(pool.locator(`[data-attendee-id="${attendeeId}"]`)).toHaveCount(0);
+});
+
+test('an empty pool remains a usable return target', async ({ page }) => {
+  await page.getByRole('button', { name: '자동 조편성', exact: true }).click();
+  await page.getByRole('button', { name: '조편성 시작', exact: true }).click();
+  const pool = page.locator('[data-attendance-pool]');
+  await expect(pool.getByText('명단이 없습니다.')).toBeVisible();
+  const source = page.locator('[data-group-dropzone="scenario-group-1"] [data-attendee-id]').first();
+  const attendeeId = await source.getAttribute('data-attendee-id');
+  await startDrag(page, source);
+  await moveTo(page, pool);
+  await page.mouse.up();
+  await expect(pool.locator(`[data-attendee-id="${attendeeId}"]`)).toHaveCount(1);
 });

@@ -10,7 +10,8 @@ import { isSameName } from './isSameName';
  * @example
  * getMemberFromAttendee(members, '김철수', '23')
  */
-export const getMemberFromAttendee = (members: Member[], name?: string, studentIdPrefix?: string): Member | undefined => {
+export const getMemberFromAttendee = (members: Member[], name?: string, studentIdPrefix?: string, memberId?: string | null): Member | undefined => {
+  if (memberId !== undefined) return memberId === null ? undefined : members.find(member => member.id === memberId);
   if (!name) return undefined;
   
   const matchedMembers = members.filter(m => isSameName(m.name, name));

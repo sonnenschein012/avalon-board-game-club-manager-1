@@ -69,14 +69,15 @@ describe('attendance CSV review', () => {
     expect(result.counts.errors).toBe(2);
     expect(result.rows[0]?.errors.join('')).toContain('2, 4행');
   });
-  it('warns for new members, but blocks ambiguous or conflicting existing identities', () => {
+  it('requires a choice for namesakes and warns for unmatched names or years', () => {
     const members = [{ id: 'm1', name: '김테스트', studentId: '20230001' }, { id: 'm2', name: '김테스트', studentId: '20240002' }] as Member[];
     const draft = input([['김테스트', '차', '네']], ['이름', '음료', '뒤풀이']);
     expect(previewAttendanceCsv(draft, members).canImport).toBe(false);
     draft.rows[0]![0] = '23 김테스트';
     expect(previewAttendanceCsv(draft, members).rows[0]?.memberId).toBe('m1');
     draft.rows[0]![0] = '25 김테스트';
-    expect(previewAttendanceCsv(draft, members).canImport).toBe(false);
+    expect(previewAttendanceCsv(draft, members).counts.unregistered).toBe(1);
+    expect(previewAttendanceCsv(draft, members).rows[0]?.warnings.join('')).toContain('학번이 일치하지');
     draft.rows[0]![0] = '26 신입테스트';
     const result = previewAttendanceCsv(draft, members);
     expect(result.canImport).toBe(true);
@@ -88,5 +89,50 @@ describe('attendance CSV review', () => {
     expect(result.canImport).toBe(true);
     expect(result.rows[0]?.data.request).toBe('전략 게임\n하고 싶어요');
     expect(result.rows[0]?.data.drink).toBe('차, 따뜻하게');
+  });
+});
+
+
+describe('reviewed identities and row corrections', () => {
+  const members = [
+    { id: 'first', name: '김테스트', studentId: '20230001', nickname: '별' },
+    { id: 'second', name: '김테스트', studentId: '20230002', nickname: '달' },
+  ] as Member[];
+  it('requires a nickname selection for same-year namesakes and detects duplicate selections', () => {
+    const draft = input([['23 김테스트', '차', '네'], ['23 김테스트', '물', '아니오']], ['이름', '음료', '뒤풀이']);
+    expect(previewAttendanceCsv(draft, members).canImport).toBe(false);
+    draft.review = { 2: { memberId: 'first' }, 3: { memberId: 'second' } };
+    expect(previewAttendanceCsv(draft, members).canImport).toBe(true);
+    expect(previewAttendanceCsv(draft, members).rows.map(row => row.memberId)).toEqual(['first', 'second']);
+    draft.review[3] = { memberId: 'first' };
+    expect(previewAttendanceCsv(draft, members).rows[0]?.errors.join('')).toContain('중복');
+  });
+  it('rejects a stale or forged selection instead of falling back to another person', () => {
+    const draft = input([['23 김테스트', '차', '네']], ['이름', '음료', '뒤풀이']);
+    draft.review = { 2: { memberId: 'second' } };
+    expect(previewAttendanceCsv(draft, [members[0]!]).canImport).toBe(false);
+    draft.review[2] = { memberId: 'second', fields: { name: '23 다른사람' } };
+    expect(previewAttendanceCsv(draft, members).canImport).toBe(false);
+  });
+  it('edits by original row number and preserves the source', () => {
+    const draft = input([['23 오타', '차', '아마도']], ['이름', '음료', '뒤풀이']);
+    const original = JSON.stringify(draft.rows);
+    draft.review = { 2: { fields: { name: '23 김테스트', afterparty: '아니오' }, memberId: 'second' } };
+    const result = previewAttendanceCsv(draft, members);
+    expect(result.canImport).toBe(true);
+    expect(result.counts).toMatchObject({ total: 1, absent: 1 });
+    expect(result.rows[0]).toMatchObject({ sourceRowNumber: 2, memberId: 'second' });
+    expect(JSON.stringify(draft.rows)).toBe(original);
+  });
+
+  it('does not accept indistinguishable candidates or silently normalize invalid editor values', () => {
+    const draft = input([['23 김테스트', '차', '네']], ['이름', '음료', '뒤풀이']);
+    draft.review = { 2: { memberId: 'second' } };
+    const identical = [members[0]!, { ...members[0]!, id: 'second' }];
+    expect(previewAttendanceCsv(draft, identical).canImport).toBe(false);
+    draft.review = { 2: { fields: { studentIdPrefix: '잘못된학번' } } };
+    const result = previewAttendanceCsv(draft, members);
+    expect(result.rows[0]?.editableFields.studentIdPrefix).toBe('잘못된학번');
+    expect(result.canImport).toBe(false);
   });
 });

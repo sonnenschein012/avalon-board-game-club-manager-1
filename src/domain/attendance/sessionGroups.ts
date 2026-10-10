@@ -11,7 +11,7 @@ export function convertAttendeeIdsToMemberIds(
     ...group,
     memberIds: group.memberIds.map(attendeeId => {
       const attendee = attendees.find(item => item.id === attendeeId);
-      const member = getMemberFromAttendee(members, attendee?.name, attendee?.studentIdPrefix);
+      const member = getMemberFromAttendee(members, attendee?.name, attendee?.studentIdPrefix, attendee?.memberId);
       return member ? member.id : attendeeId;
     }),
   }));

@@ -66,13 +66,13 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   const [attendeeToDelete, setAttendeeToDelete] = useState<Attendee | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => {
-    return getMemberFromAttendee(members, name, studentIdPrefix);
+  const getMemberFromInfo = (name?: string, studentIdPrefix?: string, memberId?: string | null) => {
+    return getMemberFromAttendee(members, name, studentIdPrefix, memberId);
   };
 
   const getMember = (attendeeId: string) => {
     const a = attendees.find(x => x.id === attendeeId);
-    return a ? getMemberFromInfo(a.name, a.studentIdPrefix) : undefined;
+    return a ? getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId) : undefined;
   };
 
   const memberAttendanceCount = useMemo(() => {
@@ -138,8 +138,8 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   const unassignedAttendees = attendees
     .filter(a => !assignedAttendeeIds.has(a.id))
     .sort((a, b) => {
-      const memberA = getMemberFromInfo(a.name, a.studentIdPrefix);
-      const memberB = getMemberFromInfo(b.name, b.studentIdPrefix);
+      const memberA = getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId);
+      const memberB = getMemberFromInfo(b.name, b.studentIdPrefix, b.memberId);
 
       const isBoardA = memberA?.isBoardMember ? 1 : 0;
       const isBoardB = memberB?.isBoardMember ? 1 : 0;
@@ -284,7 +284,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     }
 
     const assignedAttendees = groups.flatMap(g => g.memberIds.map(id => attendees.find(a => a.id === id)).filter(Boolean) as Attendee[]);
-    const unregistered = assignedAttendees.filter(a => !getMemberFromInfo(a.name, a.studentIdPrefix));
+    const unregistered = assignedAttendees.filter(a => !getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId));
 
     if (unregistered.length > 0) {
       toast.error(`${unregistered.map(u => u.name).join(', ')}님은 미등록 인원입니다. 먼저 조원 카드에서 추가해주세요!`);
@@ -317,7 +317,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         groups: mappedGroups,
         attendees: [...new Map(assignedAttendees.map(attendee => [attendee.id, {
           ...attendee,
-          memberId: getMemberFromInfo(attendee.name, attendee.studentIdPrefix)!.id,
+          memberId: getMemberFromInfo(attendee.name, attendee.studentIdPrefix, attendee.memberId)!.id,
         }])).values()],
         sessionId,
         createdAt: planningSnapshot.exists() ? planningSnapshot.data().createdAt : serverTimestamp(),

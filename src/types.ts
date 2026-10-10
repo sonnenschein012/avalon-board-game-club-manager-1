@@ -36,6 +36,8 @@ export interface Game {
 
 export interface Attendee {
   id: string;
+  /** undefined: legacy lookup; null: explicitly unregistered. */
+  memberId?: MemberId | null;
   name: string;
   studentIdPrefix?: string;
   drink?: string;

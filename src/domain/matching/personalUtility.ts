@@ -95,7 +95,7 @@ export function buildUtilityContext(input: {
   const memberToAttendee = new Map<string, string>();
   for (const attendee of attendees) {
     if (attendee.status === '결석') continue;
-    const member = getMemberFromAttendee(members, attendee.name, attendee.studentIdPrefix);
+    const member = getMemberFromAttendee(members, attendee.name, attendee.studentIdPrefix, attendee.memberId);
     if (!member) continue;
     if (memberToAttendee.has(member.id)) throw new Error(`${member.name}님의 출석 항목이 중복됩니다. 명단을 확인해주세요.`);
     const match = member.studentId?.match(/^20(\d{2})|^(\d{2})/);

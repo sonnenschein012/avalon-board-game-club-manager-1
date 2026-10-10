@@ -20,7 +20,7 @@ export function buildGroupCostContext({
 }: GroupCostContextInput): CostCalculationContext {
   const matchedAttendees = attendees.map(attendee => ({
     attendee,
-    member: getMemberFromAttendee(members, attendee.name, attendee.studentIdPrefix),
+    member: getMemberFromAttendee(members, attendee.name, attendee.studentIdPrefix, attendee.memberId),
   }));
   const attendingMembers = matchedAttendees
     .map(({ member }) => member)

@@ -12,6 +12,8 @@ export interface AttendanceImportInput {
   headers: string[];
   rows: string[][];
   mapping: AttendanceMapping;
+  review?: Record<number, { fields?: Partial<Record<AttendanceField, string>>; memberId?: string }>;
+  allowUnregistered?: boolean;
 }
 export interface AttendanceImportRow {
   name: string;
@@ -25,6 +27,8 @@ export interface AttendancePreviewRow {
   data: AttendanceImportRow;
   rawAfterparty: string;
   memberId?: string;
+  candidates: Member[];
+  editableFields: Record<AttendanceField, string>;
   errors: string[];
   warnings: string[];
 }
@@ -70,12 +74,19 @@ export function parseAfterparty(value: string): boolean | undefined {
 
 const prefixOf = (value: string) => value.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(Boolean) || '';
 
+export const attendanceMemberLabel = (member: Member) => {
+  const semester = member.semester?.trim();
+  const joinedYear = semester?.match(/^\d{4}/)?.[0] || semester || '가입년도 없음';
+  return `${member.nickname?.trim() || member.name} · ${joinedYear}`;
+};
+
 export function previewAttendanceCsv(input: AttendanceImportInput, members: readonly Member[] = []) {
   const { headers, rows, mapping } = input;
   const mappingErrors = attendanceMappingErrors(headers, mapping);
   const previewRows: AttendancePreviewRow[] = mappingErrors.length ? [] : rows.flatMap((values, index) => {
     if (values.every(value => !value.trim())) return [];
-    const get = (field: AttendanceField) => (values[mapping[field]] ?? '').trim();
+    const review = input.review?.[index + 2];
+    const get = (field: AttendanceField) => (review?.fields?.[field] ?? values[mapping[field]] ?? '').trim();
     const rawName = get('name').normalize('NFKC');
     const combined = rawName.match(/^(\d{2}|20\d{2}\d*)\s*(?=[^\d\s])(.+)$/);
     const name = (combined?.[2] ?? rawName).trim();
@@ -92,18 +103,28 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
     if (values.length !== headers.length) errors.push('행의 열 개수가 헤더와 다릅니다.');
     const namesakes = members.filter(member => isSameName(member.name, name));
     const matches = namesakes.filter(member => !studentIdPrefix || prefixOf(member.studentId) === studentIdPrefix);
-    if (matches.length > 1 || (namesakes.length && !matches.length)) errors.push('동명이인 또는 학번 불일치가 있습니다. 이름과 학번을 확인해주세요.');
-    else if (!matches.length) warnings.push('미등록 부원 · 가져온 뒤 멤버 추가 가능');
+    const selected = review?.memberId ? matches.find(member => member.id === review.memberId) : undefined;
+    if (review?.memberId && !selected) errors.push('선택한 회원이 현재 이름·학번과 일치하지 않습니다. 다시 선택해주세요.');
+    else if (selected && matches.filter(member => attendanceMemberLabel(member) === attendanceMemberLabel(selected)).length > 1)
+      errors.push('닉네임과 가입년도가 같은 회원이 있습니다. 회원 명부에서 닉네임을 구분한 뒤 다시 선택해주세요.');
+    else if (matches.length > 1 && !selected) errors.push('동명이인입니다. 닉네임과 가입년도를 확인하고 회원을 선택해주세요.');
+    else if (!matches.length) warnings.push(namesakes.length
+      ? '이름은 있지만 학번이 일치하지 않습니다. 수정하거나 미등록 상태로 가져오세요.'
+      : '명부에 이름이 없습니다. 수정하거나 미등록 상태로 가져오세요.');
+    const memberId = selected?.id ?? (matches.length === 1 ? matches[0]!.id : undefined);
     if (mapping.drink >= 0 && !get('drink')) warnings.push('음료 미응답');
     if (mapping.afterparty >= 0 && !rawAfterparty) warnings.push('뒤풀이 미응답');
     return [{
       sourceRowNumber: index + 2,
       data: { name, studentIdPrefix, drink: get('drink'), request: get('request'), ...(afterparty === undefined ? {} : { afterparty }) },
-      rawAfterparty, ...(matches.length === 1 ? { memberId: matches[0]!.id } : {}), errors, warnings,
+      rawAfterparty, ...(memberId ? { memberId } : {}), candidates: matches,
+      editableFields: Object.fromEntries((Object.keys(attendanceFields) as AttendanceField[]).map(field => [field, get(field)])) as Record<AttendanceField, string>,
+      errors, warnings,
     }];
   });
   const keys = new Map<string, AttendancePreviewRow[]>();
   for (const row of previewRows) {
+    if (row.candidates.length > 1 && !row.memberId) continue;
     const key = row.memberId || `${row.data.studentIdPrefix}:${row.data.name.replace(/\s/g, '').toLowerCase()}`;
     keys.set(key, [...(keys.get(key) ?? []), row]);
   }
@@ -115,7 +136,7 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
     canImport: !mappingErrors.length && previewRows.length > 0 && previewRows.every(row => !row.errors.length),
     counts: {
       total: previewRows.length, errors: previewRows.filter(row => row.errors.length).length,
-      unregistered: previewRows.filter(row => !row.memberId).length,
+      unregistered: previewRows.filter(row => !row.memberId && !row.candidates.length).length,
       drinks: previewRows.filter(row => row.data.drink).length,
       attending: previewRows.filter(row => row.data.afterparty === true).length,
       absent: previewRows.filter(row => row.data.afterparty === false).length,

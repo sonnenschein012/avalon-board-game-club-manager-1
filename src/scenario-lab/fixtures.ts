@@ -64,6 +64,7 @@ export function createMembersFixture(state: MembersScenarioState): Member[] {
 function makeAttendee(index: number, member?: Member): Attendee {
   return {
     id: `scenario-attendee-${String(index + 1).padStart(2, '0')}`,
+    memberId: member?.id ?? null,
     name: member?.name ?? `비회원 참가자 ${index + 1}`,
     studentIdPrefix: member?.studentId.slice(0, 2) ?? '26',
     drink: index % 3 === 0 ? '아이스티' : '',

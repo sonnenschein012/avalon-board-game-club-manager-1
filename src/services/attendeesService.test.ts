@@ -46,6 +46,8 @@ vi.mock('sonner', () => ({
 describe('attendeesService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    batch.commit.mockResolvedValue(undefined);
+    vi.mocked(getDocs).mockResolvedValue({ docs: members.map(member => ({ id: member.id, data: () => member })) } as never);
   });
 
   const members: Member[] = [
@@ -64,7 +66,7 @@ describe('attendeesService', () => {
       name: '새이름', nickname: '26 새이름', studentId: '26', gender: '여', semester: '2026-2',
       phone: '', preferredGenre: [], status: '활동',
     }));
-    expect(batch.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), { name: '새이름', studentIdPrefix: '26' });
+    expect(batch.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), { name: '새이름', studentIdPrefix: '26', memberId: 'new-document' });
   });
 
   it('rejects existing members and preserves the form on commit failure', async () => {
@@ -73,6 +75,7 @@ describe('attendeesService', () => {
     vi.mocked(getDocs).mockResolvedValueOnce({ docs: [{ id: 'm1', data: () => members[0] }] } as never);
     expect(await quickAddMemberRecord(attendee, draft)).toBe(false);
     expect(batch.commit).not.toHaveBeenCalled();
+    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [] } as never);
     batch.commit.mockRejectedValueOnce(new Error('offline'));
     expect(await quickAddMemberRecord(attendee, draft)).toBe(false);
   });
@@ -122,7 +125,8 @@ describe('attendeesService', () => {
     expect(batch.commit).not.toHaveBeenCalled();
   });
   it('commits the replacement, normalized responses, dormant updates and audit together', async () => {
-    expect(await importAttendanceRows(draft(), [{ id: 'old' }] as Attendee[], [{ ...members[0]!, status: '휴면' }])).toBe(true);
+    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [{ id: 'm1', data: () => ({ ...members[0]!, status: '휴면' }) }] } as never);
+    expect(await importAttendanceRows(draft(), [{ id: 'old' }] as Attendee[], members)).toBe(true);
     expect(batch.delete).toHaveBeenCalledOnce();
     expect(batch.set).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), expect.objectContaining({ name: '김철수', drink: '차', afterparty: true, request: '', status: '대기' }));
     expect(batch.update).toHaveBeenCalledWith(expect.objectContaining({ id: 'new-document' }), { status: '활동', dormantSemester: '' });
@@ -136,5 +140,34 @@ describe('attendeesService', () => {
     expect(await importAttendanceRows(draft(), Array.from({ length: 500 }, (_, index) => ({ id: String(index) })) as Attendee[], members)).toBe(false);
     expect(batch.delete).not.toHaveBeenCalled();
     expect(batch.commit).not.toHaveBeenCalled();
+  });
+
+  it('requires explicit unregistered acknowledgement before replacing the roster', async () => {
+    const input = draft([['25 김철수', '차', '네', '']]);
+    expect(await importAttendanceRows(input, [{ id: 'old' }] as Attendee[], members)).toBe(false);
+    expect(batch.delete).not.toHaveBeenCalled();
+    expect(await importAttendanceRows({ ...input, allowUnregistered: true }, [], members)).toBe(true);
+    expect(batch.set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ memberId: null, studentIdPrefix: '25' }));
+  });
+
+  it('stores the selected namesake and corrected row using the refreshed roster', async () => {
+    const twin = { ...members[0]!, id: 'm2', nickname: '두번째 철수' };
+    vi.mocked(getDocs).mockResolvedValueOnce({ docs: [...members, twin].map(member => ({ id: member.id, data: () => member })) } as never);
+    const input = { ...draft(), review: { 2: { memberId: 'm2', fields: { drink: '물' } } } };
+    expect(await importAttendanceRows(input, [], members)).toBe(true);
+    expect(batch.set).toHaveBeenCalledExactlyOnceWith(expect.anything(), expect.objectContaining({ memberId: 'm2', drink: '물' }));
+  });
+
+  it('preserves the roster if the selected member disappeared or lookup fails', async () => {
+    expect(await importAttendanceRows({ ...draft(), review: { 2: { memberId: 'deleted' } } }, [{ id: 'old' }] as Attendee[], members)).toBe(false);
+    vi.mocked(getDocs).mockRejectedValueOnce(new Error('offline'));
+    expect(await importAttendanceRows(draft(), [{ id: 'old' }] as Attendee[], members)).toBe(false);
+    expect(batch.delete).not.toHaveBeenCalled();
+    expect(batch.commit).not.toHaveBeenCalled();
+  });
+
+  it('manual entry cannot arbitrarily choose a namesake', async () => {
+    expect(await manualAddAttendeeRecord({ name: '김철수', studentIdPrefix: '23', drink: '', afterparty: false, request: '' }, [...members, { ...members[0]!, id: 'm2' }], [])).toBe(false);
+    expect(batch.set).not.toHaveBeenCalled();
   });
 });

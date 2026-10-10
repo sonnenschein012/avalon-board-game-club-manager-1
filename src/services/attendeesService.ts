@@ -30,7 +30,7 @@ export async function quickAddMemberRecord(attendee: Attendee, input: Attendance
       ...data,
       createdAt: serverTimestamp()
     });
-    batch.update(doc(db, 'attendees', attendee.id), { name: data.name, studentIdPrefix: data.studentId });
+    batch.update(doc(db, 'attendees', attendee.id), { name: data.name, studentIdPrefix: data.studentId, memberId: memberRef.id });
     addAuditEventToBatch(batch, {
       category: 'member',
       action: 'member.created_from_attendance',
@@ -70,6 +70,10 @@ export async function manualAddAttendeeRecord(
       return false;
     }
 
+    if (matchedMembers.length > 1) {
+      toast.error('동명이인이 있습니다. CSV 미리보기에서 닉네임과 가입년도로 회원을 선택해주세요.');
+      return false;
+    }
     const member = matchedMembers[0];
     if (!member) {
       toast.error('명부에 해당 이름과 학번을 가진 동아리원이 없습니다.');
@@ -77,7 +81,9 @@ export async function manualAddAttendeeRecord(
     }
     const actualStudentIdPrefix = member.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x=>x) || studentIdPrefix;
 
-    const isAlreadyInAttendees = attendees.some(a => isSameName(a.name, member.name) && (a.studentIdPrefix === actualStudentIdPrefix || !actualStudentIdPrefix));
+    const isAlreadyInAttendees = attendees.some(a => a.memberId === undefined
+      ? isSameName(a.name, member.name) && (a.studentIdPrefix === actualStudentIdPrefix || !actualStudentIdPrefix)
+      : a.memberId === member.id);
 
     if (isAlreadyInAttendees) {
       toast.error('이미 출석 명단에 있는 동아리원입니다.');
@@ -90,6 +96,7 @@ export async function manualAddAttendeeRecord(
 
     const newAttendeeData = {
       name: member.name,
+      memberId: member.id,
       studentIdPrefix: actualStudentIdPrefix,
       drink,
       afterparty,
@@ -135,9 +142,21 @@ export async function importAttendanceRows(
   attendees: Attendee[],
   members: Member[],
 ): Promise<boolean> {
+  try {
+    const snapshot = await getDocs(collection(db, 'members'));
+    members = snapshot.docs.map(item => ({ ...item.data(), id: item.id }) as Member);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, 'members');
+    toast.error('회원 명부를 확인하지 못했습니다. 기존 명단은 유지됩니다.');
+    return false;
+  }
   const preview = previewAttendanceCsv(input, members);
   if (!preview.canImport) {
     toast.error('열 연결과 오류 행을 확인해주세요. 기존 명단은 유지됩니다.');
+    return false;
+  }
+  if (preview.counts.unregistered > 0 && !input.allowUnregistered) {
+    toast.error('미등록 부원을 확인해주세요. 기존 명단은 유지됩니다.');
     return false;
   }
   const wakingMembers = members.filter(member => member.status === '휴면'
@@ -153,7 +172,7 @@ export async function importAttendanceRows(
     const importId = crypto.randomUUID();
     attendees.forEach(attendee => batch.delete(doc(db, 'attendees', attendee.id)));
     preview.rows.forEach(row => batch.set(doc(collection(db, 'attendees')), {
-      ...row.data, importDate, importId, status: '대기',
+      ...row.data, memberId: row.memberId ?? null, importDate, importId, status: '대기',
     }));
     wakingMembers.forEach(member => batch.update(doc(db, 'members', member.id), {
       status: '활동', dormantSemester: '',

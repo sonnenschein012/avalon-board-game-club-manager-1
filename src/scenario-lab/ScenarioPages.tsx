@@ -9,6 +9,7 @@ import UnassignedPool from '../components/UnassignedPool';
 import type { AutoAssignmentResult } from '../domain/interviews/autoAssignment';
 import { createMemberFormData, type MemberFormData } from '../domain/members/memberForm';
 import type { Attendee, InterviewAssignment, Member } from '../types';
+import { getMemberFromAttendee } from '../domain/matching/getMemberFromAttendee';
 import { useAttendanceDraft } from '../hooks/useAttendanceDraft';
 import { AttendanceDragAndDrop } from '../components/AttendanceDragAndDrop';
 import AttendanceCsvImportModal from '../components/AttendanceCsvImportModal';
@@ -210,10 +211,10 @@ export function AttendanceScenario({ state, draftScope = null, buttonProposal }:
 
   const assignedIds = new Set(groups.flatMap(group => group.memberIds));
   const unassignedAttendees = attendees.filter(attendee => !assignedIds.has(attendee.id));
-  const getMemberFromInfo = (name?: string, studentIdPrefix?: string) => members.find(member =>
-    member.name === name && (!studentIdPrefix || member.studentId.startsWith(studentIdPrefix)));
+  const getMemberFromInfo = (name?: string, studentIdPrefix?: string, memberId?: string | null) =>
+    getMemberFromAttendee(members, name, studentIdPrefix, memberId);
   const memberToAttendee = new Map(attendees.flatMap(attendee => {
-    const member = getMemberFromInfo(attendee.name, attendee.studentIdPrefix);
+    const member = getMemberFromInfo(attendee.name, attendee.studentIdPrefix, attendee.memberId);
     return member ? [[member.id, attendee.id] as const] : [];
   }));
   const { choices } = resolveCompanionRequests({ attendees, members, memberToAttendee, assignmentDate: sessionDate, selections: requestSelections });
@@ -237,8 +238,8 @@ export function AttendanceScenario({ state, draftScope = null, buttonProposal }:
     {importOpen && <AttendanceCsvImportModal members={members} existingCount={attendees.length} groupCount={groups.length}
       onClose={() => setImportOpen(false)} onConfirm={async input => {
         const preview = previewAttendanceCsv(input, members);
-        if (!preview.canImport) return false;
-        setAttendees(preview.rows.map((row, index) => ({ ...row.data, id: `csv-${index}`, importDate: fixture.attendees[0]?.importDate, importId: 'scenario', status: '대기' } as Attendee)));
+        if (!preview.canImport || (preview.counts.unregistered > 0 && !input.allowUnregistered)) return false;
+        setAttendees(preview.rows.map((row, index) => ({ ...row.data, memberId: row.memberId ?? null, id: `csv-${index}`, importDate: fixture.attendees[0]?.importDate, importId: 'scenario', status: '대기' } as Attendee)));
         setGroups([]);
         return true;
       }} />}
@@ -254,7 +255,11 @@ export function AttendanceScenario({ state, draftScope = null, buttonProposal }:
         getMemberFromInfo={getMemberFromInfo}
         memberAttendanceCount={memberAttendanceCount}
         onManualAddOpen={() => undefined}
-        onQuickAddMember={attendee => setMembers(current => [...current, { ...createMembersFixture('default')[0]!, id: `local-${attendee.id}`, name: attendee.name, studentId: `${attendee.studentIdPrefix ?? '26'}00000` }])}
+        onQuickAddMember={attendee => {
+          const memberId = `local-${attendee.id}`;
+          setMembers(current => [...current, { ...createMembersFixture('default')[0]!, id: memberId, name: attendee.name, nickname: attendee.name, studentId: `${attendee.studentIdPrefix ?? '26'}00000` }]);
+          setAttendees(current => current.map(item => item.id === attendee.id ? { ...item, memberId } : item));
+        }}
         onDeleteAttendee={(attendee: Attendee) => { setAttendees(current => current.filter(item => item.id !== attendee.id)); removeFromGroups(attendee.id); }}
       />
       <GroupsCanvas

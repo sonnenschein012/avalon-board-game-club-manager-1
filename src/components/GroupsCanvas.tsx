@@ -38,7 +38,7 @@ export interface GroupsCanvasProps {
   onCreateGroup: () => void;
   removeFromGroup: (memberId: string, groupId: string) => void;
   attendees: Attendee[];
-  getMemberFromInfo: (name?: string, studentIdPrefix?: string) => Member | undefined;
+  getMemberFromInfo: (name?: string, studentIdPrefix?: string, memberId?: string | null) => Member | undefined;
   memberAttendanceCount: Record<string, number>;
   activeRequestId: string | null;
   setActiveRequestId: (id: string | null) => void;
@@ -205,7 +205,7 @@ export default function GroupsCanvas({
                   <div className="flex flex-wrap gap-2">
                     {Array.from(new Set<string>(group.memberIds)).map(aId => {
                       const a = attendees.find(x => x.id === aId);
-                      const m = getMemberFromInfo(a?.name, a?.studentIdPrefix);
+                      const m = getMemberFromInfo(a?.name, a?.studentIdPrefix, a?.memberId);
                       const borderColor = m?.isBoardMember 
                         ? 'border-l-gold' 
                         : m?.gender === '여' ? 'border-l-crimson' : 'border-l-blue-400';
@@ -216,7 +216,7 @@ export default function GroupsCanvas({
                           className={`flex flex-col gap-1 px-2 py-1.5 bg-white rounded shadow-sm cursor-grab border-l-2 ${borderColor}`}
                         >
                           <div className="flex min-w-0 items-center gap-1.5">
-                            <span className="text-[11px] font-bold whitespace-nowrap">{a?.name}</span>
+                            <span className="text-[11px] font-bold whitespace-nowrap">{m?.nickname || a?.name}</span>
                             {m?.isBoardMember && <BoardMemberBadge />}
                             <button onClick={() => removeFromGroup(aId, group.id)} className="text-slate-300 hover:text-red-500"><X size={10} /></button>
                           </div>

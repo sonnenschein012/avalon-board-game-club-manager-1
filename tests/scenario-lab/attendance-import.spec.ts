@@ -22,6 +22,7 @@ for (const width of [390, 1280]) test(`reviews and replaces the roster at ${widt
   await expect(dialog.getByRole('button', { name: '2명 명단 반영' })).toBeDisabled();
   expect(await page.locator('[data-attendee-id]').count()).toBe(originalCount);
   const checkbox = dialog.getByRole('checkbox', { name: /기존 명단/ });
+  await dialog.getByRole('checkbox', { name: /미등록 상태로/ }).check();
   await checkbox.check();
   const button = dialog.getByRole('button', { name: '2명 명단 반영' });
   await expect(button).toBeEnabled();
@@ -52,6 +53,7 @@ test('manual mapping handles changed questions and requires renewed confirmation
   await dialog.getByLabel('음료', { exact: true }).selectOption('0');
   await dialog.getByLabel('뒤풀이 참석 여부', { exact: true }).selectOption('2');
   await dialog.getByRole('checkbox', { name: /기존 명단/ }).check();
+  await dialog.getByRole('checkbox', { name: /미등록 상태로/ }).check();
   await expect(dialog.getByRole('button', { name: '1명 명단 반영' })).toBeEnabled();
   await dialog.getByLabel('뒤풀이 참석 여부', { exact: true }).selectOption('-2');
   await expect(dialog.getByRole('checkbox', { name: /기존 명단/ })).not.toBeChecked();
@@ -84,4 +86,45 @@ test('duplicate, unknown response and empty uploads preserve the roster; reopene
   await page.getByRole('button', { name: '파일 업로드' }).click();
   await expect(dialog.getByText('CSV 파일 선택', { exact: true })).toBeVisible();
   await expect(dialog.getByLabel('음료', { exact: true })).toHaveCount(0);
+});
+
+for (const width of [390, 1280]) test(`edits and selects same-year namesakes at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: 844 });
+  await page.getByRole('button', { name: '파일 업로드' }).click();
+  await upload(page, '이름,음료,뒤풀이\n23 최유진,차,네\n23 최유진,물,아니오\n26 신규테스트,물,아마도\n');
+  const dialog = page.getByRole('dialog');
+  const visibleRow = (label: string) => dialog.getByLabel(label, { exact: true }).filter({ visible: true });
+  await expect(dialog.getByRole('button', { name: '3명 명단 반영' })).toBeDisabled();
+  await expect(dialog.getByLabel(/행 제외|행 복원/)).toHaveCount(0);
+  await visibleRow('2행 회원 선택').selectOption({ label: 'avalon4 · 2024' });
+  await visibleRow('3행 회원 선택').selectOption('scenario-member-16');
+  await visibleRow('4행 수정').click();
+  await dialog.getByLabel('4행 뒤풀이 참석 여부', { exact: true }).fill('네');
+  await dialog.getByRole('button', { name: '수정 완료' }).click();
+  await dialog.getByRole('checkbox', { name: /기존 명단/ }).check();
+  await expect(dialog.getByRole('button', { name: '3명 명단 반영' })).toBeDisabled();
+  await dialog.getByRole('checkbox', { name: /미등록 상태로/ }).check();
+  await expect(dialog.getByRole('button', { name: '3명 명단 반영' })).toBeEnabled();
+  await visibleRow('4행 수정').click();
+  await dialog.getByLabel('4행 음료', { exact: true }).fill('수정한 음료');
+  await expect(dialog.getByRole('checkbox', { name: /미등록 상태로/ })).not.toBeChecked();
+  await expect(dialog.getByRole('checkbox', { name: /기존 명단/ })).not.toBeChecked();
+  await dialog.getByRole('button', { name: '수정 완료' }).click();
+  await dialog.getByRole('checkbox', { name: /기존 명단/ }).check();
+  await dialog.getByRole('checkbox', { name: /미등록 상태로/ }).check();
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  if (width === 1280) {
+    const firstRow = (await dialog.locator('tbody tr').first().boundingBox())!;
+    expect(firstRow.height).toBeLessThanOrEqual(64);
+  }
+  await page.screenshot({ path: testInfo.outputPath(`review-${width}.png`) });
+  await dialog.getByRole('button', { name: '3명 명단 반영' }).click();
+  const pool = page.getByRole('region', { name: '미배정 출석 명단' });
+  await expect(pool).toContainText('avalon4');
+  await expect(pool).toContainText('avalon16');
+  const unregistered = pool.locator('[data-attendee-id]').filter({ hasText: '신규테스트' });
+  await expect(unregistered).toContainText('수정한 음료');
+  await expect(unregistered).toHaveAttribute('data-drag-enabled', 'false');
+  await unregistered.getByRole('button', { name: '+ 멤버 추가' }).click();
+  await expect(unregistered).toHaveAttribute('data-drag-enabled', 'true');
 });

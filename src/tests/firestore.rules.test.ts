@@ -215,6 +215,8 @@ describe('Firestore Security Rules', () => {
 
     // attendees 쓰기 쓰키마 검증
     await assertSucceeds(setDoc(doc(authedDb, 'attendees', 'a1'), { name: 'Att', importDate: serverTimestamp(), status: '대기' }));
+    await assertSucceeds(updateDoc(doc(authedDb, 'attendees', 'a1'), { memberId: 'm1' }));
+    await assertSucceeds(setDoc(doc(authedDb, 'attendees', 'unregistered'), { name: 'New', memberId: null, importDate: serverTimestamp(), status: '대기' }));
     await assertFails(setDoc(doc(authedDb, 'attendees', 'a2'), { name: 'Att2' })); // Missing status, importDate
     
     // admins 쓰기 거부 (마스터가 아니므로)

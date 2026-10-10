@@ -30,6 +30,19 @@ describe('getMemberFromAttendee', () => {
     expect(member).toBeUndefined();
   });
 
+  it('keeps explicit identity despite renaming and never rematches null or deleted IDs', () => {
+    expect(getMemberFromAttendee(members, '옛 이름', '99', '4')?.id).toBe('4');
+    expect(getMemberFromAttendee(members, '김철수', '23', null)).toBeUndefined();
+    expect(getMemberFromAttendee(members, '김철수', '23', 'deleted')).toBeUndefined();
+    const twins = [...members, { ...members[0]!, id: 'twin' }];
+    expect(getMemberFromAttendee(twins, '김철수', '23', 'twin')?.id).toBe('twin');
+  });
+
+  it('preserves the legacy name fallback when no explicit ID was stored', () => {
+    expect(getMemberFromAttendee(members, '김철수', '99')?.id).toBe('1');
+    expect(getMemberFromAttendee(members, '김철수')?.id).toBe('1');
+  });
+
   it('handles empty parameters gracefully', () => {
     expect(getMemberFromAttendee(members, undefined)).toBeUndefined();
     expect(getMemberFromAttendee([], '김철수')).toBeUndefined();

@@ -8,7 +8,7 @@ import { AttendanceDraggableCard, AttendanceDropZone } from './AttendanceDragAnd
 
 export interface UnassignedPoolProps {
   unassignedAttendees: Attendee[];
-  getMemberFromInfo: (name?: string, studentIdPrefix?: string) => Member | undefined;
+  getMemberFromInfo: (name?: string, studentIdPrefix?: string, memberId?: string | null) => Member | undefined;
   memberAttendanceCount: Record<string, number>;
   onManualAddOpen: () => void;
   onQuickAddMember: (attendee: Attendee) => void;
@@ -24,8 +24,8 @@ export default function UnassignedPool({
   onDeleteAttendee,
 }: UnassignedPoolProps) {
   return (
-    <div className="md:col-span-1 bg-white rounded-2xl shadow-sm flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+    <div className="md:col-span-1 bg-white rounded-2xl shadow-sm flex min-h-0 flex-col overflow-hidden self-start max-h-[50dvh] md:sticky md:top-4 md:max-h-[70dvh]">
+      <div className="p-4 border-b border-slate-50 flex shrink-0 flex-wrap gap-2 justify-between items-center bg-slate-50/50">
         <h3 className="text-xs font-bold text-slate-400 uppercase">출석 명단 / 미배정 ({unassignedAttendees.length})</h3>
         <button 
           onClick={onManualAddOpen}
@@ -34,15 +34,17 @@ export default function UnassignedPool({
           + 명단 추가
         </button>
       </div>
-      <AttendanceDropZone groupId={null}
+      <div
         data-attendance-pool
-        className="p-4 space-y-2 grow overflow-y-auto"
+        role="region" aria-label="미배정 출석 명단" tabIndex={0}
+        className="min-h-0 min-w-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-navy focus-visible:-outline-offset-2"
       >
+      <AttendanceDropZone groupId={null} className="p-4 space-y-2 min-h-full">
         {unassignedAttendees.length === 0 && (
           <p className="text-[10px] text-slate-300 italic text-center p-4">명단이 없습니다.</p>
         )}
         {unassignedAttendees.map(a => {
-          const m = getMemberFromInfo(a.name, a.studentIdPrefix);
+          const m = getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId);
           const isRegistered = !!m;
 
           return (
@@ -58,7 +60,7 @@ export default function UnassignedPool({
               <div className="flex justify-between items-start">
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <p className="truncate text-xs font-black text-slate-800">{a.name}</p>
+                    <p className="truncate text-xs font-black text-slate-800">{m?.nickname || a.name}</p>
                     {m?.isBoardMember && <BoardMemberBadge />}
                   </div>
                   {a.studentIdPrefix && <p className="text-[10px] text-slate-400">{a.studentIdPrefix}학번</p>}
@@ -93,6 +95,7 @@ export default function UnassignedPool({
           );
         })}
       </AttendanceDropZone>
+      </div>
     </div>
   );
 }
