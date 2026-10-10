@@ -239,6 +239,7 @@ describe('attendance working draft', () => {
 
   it('keeps choices private to the draft owner and clears them when the date or roster is replaced', async () => {
     arrangeRequest();
+    act(() => latest.setSessionDate('2026-09-12'));
     let choice = latest.requestChoices[0]!;
     act(() => latest.confirmRequestChoice(choice.key, choice.signature, 'a2'));
     mount(`${scope}-other`);

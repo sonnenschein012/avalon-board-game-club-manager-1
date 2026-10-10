@@ -18,6 +18,26 @@ function fixture() {
 const node = { id: 'file:src/a.ts', type: 'file', name: 'a.ts', filePath: 'src/a.ts', summary: '반환값 정책', tags: ['policy'], complexity: 'simple' };
 const graph = () => ({ nodes: [{ ...node }], edges: [], layers: [{ id: 'domain', name: '정책', description: '업무 정책', nodeIds: [node.id] }], tour: [{ order: 1, title: '정책', description: '정책 확인', nodeIds: [node.id] }] });
 
+test('inventory includes module declarations and shared design references, excluding local deployment artifacts', () => {
+  const root = fixture();
+  mkdirSync(join(root, '.stitch'));
+  writeFileSync(join(root, '.stitch/DESIGN.md'), '# Shared design observations\n');
+  writeFileSync(join(root, 'src/sizing.d.mts'), 'export declare function sizing(): number;\n');
+  writeFileSync(join(root, 'src/legacy.d.cts'), 'declare function legacy(): number;\n');
+  writeFileSync(join(root, '.codex-tmp-deploy-notes.md'), '# Local deployment notes\n');
+  writeFileSync(join(root, '.codex-deploy-audit-results.json'), '{}\n');
+  const before = snapshot(root);
+  assert.deepEqual(Object.keys(before.files), [
+    '.stitch/DESIGN.md', 'src/a.ts', 'src/legacy.d.cts', 'src/sizing.d.mts',
+  ]);
+  assert.deepEqual(before.worktree.untracked, ['.stitch/DESIGN.md', 'src/legacy.d.cts', 'src/sizing.d.mts']);
+  writeFileSync(join(root, '.codex-tmp-deploy-notes.md'), '# Changed local notes\n');
+  writeFileSync(join(root, '.codex-deploy-audit-results.json'), '{"changed":true}\n');
+  assert.equal(snapshot(root).digest, before.digest);
+  writeFileSync(join(root, 'src/sizing.d.mts'), 'export declare function sizing(): string;\n');
+  assert.notEqual(snapshot(root).digest, before.digest);
+});
+
 test('same HEAD captures body-only, staged, and new Korean/spaced paths', () => {
   const root = fixture(), before = snapshot(root);
   writeFileSync(join(root, 'src/a.ts'), 'export function decision() { return true; }\n');

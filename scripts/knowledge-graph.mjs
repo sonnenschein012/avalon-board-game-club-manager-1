@@ -6,9 +6,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
-const roots = ['src', 'tests', 'scripts', 'docs', '.github', 'public'];
-const textExtension = /\.(?:tsx?|jsx?|mjs|cjs|ps1|json|ya?ml|md|html|css|rules|webmanifest)$/i;
-const excluded = /(?:^|\/)(?:node_modules|dist|build|coverage|graphify-out|\.ua|\.git|playwright-report|test-results|\.firebase|\.demo-runtime)(?:\/|$)|(?:^|\/)(?:package-lock\.json|stats\.html|\.env[^/]*$)|\.(?:bak|backup)$/;
+const roots = ['src', 'tests', 'scripts', 'docs', '.github', '.stitch', 'public'];
+const textExtension = /\.(?:tsx?|mts|cts|jsx?|mjs|cjs|ps1|json|ya?ml|md|html|css|rules|webmanifest)$/i;
+const excluded = /(?:^|\/)(?:node_modules|dist|build|coverage|graphify-out|\.ua|\.git|playwright-report|test-results|\.firebase|\.demo-runtime)(?:\/|$)|(?:^|\/)(?:package-lock\.json|stats\.html|\.env[^/]*$|\.codex-(?:deploy-audit|tmp-deploy)-[^/]*$)|\.(?:bak|backup)$/;
 const fileTypes = new Set(['file', 'config', 'document', 'service', 'pipeline', 'table', 'schema', 'resource', 'endpoint']);
 const controls = ['.gitignore', '.understandignore', '.ua/.understandignore', '.ua/config.json', '.ua/toolchain.json', 'AGENTS.md'];
 const artifactNames = ['knowledge-graph.json', 'domain-graph.json', 'fingerprints.json', 'meta.json', 'intermediate/scan-result.json', 'verification/semantic-review.json', 'verification/accepted-graph.json'];

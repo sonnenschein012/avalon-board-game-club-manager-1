@@ -18,7 +18,7 @@ Codex 스킬 호출은 `$understand`처럼 채팅에서 합니다. PowerShell �
 
 `.ua/`는 검증된 이식 가능 묶음만 Git에 공유합니다. `.gitignore`의 허용 목록은 그래프 두 개, fingerprints, meta, scan-result, 검증 상태, semantic-review, accepted-graph, 분석 설정과 toolchain입니다. installation.json, pending-input, 중간 배치와 임시·캐시 파일은 로컬 전용입니다. 기존 프로젝트 `.understand-anything/`가 있으면 공식 도구가 이를 우선하므로 두 디렉터리를 동시에 만들지 않습니다. `.ua/config.json`은 `{"autoUpdate":false,"outputLanguage":"ko"}`를 사용합니다. 커밋 훅이나 주기적 자동 분석은 설치하지 않습니다.
 
-분석에는 `src/`, 모든 단위·통합·Playwright 테스트와 합성 fixture, `scripts/`, `docs/`, README, Firestore 규칙·인덱스, Firebase/Vite/TypeScript/ESLint/CI 설정을 포함합니다. 생성물, 의존성, 바이너리 이미지, 실제 업무 데이터, `.env*`, 인증 파일, 중복 백업과 과거 그래프는 제외합니다. `.ua/.understandignore`에 이를 기록하고 테스트 제외 제안을 활성화하지 않습니다. 초기 스캔의 파일 목록은 검증 스크립트의 독립 목록과 일치해야 합니다. 분석 범위를 바꾸면 두 목록을 함께 검토합니다.
+분석에는 `src/`(ESM/CJS의 `.mts`·`.cts` 선언 파일 포함), 모든 단위·통합·Playwright 테스트와 합성 fixture, `scripts/`, `docs/`, 공유 디자인 관찰 기록 `.stitch/DESIGN.md`, README, Firestore 규칙·인덱스, Firebase/Vite/TypeScript/ESLint/CI 설정을 포함합니다. 생성물, 의존성, 바이너리 이미지, 실제 업무 데이터, `.env*`, 인증 파일, 중복 백업과 과거 그래프는 제외합니다. `.codex-tmp-deploy-*`와 `.codex-deploy-audit-*` 로컬 배포 산출물도 분석·최신성 입력에서 제외합니다. `.ua/.understandignore`에 이를 기록하고 테스트 제외 제안을 활성화하지 않습니다. 초기 스캔의 파일 목록은 검증 스크립트의 독립 목록과 일치해야 합니다. 분석 범위를 바꾸면 두 목록을 함께 검토합니다.
 
 `agent_docs/`는 선택적인 과거 기록이며 공유 분석 입력에 포함하지 않습니다. 필요한 지속적 결정은 소스와 대조해 docs/에 기록합니다. Git에 공유하는 `AGENTS.md`, 제외 규칙, 분석 설정과 toolchain의 내용 해시는 별도로 감시합니다. AGENTS.md는 파일 노드가 아닌 검증 제어 입력입니다.
 
