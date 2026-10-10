@@ -122,8 +122,8 @@ const currentSemester = semesterForDate();
 const previousTerm = previousSemester(currentSemester);
 const twoTermsAgo = previousSemester(previousTerm);
 const todayKey = kstDateKey();
-// MeetingProgress uses an ISO/UTC date key for its initial selection.
-const planningDateKey = now.toISOString().slice(0, 10);
+// Match MeetingProgress's Korea calendar date, even when the host runs in UTC.
+const planningDateKey = todayKey;
 
 const members = [
   { id: 'member-01', name: '김민준', nickname: '민준', studentId: '20201234', phone: '010-2100-1001', gender: '남', semester: twoTermsAgo, preferredGenre: ['전략', '협상'], memo: '운영진 · 전략 게임 설명 가능', isBoardMember: true, status: '활동' },

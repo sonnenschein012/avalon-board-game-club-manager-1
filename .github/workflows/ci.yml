@@ -36,3 +36,5 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run design-lab:test
+        env:
+          TZ: Asia/Seoul

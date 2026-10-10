@@ -66,6 +66,7 @@ UI 개선 시 [목표 디자인 기준](design-guidelines.md)을 참고하세요
 - 실제 hook/service/규칙 확인: `npm run design-lab`. Java 21을 `JAVA_HOME`에 설정하거나 Windows에서 `npm run demo:setup`을 한 번 실행합니다. 시작할 때 데이터가 초기화되며, 실행 중에는 `npm run demo:reset`으로 다시 seed할 수 있습니다.
 - 기본 확인: `npm run check`는 lint, 타입, 단위 테스트, 운영 빌드를 실행합니다. Vitest는 `src/**/*.test.{ts,tsx}`를 대상으로 하며 `test:unit`은 Emulator 규칙 테스트를 제외합니다.
 - Firestore 규칙/권한 변경: `npm run test:rules`. UI 연결 변경: `npm run design-lab:test`. fixture UI/반응형 변경: `npm run scenario-lab:test`. Playwright를 처음 쓸 때 `npx playwright install chromium`이 필요할 수 있습니다.
+- Design Lab 브라우저와 CI 실행 시간대는 `Asia/Seoul`입니다. 합성 모임 계획도 한국 날짜로 seed합니다. 세션 삭제·조 이름 회귀 테스트는 오늘과 다른 고정 날짜를 저장한 뒤 모임 화면에서 그 날짜를 명시적으로 선택하여 UTC/한국 자정 차이에 의존하지 않습니다.
 - `scripts/emulator-runtime.mjs`가 Design Lab과 규칙 테스트의 Java 탐색 및 Firebase CLI 실행을 함께 담당합니다. `seed-demo.mjs`의 프로젝트/호스트 검사는 로컬 데이터 초기화를 보호하므로 유지합니다.
 
 도메인 테스트는 구현 옆에 둡니다. CSV나 데이터 변환을 바꾸면 정상 입력뿐 아니라 기존 저장 형식과 빈 값의 의미를 확인하세요. JSX 이동만을 확인하는 테스트는 추가하지 않습니다.

@@ -61,6 +61,8 @@ test('미배정 상태를 보존하고 세션 삭제 후에도 모임 조 이름
   expect(absent.ok()).toBe(true);
   await page.goto('/attendance');
   await expect(page.getByLabel('세션명')).toBeVisible();
+  // A non-default date also covers UTC/Korea midnight differences on CI.
+  await page.getByLabel('세션 날짜').fill('2026-09-15');
   const date = await page.getByLabel('세션 날짜').inputValue();
   // Load a persisted one-person draft through the same reload path as an operator.
   await page.evaluate(date => {
@@ -87,12 +89,16 @@ test('미배정 상태를 보존하고 세션 삭제 후에도 모임 조 이름
   expect(planning.fields).not.toHaveProperty('sessionId');
   expect(planning.fields.groups.arrayValue.values).toHaveLength(1);
   await page.goto('/meeting');
+  await page.locator('input[type="date"]').fill(date);
+  await expect(page.locator('input[type="date"]')).toHaveValue(date);
   await page.getByRole('heading', { name: '회귀 조', exact: true }).click();
   const nameInput = page.getByLabel('조 이름', { exact: true });
   await nameInput.fill('삭제 후 변경한 조');
   await nameInput.press('Enter');
   await expect(page.getByRole('heading', { name: '삭제 후 변경한 조', exact: true })).toBeVisible();
   await page.reload();
+  await page.locator('input[type="date"]').fill(date);
+  await expect(page.locator('input[type="date"]')).toHaveValue(date);
   await expect(page.getByRole('heading', { name: '삭제 후 변경한 조', exact: true })).toBeVisible();
 });
 
