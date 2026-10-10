@@ -1,77 +1,79 @@
 {
   "version": 1,
   "status": "passed",
-  "reviewer": "Independent graph_semester_review agent; no prior conversation supplied",
-  "reviewedAt": "2026-10-10T15:55:08.163Z",
-  "graphHash": "550d56a90fccc4b37e7e091d43aa516bcf94bd4324ca884916680b8a126cb3fe",
-  "inputDigest": "e0f6db18cf6d60eebffb3ef33f65e472194a4c364b9d39b23b4963e1a357b4e6",
-  "method": "Current README/development/operations/knowledge-graph guides, scoped pinned candidate CLI query/path/explain, current source/tests/Rules and exact final nodes/relations, validateGraph against previous verified baseline. No production data.",
+  "reviewer": "Independent ci_graph_review agent; no prior task conversation supplied",
+  "reviewedAt": "2026-10-10T16:20:15.115Z",
+  "graphHash": "87e8efeb49feb6e3ff440a01f102347ad60b936a1c892c8833cb57813f586517",
+  "inputDigest": "12b47e58c017bce3c16e4233d24d13e170ac1e7732cc5f6c2f42881a0374daa3",
+  "method": "Independent current README/development/operations/knowledge-graph and source/tests/Rules review, final pinned candidate CLI query/path/explain, exact final semantic nodes/storage edges, and previous verified baseline validation. No production data.",
   "executionEvidence": {
     "reviewerExecuted": [
-      "Pinned candidate query, path and explain",
-      "snapshot digest equals pending input",
-      "validateGraph with previous verified baseline: no issues",
-      "validateReview on final review: no issues"
+      "Final pinned candidate query/path/explain",
+      "Current input digest equals pending-input digest",
+      "validateGraph on 335 current inputs with previous verified baseline: []"
     ],
     "parentReportedCurrentChange": [
-      "20 CSV parser unit tests passed",
-      "TypeScript passed",
-      "2 synthetic Playwright scenarios at 390 and 1280 passed"
+      "Local lint and TypeScript passed",
+      "Development environment tests: 3 passed",
+      "Full synthetic Emulator Design Lab under Node 22 and host TZ=UTC: 9 passed, exit 0, 2.5 minutes, no retries, assertions unchanged",
+      "Previous full run passed 8 including original deletion/rename regression; namesake query returned 0 once; unchanged-source rerun passed namesake and all 9"
     ],
     "notExecutedByReviewer": [
       "App unit tests",
       "Rules tests",
       "Emulator tests",
-      "Deployment checks"
-    ]
+      "Deployment"
+    ],
+    "finalValidation": "validateReview performed after exact hash binding"
   },
   "cases": [
     {
       "id": "attendee-member-conversion",
       "answer": [
-        "Canvas SessionGroup IDs identify attendees; StoredSessionGroup IDs identify members so confirmed sessions, statistics and exports can resolve the roster. convertAttendeeIdsToMemberIds copies groups and preserves games/notes while resolving each attendee via getMemberFromAttendee; unresolved IDs retain the original attendee ID. Meeting start rejects assigned unregistered people before conversion.",
-        "An explicit memberId matches only that ID, null means deliberately unregistered, deleted explicit IDs never rematch another namesake. Only absent/undefined memberId enables normalized name plus full/two-digit student-year prefix lookup and first-name-match fallback on prefix miss. Dedicated direct-conversion and prefix-fallback tests exist.",
-        "Current CSV display formats 2024-1 as nickname · 24-1, preserving stored semester; same nickname/year with different semesters remains selectable. Equal formatted labels still error. ID, not label, remains selection identity."
+        "Planning groups contain attendee IDs; confirmed groups persist member IDs so roster-based history, exports and statistics resolve people. Conversion copies group fields and falls back to the original attendee ID if no member resolves; meeting-start rejects assigned unregistered attendees first.",
+        "Explicit memberId selects that ID regardless of name; null and deleted explicit IDs do not rematch. Only undefined permits normalized-name and full/two-digit student-prefix matching, then first namesake on prefix miss."
       ],
       "graphFinding": [
-        "Final graph has EXTRACTED calls from convertAttendeeIdsToMemberIds to getMemberFromAttendee, plus semantic selected_identity_conversion and explicit_identity_and_legacy_fallback summaries matching source.",
-        "EXTRACTED attendanceMemberLabel implements short_join_semester_display; confirmation display and reviewed CSV identity reference that node. Scoped candidate query found both display nodes, and candidate path returned the one-hop conversion call."
+        "Conversion/getMemberFromAttendee nodes and selected-identity/legacy-fallback semantic nodes describe this distinction. Source confirms preserved games/notes and meeting-start guard beyond call topology."
       ],
       "limits": [
-        "Legacy prefix misses still select the first same-name member; this historical fallback is not an unambiguous identity guarantee.",
-        "Rules accept memberId shapes without checking roster referential integrity; client revalidation handles current selected IDs. Reviewer inspected tests but did not execute app tests."
+        "Legacy first-name fallback remains ambiguous.",
+        "Direct-conversion and prefix-miss tests exist; execution is distinguished below. Rules do not validate member roster referential integrity."
       ],
       "codeCitations": [
         "src/domain/attendance/sessionGroups.ts:5",
         "src/domain/matching/getMemberFromAttendee.ts:13",
-        "src/domain/attendance/sessionGroups.test.ts:10",
-        "src/domain/matching/getMemberFromAttendee.test.ts:33",
-        "src/hooks/useAttendanceLogic.ts:286",
-        "src/domain/attendance/csvParser.ts:78",
-        "src/domain/attendance/csvParser.test.ts:101",
-        "src/components/AttendanceCsvImportModal.tsx:112"
+        "src/hooks/useAttendanceLogic.ts:286"
+      ],
+      "testCitations": [
+        {
+          "citation": "src/domain/attendance/sessionGroups.test.ts:10",
+          "evidence": "Exists; inspected explicit/null/deleted/prefix-miss conversion and field preservation; not executed by reviewer."
+        },
+        {
+          "citation": "src/domain/matching/getMemberFromAttendee.test.ts:33",
+          "evidence": "Exists; inspected explicit-ID and legacy prefix-fallback cases; not executed by reviewer."
+        }
       ],
       "graphNodeIds": [
         "src_domain_attendance_sessiongroups_convertattendeeidstomemberids",
         "src_domain_matching_getmemberfromattendee_getmemberfromattendee",
         "src_domain_attendance_sessiongroups_selected_identity_conversion",
-        "src_domain_matching_getmemberfromattendee_explicit_identity_and_legacy_fallback",
-        "src_domain_attendance_csvparser_short_join_semester_display",
-        "src_components_attendancecsvimportmodal_join_semester_confirmation_display"
+        "src_domain_matching_getmemberfromattendee_explicit_identity_and_legacy_fallback"
       ]
     },
     {
       "id": "board-member-snapshot",
       "answer": [
-        "Absent boardMemberIds means legacy current-roster fallback; [] explicitly records no board members and must not fallback. Export and attendance/core-player statistics use optional includes followed by nullish fallback, retaining false from [].",
-        "CSV files with the current 세션명 column initialize snapshots as [] and append marked member IDs; legacy CSV without that column omits the field. Imports spread the parsed shape, new sessions record the current role IDs, updates retain an existing snapshot. Existing CSV, service and statistics tests verify these distinctions."
+        "Missing boardMemberIds means legacy current-roster fallback; [] explicitly means no board members. Export and attendance/core-player rankings use optional includes with nullish fallback, retaining false from an empty array.",
+        "Current CSV with 세션명 initializes [] and appends marked members; legacy CSV omits the snapshot. Import spreads that shape, creation records current board IDs, and edits preserve stored snapshots."
       ],
       "graphFinding": [
-        "docs_development_boardmemberids_absent_empty explicitly documents both meanings. Its INFERRED references reach buildSessionsCsv, parseSessionCsvRows, getAttendanceRanking, getCorePlayers and session create/update nodes. These are semantic links, independently confirmed in source rather than treated as extracted calls."
+        "boardmemberids_absent_empty references CSV, statistics and persistence; inferred semantic relationships were confirmed in source."
       ],
       "limits": [
-        "CSV matches exported names against the destination roster and is not a full ID-preserving backup. Missing members display Unknown in export and are filtered from final statistical rankings.",
-        "Existing tests were read; reviewer did not rerun them."
+        "CSV resolves names against destination roster; it is not an ID-preserving backup.",
+        "Statistics tests inspect nonempty snapshot precedence and legacy fallback; dedicated empty-array assertions were found in CSV/service tests, not statistics tests. Missing roster members are filtered from statistics and export as Unknown."
       ],
       "codeCitations": [
         "src/domain/exports/clubCsv.ts:82",
@@ -79,9 +81,29 @@
         "src/services/sessionsService.ts:39",
         "src/services/sessionsService.ts:92",
         "src/domain/stats/getAttendanceRanking.ts:13",
-        "src/domain/stats/getCorePlayers.ts:28",
-        "src/domain/exports/clubCsv.test.ts:73",
-        "src/services/sessionsService.test.ts:48"
+        "src/domain/stats/getCorePlayers.ts:28"
+      ],
+      "testCitations": [
+        {
+          "citation": "src/domain/exports/clubCsv.test.ts:73",
+          "evidence": "Exists; absent, [] and nonempty snapshots inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/domain/sessions/sessionCsv.test.ts:14",
+          "evidence": "Exists; legacy omission and current [] inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/services/sessionsService.test.ts:48",
+          "evidence": "Exists; import shape and update preservation inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/domain/stats/semesterStatistics.test.ts:35",
+          "evidence": "Exists; snapshot precedence inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/domain/stats/archiveGameStatistics.test.ts:57",
+          "evidence": "Exists; snapshot and current-roster fallback inspected; not executed by reviewer."
+        }
       ],
       "graphNodeIds": [
         "docs_development_boardmemberids_absent_empty",
@@ -93,55 +115,79 @@
     {
       "id": "planning-confirmed-preservation",
       "answer": [
-        "DailyPlannings is the operational snapshot; sessions is the independently edited confirmed record. Meeting-start replaces/archives planning but creates a confirmed session only if missing. Restore and planning deletion preserve confirmed sessions; session deletion detaches planning links.",
-        "renameDailyPlanningGroup reads both current documents in a Firestore transaction, maps only matching group name in each document separately and preserves each document games, notes, members and other groups. Removed recorded groups are not recreated; a missing linked session fails before writes. Preservation tests exist."
+        "DailyPlannings stores operating state; sessions stores independent confirmed history. Meeting-start archives/replaces planning and creates a session only if missing. Planning restore/delete preserves confirmed history; session deletion atomically deletes the session and removes existing planning links.",
+        "Rename transaction reads both documents and independently maps only target name, preserving each document's games, notes, members and other groups. Removed confirmed groups are not recreated and missing linked sessions fail before writes.",
+        "Current regression saves 2026-09-15, verifies deletion preserves planning groups/removes sessionId, then reselects that date after navigation and reload before checking rename persistence."
       ],
       "graphFinding": [
-        "Candidate explain showed renameDailyPlanningGroup EXTRACTED shares_data_with edges to both collections and EXTRACTED calls to archiveDailyPlanning/addAuditEventToTransaction. Its caller is useMeetingProgressLogic. Source adds exact transaction and preservation behavior beyond topology."
+        "Rename has storage edges to both collections and call edges to archival/audit; fresh nondefault-date regression node explains explicit date selection without changing app contracts."
       ],
       "limits": [
-        "Firestore retries protect the rename transaction against changes to documents it read, but updateSessionRecord and updateSessionGroupGames use getDoc then batch writes; another whole-groups writer can still race and overwrite changes.",
-        "Unit mocks do not prove real concurrent scheduling. Reviewer did not rerun emulator or app tests."
+        "Transaction retries protect read documents, but session update/game writers read then batch-write whole groups and may race; mock tests do not prove concurrent correctness.",
+        "Deletion's pre-batch planning query cannot protect a new concurrent link created after that query."
       ],
       "codeCitations": [
         "src/services/dailyPlanningService.ts:81",
-        "src/services/dailyPlanningService.test.ts:27",
-        "src/hooks/useAttendanceLogic.ts:294",
         "src/services/dailyPlanningService.ts:27",
+        "src/hooks/useAttendanceLogic.ts:294",
         "src/services/sessionsService.ts:77",
         "src/services/sessionsService.ts:108",
-        "src/services/sessionsService.ts:142"
+        "src/services/sessionsService.ts:142",
+        "tests/design-lab/smoke.spec.ts:56"
+      ],
+      "testCitations": [
+        {
+          "citation": "src/services/dailyPlanningService.test.ts:27",
+          "evidence": "Exists; preservation, deleted group, missing/detached session, restore and delete inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/services/sessionsService.test.ts:28",
+          "evidence": "Exists; atomic detach and session preservation inspected; not executed by reviewer."
+        },
+        {
+          "citation": "tests/design-lab/smoke.spec.ts:56",
+          "evidence": "Exists; nondefault-date regression inspected; execution evidence is parent reported."
+        }
       ],
       "graphNodeIds": [
         "src_services_dailyplanningservice_renamedailyplanninggroup",
         "firestore_dailyplannings_collection",
         "firestore_sessions_collection",
-        "src_services_sessionsservice_updatesessionrecord"
+        "src_services_sessionsservice_updatesessionrecord",
+        "tests_design_lab_smoke_spec_nondefault_date_after_delete"
       ]
     },
     {
       "id": "shared-firestore-consumers",
       "answer": [
-        "Shared storage connects attendance/member resolution and attendees writes, meeting planning/progress/version history, confirmed-session editors, archives/statistics, member profiles and settings exports despite no direct imports between screens. sessions also feeds recommendation/game history, attendance utility/history and useGamesLogic popularity calculations.",
-        "Trace source subscriptions through useFirestore and direct onSnapshot; settingsService loaders read sessions/members/games and useClubExports builds member/game/session CSV. Meeting progress uses saved dailyPlanning.attendees for drinks rather than current global attendees."
+        "Source subscriptions connect attendance, meeting progress, session editing, archives/statistics, member profiles and exports through sessions/members/games; attendance import writes attendees and meeting records reads DailyPlannings/versions. These screens need not directly import each other.",
+        "Indirect sessions consumers include game popularity, recommendation/member play history and attendance utility. settingsService reads collections for useClubExports; meeting drinks use saved planning attendees for the selected date."
       ],
       "graphFinding": [
-        "Final sessions collection has EXTRACTED shares_data_with edges from attendance, meeting progress, sessions, archive, member profile, session services and settings loaders. useClubExports and SettingsPage links are INFERRED, reflecting indirect access. Attendance and meeting-progress edges also reach DailyPlannings, and attendance/import services reach attendees."
+        "Collection storage edges and indirect exports semantic links identify cross-screen effects; useGamesLogic, recommendation and profile were independently traced in source rather than assuming graph absence proves no consumer."
       ],
       "limits": [
-        "A directed path missing from the graph does not establish no impact. Indirect useGamesLogic and recommendation consumers were additionally confirmed in source.",
-        "Graph models data sharing, not exhaustive runtime reads or subscriptions; no production data inspected."
+        "Directed-path absence cannot establish no impact. Graph storage topology is not an exhaustive runtime subscription proof.",
+        "No production data or external deployment was used."
       ],
       "codeCitations": [
         "src/hooks/useAttendanceLogic.ts:47",
         "src/hooks/useMeetingProgressLogic.ts:22",
+        "src/hooks/useMeetingProgressLogic.ts:132",
         "src/hooks/useMeetingRecords.ts:13",
         "src/hooks/useSessionsLogic.ts:16",
         "src/hooks/useArchiveLogic.ts:18",
         "src/hooks/useGamesLogic.ts:32",
+        "src/components/MemberProfileModal.tsx:24",
         "src/services/settingsService.ts:39",
         "src/services/settingsService.ts:53",
         "src/hooks/useClubExports.ts:52"
+      ],
+      "testCitations": [
+        {
+          "citation": "tests/design-lab/smoke.spec.ts:56",
+          "evidence": "Exists; integration traverses attendance/session/planning persistence; execution evidence is parent reported, not exhaustive consumer coverage."
+        }
       ],
       "graphNodeIds": [
         "firestore_sessions_collection",
@@ -155,49 +201,64 @@
     {
       "id": "public-admin-legacy-schedule",
       "answer": [
-        "Public /interview/:token uses the bearer-token document and public round/schedule documents; collection listing, token creation/deletion and private interview management remain admin-controlled. Public response updates are restricted to response fields, server timestamps, active access, survey window and configured allowed slots. Existing Rules tests cover public get/list/write restrictions, protected fields, periods and legacy draft responses.",
-        "Client scheduleId undefined selects legacy public round, null shows unassigned without legacy fetch, string selects public schedule plus common round text. Legacy migration explicitly admits only undefined applicants. Rules accessScheduleId collapses missing/null/nonstring to null and thus legacy round fallback; this differs from the client null state.",
-        "Client admin lookup trims/lowercases email; Rules use auth email directly for admins lookup and bootstrap comparison. Legacy client window filters KST calendar slots from first access; Rules enforce round allowedSlots and survey period but not this dynamic four-day subset."
+        "Bearer-token exact active access documents permit constrained public responses; public token listing/create/delete, private management and public configuration writes remain admin-only. ANY active public round/schedule can be fetched by exact path without a token: Rules do not scope these reads to token ownership.",
+        "Client undefined scheduleId uses legacy round, null shows unassigned without fetching legacy round, actual ID uses schedule plus common round text. Legacy migration admits only undefined. Rules normalize missing/null/nonstring to null and permit legacy-round survey fallback, unlike the client's null state.",
+        "Public writes require active access, valid survey window, unique allowed slots and server timestamps and protect identity/admin fields. Client trims/lowercases admin email; Rules use raw auth email. Legacy client four-day KST subset is not enforced by Rules, which check configured slots."
       ],
       "graphFinding": [
-        "docs_development_scheduleid_three_states matches client meanings. firestore_accessscheduleid explicitly documents normalization and its INFERRED conceptual link to that contract; source confirms the important client/Rules divergence."
+        "scheduleId three-state, accessScheduleId and public configuration reads semantic nodes correctly capture both client distinction and exact active public reads without bearer ownership."
       ],
       "limits": [
-        "UI policy cannot replace Rules authorization. Rules currently do not enforce dynamic KST four-day restriction.",
-        "Reviewer inspected public service/hook tests and Rules tests without executing them. Production public links were not used."
+        "UI policies do not substitute for Rules authorization; dynamic four-day restriction is client-only.",
+        "Malformed empty-string schedule IDs also expose truthy-vs-nullish client behavior; legitimate contract is undefined/null/real ID. Rules tests inspected but not executed by reviewer."
       ],
       "codeCitations": [
         "src/hooks/usePublicInterviewLogic.ts:24",
         "src/hooks/usePublicInterviewLogic.ts:202",
-        "src/services/publicInterviewService.ts:80",
+        "src/services/publicInterviewService.ts:78",
         "src/services/interviews/schedulesService.ts:475",
         "firestore.rules:21",
         "firestore.rules:47",
         "firestore.rules:90",
         "firestore.rules:126",
+        "firestore.rules:353",
+        "firestore.rules:359",
         "firestore.rules:369",
-        "src/tests/firestore.rules.test.ts:417",
-        "src/tests/firestore.rules.test.ts:645",
         "src/lib/firebase.ts:146"
+      ],
+      "testCitations": [
+        {
+          "citation": "src/tests/firestore.rules.test.ts:417",
+          "evidence": "Exists; exact get/list restrictions inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/tests/firestore.rules.test.ts:472",
+          "evidence": "Exists; response/timestamp/slots restrictions inspected; not executed by reviewer."
+        },
+        {
+          "citation": "src/tests/firestore.rules.test.ts:520",
+          "evidence": "Exists; whole-round slots versus dynamic UI restriction inspected; not executed by reviewer."
+        }
       ],
       "graphNodeIds": [
         "docs_development_scheduleid_three_states",
         "firestore_accessscheduleid",
+        "firestore_public_configuration_reads",
         "src_hooks_usepublicinterviewlogic_getpublicinterviewstate"
       ]
     },
     {
       "id": "freshness-semantic-and-omission",
       "answer": [
-        "Freshness hashes source/control contents with CRLF normalization and checks artifact byte hashes; commit IDs are provenance, not certification. Body-only changes at the same HEAD invalidate content freshness. Current semester formatter changes meaning without changing signature, and final semantic descriptions were checked against current source rather than trusting AST shape.",
-        "validateGraph checks unique nodes, valid confidence and endpoints, scope input hashes and coverage; previous verified baseline catches lost unchanged symbols/relations even at equal counts. Final current snapshot equals pending digest and candidate validateGraph with previous baseline returned no issues. Source omission/body-only/corruption tests exist."
+        "Snapshot hashes normalized source/control contents, artifact checks hash exact bytes, and commit identity provides provenance only. Body-only changes at same HEAD invalidate freshness. Current source change replaces UTC seed day with KST day without changing function signatures; fresh semantics must reflect that.",
+        "validateGraph checks coverage, endpoints/confidence and current scope hashes; previous verified baseline detects lost unchanged symbols and relations even at equal counts. Input digest must remain equal to begin snapshot; manual graph/source review remains required for changed-file semantics."
       ],
       "graphFinding": [
-        "Final graph includes fresh short_join_semester_display and confirmation display summaries/EXTRACTED relations matching this change. scripts_graphify_snapshot, freshness and validateGraph nodes are present; source inspection establishes hash and omission behavior, which graph topology cannot prove."
+        "Fresh CI process-TZ, configured browser timezone, KST planning-seed and explicit nondefault-date regression nodes match current diff. Final hash/validation results are recorded in executionEvidence."
       ],
       "limits": [
-        "Automatic structural checks cannot prove every sentence or relationship meaning. Unchanged-file omission checks do not fully protect symbols in changed files; manual source/graph comparison remains necessary.",
-        "Six-case review establishes the reviewed boundaries, not exhaustive correctness. Reviewer ran candidate CLI and validation, not app unit/Rules/emulator tests."
+        "Structural validation cannot prove sentence meaning or exhaustive correctness. Baseline omission comparison protects unchanged source files, so changed-source symbols require manual review.",
+        "Browser contexts manually created with browser.newContext do not inherit configured page/context timezone; fixture timezone wording is kept precise."
       ],
       "codeCitations": [
         "scripts/graphify.mjs:30",
@@ -205,17 +266,39 @@
         "scripts/graphify.mjs:49",
         "scripts/graphify.mjs:67",
         "scripts/graphify.mjs:129",
-        "scripts/graphify.test.mjs:28",
-        "scripts/graphify.test.mjs:109",
-        "src/domain/attendance/csvParser.ts:78",
-        "docs/knowledge-graph.md:69"
+        "scripts/seed-demo.mjs:124",
+        "playwright.config.ts:11",
+        ".github/workflows/ci.yml:37",
+        "docs/development.md:69",
+        "tests/design-lab/smoke.spec.ts:64"
+      ],
+      "testCitations": [
+        {
+          "citation": "scripts/graphify.test.mjs:23",
+          "evidence": "Exists; body-only/staged/new input test inspected; not executed by reviewer."
+        },
+        {
+          "citation": "scripts/graphify.test.mjs:79",
+          "evidence": "Exists; artifact corruption test inspected; not executed by reviewer."
+        },
+        {
+          "citation": "scripts/graphify.test.mjs:98",
+          "evidence": "Exists; unchanged symbol/relation loss test inspected; not executed by reviewer."
+        },
+        {
+          "citation": "tests/design-lab/smoke.spec.ts:56",
+          "evidence": "Exists; fixed nondefault date reselection inspected; execution evidence is parent reported."
+        }
       ],
       "graphNodeIds": [
         "scripts_graphify_snapshot",
         "scripts_graphify_freshness",
         "scripts_graphify_validategraph",
-        "src_domain_attendance_csvparser_short_join_semester_display",
-        "src_components_attendancecsvimportmodal_join_semester_confirmation_display"
+        "docs_development_design_lab_korea_calendar",
+        "playwright_config_korea_browser_timezone",
+        "_github_workflows_ci_design_lab_process_timezone",
+        "scripts_seed_demo_korea_planning_seed",
+        "tests_design_lab_smoke_spec_nondefault_date_after_delete"
       ]
     }
   ]
