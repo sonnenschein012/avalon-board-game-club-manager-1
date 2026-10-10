@@ -1,7 +1,14 @@
-import { collection, doc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Admin, Game, Member, Session } from '../types';
-import { addAuditEventToBatch } from './auditService';
+import { addAuditEventToBatch, addAuditEventToTransaction } from './auditService';
+
+export class AdminAlreadyExistsError extends Error {
+  constructor() {
+    super('이미 등록된 관리자입니다. 기존 권한은 변경되지 않았습니다.');
+    this.name = 'AdminAlreadyExistsError';
+  }
+}
 
 export async function listAdmins(): Promise<Admin[]> {
   const snapshot = await getDocs(collection(db, 'admins'));
@@ -9,19 +16,22 @@ export async function listAdmins(): Promise<Admin[]> {
 }
 
 export async function addAdminRecord(normalizedEmail: string): Promise<void> {
-  const batch = writeBatch(db);
-  batch.set(doc(db, 'admins', normalizedEmail), {
-    email: normalizedEmail,
-    role: 'admin',
-    createdAt: serverTimestamp(),
+  const adminRef = doc(db, 'admins', normalizedEmail);
+  await runTransaction(db, async transaction => {
+    // Recheck on transaction retries so concurrent additions cannot replace a role.
+    if ((await transaction.get(adminRef)).exists()) throw new AdminAlreadyExistsError();
+    transaction.set(adminRef, {
+      email: normalizedEmail,
+      role: 'admin',
+      createdAt: serverTimestamp(),
+    });
+    addAuditEventToTransaction(transaction, {
+      category: 'admin',
+      action: 'admin.added',
+      targetId: normalizedEmail,
+      targetLabel: normalizedEmail,
+    });
   });
-  addAuditEventToBatch(batch, {
-    category: 'admin',
-    action: 'admin.added',
-    targetId: normalizedEmail,
-    targetLabel: normalizedEmail,
-  });
-  await batch.commit();
 }
 
 export async function removeAdminRecord(email: string): Promise<void> {

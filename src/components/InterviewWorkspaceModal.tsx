@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Award, BookOpen, CheckCircle2, Clock3, Loader2, MessageSquareText, X } from 'lucide-react';
 import type {
   InterviewApplicantWithAccess,
@@ -35,6 +35,8 @@ export default function InterviewWorkspaceModal({
 }: Props) {
   const note = useInterviewNoteLogic(round.id, applicant?.id ?? null, interviewer);
   const [submitting, setSubmitting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const operationInProgress = useRef(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [actionFormOpen, setActionFormOpen] = useState(false);
   const [actionReason, setActionReason] = useState('');
@@ -42,18 +44,24 @@ export default function InterviewWorkspaceModal({
 
   useEffect(() => {
     setSubmitting(false);
+    setClosing(false);
+    operationInProgress.current = false;
     setValidationError(null);
     setActionFormOpen(false);
-    setActionReason(applicant?.actionNeededReason ?? '');
     setCompletionConfirmOpen(false);
+  }, [applicant?.id, round.id]);
+
+  useEffect(() => {
+    setActionReason(applicant?.actionNeededReason ?? '');
   }, [applicant?.id, applicant?.actionNeededReason]);
 
   if (!applicant) return null;
 
   const interviewCompleted = getInterviewProgressStatus(applicant) === 'completed';
+  const busy = submitting || closing;
   const availability = summarizeAvailabilitySlots(applicant.access?.availability ?? [], round.availabilitySlotMinutes);
   const questions = round.interviewQuestions ?? [];
-  const saveLabel = note.state === 'saving'
+  const saveLabel = closing ? '저장 확인 중…' : note.state === 'saving'
     ? '자동 저장 중…'
     : note.state === 'conflict'
       ? '다른 운영진의 수정 발견'
@@ -63,23 +71,50 @@ export default function InterviewWorkspaceModal({
           ? '노트 불러오는 중…'
           : '자동 저장됨';
 
+  const ensureNoteSaved = async () => {
+    try {
+      const flushed = await note.flush();
+      if (flushed.saved) return flushed;
+    } catch (error) {
+      console.error(error);
+    }
+    setValidationError('저장하지 못했습니다. 입력 내용은 유지됩니다. 저장을 다시 시도하거나 수정 충돌을 해결해주세요.');
+    return null;
+  };
+
+  const closeWorkspace = async () => {
+    if (operationInProgress.current) return;
+    operationInProgress.current = true;
+    setClosing(true);
+    setValidationError(null);
+    try {
+      if (await ensureNoteSaved()) onClose();
+    } finally {
+      operationInProgress.current = false;
+      setClosing(false);
+    }
+  };
+
   const markActionNeeded = async () => {
+    if (operationInProgress.current) return;
+    operationInProgress.current = true;
     setSubmitting(true);
     try {
+      if (!await ensureNoteSaved()) return;
       if (await onActionNeeded(applicant.id, actionReason)) onClose();
     } finally {
+      operationInProgress.current = false;
       setSubmitting(false);
     }
   };
 
   const completeInterview = async () => {
+    if (operationInProgress.current) return;
+    operationInProgress.current = true;
     setSubmitting(true);
     try {
-      const flushed = await note.flush();
-      if (!flushed.saved) {
-        setValidationError('면접 기록을 먼저 저장하거나 수정 충돌을 해결해주세요.');
-        return;
-      }
+      const flushed = await ensureNoteSaved();
+      if (!flushed) return;
       const completed = await onComplete(applicant.id, {
         generalNotes: note.generalNotes,
         answers: note.answers,
@@ -88,6 +123,7 @@ export default function InterviewWorkspaceModal({
       });
       if (completed) onClose();
     } finally {
+      operationInProgress.current = false;
       setSubmitting(false);
     }
   };
@@ -113,8 +149,8 @@ export default function InterviewWorkspaceModal({
             </h2>
             <p className="text-xs text-slate-500">{applicant.assignment?.slotId?.replace('|', ' ')} · {applicant.phone}</p>
           </div>
-          <button onClick={onClose} aria-label="면접 화면 닫기" className="rounded-xl bg-slate-100 p-2.5 text-slate-500">
-            <X size={18} />
+          <button onClick={closeWorkspace} disabled={busy} aria-label="면접 화면 닫기" className="rounded-xl bg-slate-100 p-2.5 text-slate-500 disabled:opacity-50">
+            {closing ? <Loader2 size={18} className="animate-spin" /> : <X size={18} />}
           </button>
         </header>
 
@@ -153,14 +189,14 @@ export default function InterviewWorkspaceModal({
             </section>
           </div>
 
-          <div className="space-y-4">
+          <fieldset disabled={busy || note.state === 'loading'} className="min-w-0 space-y-4">
             <section className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2 text-sm font-black text-navy">
                   <MessageSquareText size={16} className="text-gold" />면접 질문과 답변 기록
                 </h3>
                 <span className={`flex items-center gap-1 text-[10px] font-bold ${note.state === 'error' || note.state === 'conflict' ? 'text-red-600' : 'text-slate-400'}`}>
-                  {note.state === 'saving' || note.state === 'loading'
+                  {closing || note.state === 'saving' || note.state === 'loading'
                     ? <Loader2 size={11} className="animate-spin" />
                     : note.state === 'conflict'
                       ? <AlertTriangle size={11} />
@@ -260,7 +296,7 @@ export default function InterviewWorkspaceModal({
                 </p>
               )}
             </section>
-          </div>
+          </fieldset>
         </div>
 
         <footer className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6">
@@ -271,6 +307,7 @@ export default function InterviewWorkspaceModal({
                 <textarea
                   autoFocus
                   value={actionReason}
+                  disabled={busy}
                   maxLength={500}
                   onChange={event => setActionReason(event.target.value)}
                   className="mt-2 min-h-20 w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm leading-6 text-navy focus:border-amber-400 focus:outline-none"
@@ -280,7 +317,7 @@ export default function InterviewWorkspaceModal({
               <div className="mt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  disabled={submitting}
+                  disabled={busy}
                   onClick={() => setActionFormOpen(false)}
                   className="rounded-xl px-3 py-2 text-xs font-bold text-slate-500"
                 >
@@ -288,7 +325,7 @@ export default function InterviewWorkspaceModal({
                 </button>
                 <button
                   type="button"
-                  disabled={submitting}
+                  disabled={busy}
                   onClick={markActionNeeded}
                   className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
@@ -305,7 +342,7 @@ export default function InterviewWorkspaceModal({
               <div className="mt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  disabled={submitting}
+                  disabled={busy}
                   onClick={() => setCompletionConfirmOpen(false)}
                   className="rounded-xl px-3 py-2 text-xs font-bold text-slate-500"
                 >
@@ -313,7 +350,7 @@ export default function InterviewWorkspaceModal({
                 </button>
                 <button
                   type="button"
-                  disabled={submitting || note.state === 'conflict'}
+                  disabled={busy || note.state === 'conflict'}
                   onClick={completeInterview}
                   className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
@@ -325,7 +362,7 @@ export default function InterviewWorkspaceModal({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               type="button"
-              disabled={submitting || interviewCompleted}
+              disabled={busy || interviewCompleted}
               onClick={() => {
                 setCompletionConfirmOpen(false);
                 setActionFormOpen(current => !current);
@@ -336,7 +373,7 @@ export default function InterviewWorkspaceModal({
             </button>
             <button
               type="button"
-              disabled={submitting || interviewCompleted}
+              disabled={busy || interviewCompleted}
               onClick={requestCompletion}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white disabled:opacity-40"
             >

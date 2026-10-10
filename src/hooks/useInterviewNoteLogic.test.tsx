@@ -43,8 +43,8 @@ describe('useInterviewNoteLogic', () => {
   let root: Root;
   let latest: ReturnType<typeof useInterviewNoteLogic>;
 
-  function Harness() {
-    latest = useInterviewNoteLogic('round-1', 'applicant-1', interviewer);
+  function Harness({ applicantId = 'applicant-1' }: { applicantId?: string }) {
+    latest = useInterviewNoteLogic('round-1', applicantId, interviewer);
     return null;
   }
 
@@ -136,5 +136,57 @@ describe('useInterviewNoteLogic', () => {
     }));
     expect(latest!.state).toBe('saved');
     expect(latest!.revision).toBe(3);
+  });
+
+  it('닫기 확인은 자동 저장 대기 시간 전에도 마지막 입력을 저장한다', async () => {
+    saveInterviewNote.mockResolvedValueOnce(2);
+    act(() => listeners[0]!(remoteNote(1, '원본'), { hasPendingWrites: false }));
+    act(() => latest.setGeneralNotes('마지막 입력'));
+    await act(async () => {
+      expect(await latest.flush()).toEqual({ saved: true, revision: 2 });
+    });
+    expect(saveInterviewNote).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      applicantId: 'applicant-1', generalNotes: '마지막 입력', expectedRevision: 1,
+    }));
+  });
+
+  it('변경 없는 화면은 불러오는 중에도 서버 쓰기 없이 닫을 수 있다', async () => {
+    await act(async () => { expect((await latest.flush()).saved).toBe(true); });
+    act(() => listeners[0]!(remoteNote(4, '저장된 기록'), { hasPendingWrites: false }));
+    await act(async () => { expect(await latest.flush()).toEqual({ saved: true, revision: 4 }); });
+    expect(saveInterviewNote).not.toHaveBeenCalled();
+  });
+
+  it('닫기 저장 실패는 입력을 보존하며 재시도할 수 있다', async () => {
+    saveInterviewNote.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(2);
+    act(() => listeners[0]!(remoteNote(1, '원본'), { hasPendingWrites: false }));
+    act(() => latest.setGeneralNotes('보존할 입력'));
+    await act(async () => { expect((await latest.flush()).saved).toBe(false); });
+    expect(latest.generalNotes).toBe('보존할 입력');
+    expect(latest.state).toBe('error');
+    await act(async () => { expect((await latest.flush()).saved).toBe(true); });
+    expect(latest.generalNotes).toBe('보존할 입력');
+  });
+
+  it('A 저장이 지연·실패해도 대기 작업과 늦은 구독은 B 입력을 읽거나 수정하지 않는다', async () => {
+    let rejectA!: (error: Error) => void;
+    saveInterviewNote.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectA = reject; }))
+      .mockResolvedValueOnce(1);
+    act(() => listeners[0]!(null, { hasPendingWrites: false }));
+    act(() => latest.setGeneralNotes('A 첫 입력'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+    act(() => latest.setGeneralNotes('A 추가 입력'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(700); });
+    act(() => root.render(<Harness applicantId="applicant-2" />));
+    act(() => listeners[1]!(null, { hasPendingWrites: false }));
+    act(() => latest.setGeneralNotes('B 입력'));
+    await act(async () => { rejectA(new Error('A 저장 실패')); await Promise.resolve(); });
+    act(() => listeners[0]!(remoteNote(9, '늦은 A 응답'), { hasPendingWrites: false }));
+    expect(latest.generalNotes).toBe('B 입력');
+    expect(latest.revision).toBe(0);
+    expect(saveInterviewNote).toHaveBeenCalledTimes(1);
+    await act(async () => { expect(await latest.flush()).toEqual({ saved: true, revision: 1 }); });
+    expect(saveInterviewNote.mock.calls.map(([payload]) => [payload.applicantId, payload.generalNotes, payload.expectedRevision]))
+      .toEqual([['applicant-1', 'A 첫 입력', 0], ['applicant-2', 'B 입력', 0]]);
   });
 });

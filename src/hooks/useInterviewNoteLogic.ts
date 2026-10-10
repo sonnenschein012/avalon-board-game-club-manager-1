@@ -49,7 +49,8 @@ export function useInterviewNoteLogic(
   }, []);
 
   useEffect(() => {
-    generationRef.current += 1;
+    const generation = ++generationRef.current;
+    saveQueueRef.current = Promise.resolve();
     initialized.current = false;
     setDraft(EMPTY_NOTE);
     draftRef.current = EMPTY_NOTE;
@@ -61,7 +62,8 @@ export function useInterviewNoteLogic(
     ownSaveSerializedRef.current = null;
     if (!applicantId) { setState('loading'); return; }
     setState('loading');
-    return subscribeInterviewNote(roundId, applicantId, (value, metadata) => {
+    const unsubscribe = subscribeInterviewNote(roundId, applicantId, (value, metadata) => {
+      if (generation !== generationRef.current) return;
       const next = toDraft(value);
       const nextSerialized = serialize(next);
       const currentSerialized = serialize(draftRef.current);
@@ -88,16 +90,24 @@ export function useInterviewNoteLogic(
         setState('conflict');
       }
       initialized.current = true;
-    }, () => setState('error'));
+    }, () => {
+      if (generation === generationRef.current) setState('error');
+    });
+    return () => {
+      generationRef.current += 1;
+      unsubscribe();
+    };
   }, [applicantId, roundId]);
 
   const queueSave = useCallback(() => {
     const generation = generationRef.current;
     const execute = async (): Promise<boolean> => {
-      if (!initialized.current || !applicantId || !interviewer || remoteConflictRef.current) return false;
+      // A queued save must not read refs that now belong to another applicant.
+      if (generation !== generationRef.current || !applicantId) return false;
       const current = draftRef.current;
       const currentSerialized = serialize(current);
-      if (currentSerialized === lastSaved.current) return true;
+      if (currentSerialized === lastSaved.current && !remoteConflictRef.current) return true;
+      if (!initialized.current || !interviewer || remoteConflictRef.current) return false;
       setState('saving');
       ownSaveSerializedRef.current = currentSerialized;
       try {
@@ -111,7 +121,7 @@ export function useInterviewNoteLogic(
           overallRating: current.overallRating,
           expectedRevision: revisionRef.current,
         });
-        if (generation !== generationRef.current) return true;
+        if (generation !== generationRef.current) return false;
         revisionRef.current = nextRevision;
         setRevision(nextRevision);
         lastSaved.current = currentSerialized;
@@ -163,7 +173,11 @@ export function useInterviewNoteLogic(
     acceptRemote,
     overwriteRemote,
     retrySave,
-    flush: async () => ({ saved: await queueSave(), revision: revisionRef.current }),
+    flush: async () => {
+      const generation = generationRef.current;
+      const saved = await queueSave();
+      return { saved: saved && generation === generationRef.current, revision: revisionRef.current };
+    },
     setGeneralNotes: (generalNotes: string) => setDraft(current => {
       const next = { ...current, generalNotes };
       draftRef.current = next;

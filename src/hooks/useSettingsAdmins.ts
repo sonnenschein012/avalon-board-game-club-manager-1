@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
-import { addAdminRecord, listAdmins, removeAdminRecord } from '../services/settingsService';
+import { AdminAlreadyExistsError, addAdminRecord, listAdmins, removeAdminRecord } from '../services/settingsService';
 import type { Admin } from '../types';
 
 export function useSettingsAdmins() {
@@ -40,8 +40,12 @@ export function useSettingsAdmins() {
       setNewAdminEmail('');
       void fetchAdmins();
     } catch (error) {
-      toast.error('관리자 추가에 실패했습니다.');
-      handleFirestoreError(error, OperationType.CREATE, `admins/${normalizedEmail}`);
+      if (error instanceof AdminAlreadyExistsError) {
+        toast.error(error.message);
+      } else {
+        toast.error('관리자 추가에 실패했습니다.');
+        handleFirestoreError(error, OperationType.CREATE, `admins/${normalizedEmail}`);
+      }
     } finally {
       setAddingAdmin(false);
     }
