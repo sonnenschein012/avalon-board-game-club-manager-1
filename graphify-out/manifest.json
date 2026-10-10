@@ -282,16 +282,16 @@
     "semantic_hash": "369260289674f8890ec021ea4f121247"
   },
   "src/components/AttendanceCsvImportModal.tsx": {
-    "mtime": 1791541921.0018404,
-    "seen": 1791628525.378354,
-    "ast_hash": "7394d15bbc36be556e34e8dbb0e50b94",
-    "semantic_hash": "7394d15bbc36be556e34e8dbb0e50b94"
+    "mtime": 1791631645.1951597,
+    "seen": 1791646519.517932,
+    "ast_hash": "97427a4e3e0258307ea92fd8339a6939",
+    "semantic_hash": "97427a4e3e0258307ea92fd8339a6939"
   },
   "src/components/AttendanceDragAndDrop.tsx": {
-    "mtime": 1789214353.8946786,
-    "seen": 1791628525.378354,
-    "ast_hash": "2b7e4862f4f546e93b96cd36c657b3bb",
-    "semantic_hash": "2b7e4862f4f546e93b96cd36c657b3bb"
+    "mtime": 1791631645.1997087,
+    "seen": 1791646519.517932,
+    "ast_hash": "1a9dfb6dc4975d7ff94318b613e57745",
+    "semantic_hash": "1a9dfb6dc4975d7ff94318b613e57745"
   },
   "src/components/AttendanceMemberRegistrationModal.tsx": {
     "mtime": 1789213770.5592482,
@@ -408,10 +408,10 @@
     "semantic_hash": "5812b849f4cc129836f0dff2c86d02e2"
   },
   "src/components/GroupsCanvas.tsx": {
-    "mtime": 1791557572.6181815,
-    "seen": 1791628525.378354,
-    "ast_hash": "149451b61fc35fdefc75d35e620c1271",
-    "semantic_hash": "149451b61fc35fdefc75d35e620c1271"
+    "mtime": 1791631645.1997087,
+    "seen": 1791646519.517932,
+    "ast_hash": "fff9accd62881de96fbdd0d51610e6b2",
+    "semantic_hash": "fff9accd62881de96fbdd0d51610e6b2"
   },
   "src/components/InterviewRoundDeleteModal.tsx": {
     "mtime": 1787702208.706423,
@@ -696,10 +696,10 @@
     "semantic_hash": "d54d5c04b04ddeed4ad38efa4565eff5"
   },
   "src/components/UnassignedPool.tsx": {
-    "mtime": 1791541921.0247245,
-    "seen": 1791628525.378354,
-    "ast_hash": "4faa57c63402ea68a35cb646f94556e7",
-    "semantic_hash": "4faa57c63402ea68a35cb646f94556e7"
+    "mtime": 1791631645.2014837,
+    "seen": 1791646519.517932,
+    "ast_hash": "01a5756ee0fdc4f072c2eecc88cd9006",
+    "semantic_hash": "01a5756ee0fdc4f072c2eecc88cd9006"
   },
   "src/components/attendanceButtonStyles.ts": {
     "mtime": 1791557572.6244948,
@@ -732,16 +732,16 @@
     "semantic_hash": "c778fc95b3aef11532b14bc99948dd9a"
   },
   "src/domain/attendance/csvParser.test.ts": {
-    "mtime": 1788956610.5343766,
-    "seen": 1791628525.378354,
-    "ast_hash": "35cd1fdd557528c7a6e24c0be2cd72dd",
-    "semantic_hash": "35cd1fdd557528c7a6e24c0be2cd72dd"
+    "mtime": 1791631645.2034924,
+    "seen": 1791646519.517932,
+    "ast_hash": "d79388677f691cc1c211b012a6680d5f",
+    "semantic_hash": "d79388677f691cc1c211b012a6680d5f"
   },
   "src/domain/attendance/csvParser.ts": {
-    "mtime": 1788956279.1537962,
-    "seen": 1791628525.378354,
-    "ast_hash": "2d6886d132cd55e1e4a28b364cb8ff43",
-    "semantic_hash": "2d6886d132cd55e1e4a28b364cb8ff43"
+    "mtime": 1791631645.2034924,
+    "seen": 1791646519.517932,
+    "ast_hash": "45990d0e267fd4ee0ef5244a8169ce6b",
+    "semantic_hash": "45990d0e267fd4ee0ef5244a8169ce6b"
   },
   "src/domain/attendance/dailyPlanning.ts": {
     "mtime": 1788974704.9258254,
@@ -768,10 +768,10 @@
     "semantic_hash": "fe9e0ea18ad936ebf774c0ca395f1a40"
   },
   "src/domain/attendance/sessionGroups.ts": {
-    "mtime": 1788355590.3775406,
-    "seen": 1791628525.378354,
-    "ast_hash": "f2124765ce8d9cbd384f700ac5ac405e",
-    "semantic_hash": "f2124765ce8d9cbd384f700ac5ac405e"
+    "mtime": 1791631645.2056272,
+    "seen": 1791646519.517932,
+    "ast_hash": "7dda8e2352283cc235c00e9eeb909808",
+    "semantic_hash": "7dda8e2352283cc235c00e9eeb909808"
   },
   "src/domain/attendance/sessionMetadata.test.ts": {
     "mtime": 1789188737.7918992,
@@ -1128,16 +1128,16 @@
     "semantic_hash": "8417310a2e692c07bb02193beef3ea52"
   },
   "src/domain/matching/getMemberFromAttendee.test.ts": {
-    "mtime": 1789188737.8161638,
-    "seen": 1791628525.378354,
-    "ast_hash": "253a2ec37cd5dc2d97743d53d0924160",
-    "semantic_hash": "253a2ec37cd5dc2d97743d53d0924160"
+    "mtime": 1791631645.207635,
+    "seen": 1791646519.517932,
+    "ast_hash": "4348f884e4866ab8b742e96c0816d42f",
+    "semantic_hash": "4348f884e4866ab8b742e96c0816d42f"
   },
   "src/domain/matching/getMemberFromAttendee.ts": {
-    "mtime": 1782308600.0,
-    "seen": 1791628525.378354,
-    "ast_hash": "509bac276d15dd927f2fc1da3dea83eb",
-    "semantic_hash": "509bac276d15dd927f2fc1da3dea83eb"
+    "mtime": 1791631645.207635,
+    "seen": 1791646519.517932,
+    "ast_hash": "f935347f0650fb8713de38033d27415b",
+    "semantic_hash": "f935347f0650fb8713de38033d27415b"
   },
   "src/domain/matching/groupCostContext.test.ts": {
     "mtime": 1788368123.2794693,
@@ -1146,10 +1146,10 @@
     "semantic_hash": "d7d21278e0f09b1ef8524f999b19af2a"
   },
   "src/domain/matching/groupCostContext.ts": {
-    "mtime": 1788355588.912908,
-    "seen": 1791628525.378354,
-    "ast_hash": "fb5f4945bb3f36256da5c9699f4b7afc",
-    "semantic_hash": "fb5f4945bb3f36256da5c9699f4b7afc"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.517932,
+    "ast_hash": "25585ab6a0240a7ab8a1d161445cdbe4",
+    "semantic_hash": "25585ab6a0240a7ab8a1d161445cdbe4"
   },
   "src/domain/matching/groupCostFunction.test.ts": {
     "mtime": 1789188737.8161638,
@@ -1200,16 +1200,16 @@
     "semantic_hash": "78085deefaaba4cfdcba2927a27047e5"
   },
   "src/domain/matching/personalUtility.test.ts": {
-    "mtime": 1791541921.0419436,
-    "seen": 1791628525.378354,
-    "ast_hash": "a447cbbeb0c208786f2ed143d3c952c5",
-    "semantic_hash": "a447cbbeb0c208786f2ed143d3c952c5"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.5199366,
+    "ast_hash": "db9d6832d6a9002e5b353c8d0dee1c99",
+    "semantic_hash": "db9d6832d6a9002e5b353c8d0dee1c99"
   },
   "src/domain/matching/personalUtility.ts": {
-    "mtime": 1791541921.0480144,
-    "seen": 1791628525.378354,
-    "ast_hash": "92b6afb386dcc6060ee7c9643e8e47b3",
-    "semantic_hash": "92b6afb386dcc6060ee7c9643e8e47b3"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.5199366,
+    "ast_hash": "4b32884603e7f7925b9db69d9cc22bfb",
+    "semantic_hash": "4b32884603e7f7925b9db69d9cc22bfb"
   },
   "src/domain/meeting/progressHelpers.ts": {
     "mtime": 1791528556.4862194,
@@ -1464,10 +1464,10 @@
     "semantic_hash": "8afdc94bebee59bba3ab32e102f86cc0"
   },
   "src/hooks/useAttendanceLogic.ts": {
-    "mtime": 1791541921.0600462,
-    "seen": 1791628525.378354,
-    "ast_hash": "7a10063858c28f41dcaa4a2d18acfc27",
-    "semantic_hash": "7a10063858c28f41dcaa4a2d18acfc27"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.5199366,
+    "ast_hash": "c4f92278643e7368473fa47f5d2e6975",
+    "semantic_hash": "c4f92278643e7368473fa47f5d2e6975"
   },
   "src/hooks/useAuditEvents.ts": {
     "mtime": 1788583950.6724653,
@@ -1662,16 +1662,16 @@
     "semantic_hash": "fab9970f040842cbfc5335ef92df08d9"
   },
   "src/scenario-lab/ScenarioPages.tsx": {
-    "mtime": 1791557572.6244948,
-    "seen": 1791628525.378354,
-    "ast_hash": "670895628885081d08528e65dc58d6f2",
-    "semantic_hash": "670895628885081d08528e65dc58d6f2"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.5199366,
+    "ast_hash": "c0b8e06cc34f187a3ebcee032839f474",
+    "semantic_hash": "c0b8e06cc34f187a3ebcee032839f474"
   },
   "src/scenario-lab/fixtures.ts": {
-    "mtime": 1791557572.6278343,
-    "seen": 1791628525.378354,
-    "ast_hash": "eb8483cd9b90dc142507ba92eaa5e7bb",
-    "semantic_hash": "eb8483cd9b90dc142507ba92eaa5e7bb"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.5199366,
+    "ast_hash": "46f6e142c838762b4f82970f11a684c3",
+    "semantic_hash": "46f6e142c838762b4f82970f11a684c3"
   },
   "src/scenario-lab/main.tsx": {
     "mtime": 1789188737.8801808,
@@ -1680,16 +1680,16 @@
     "semantic_hash": "39581747b882433fc79fce857b95073e"
   },
   "src/services/attendeesService.test.ts": {
-    "mtime": 1789214065.5602288,
-    "seen": 1791628525.3809206,
-    "ast_hash": "c928926bcb700262ce82ada35bcfce82",
-    "semantic_hash": "c928926bcb700262ce82ada35bcfce82"
+    "mtime": 1791631645.2096417,
+    "seen": 1791646519.5199366,
+    "ast_hash": "03674e7fffc965579414631947e59ec2",
+    "semantic_hash": "03674e7fffc965579414631947e59ec2"
   },
   "src/services/attendeesService.ts": {
-    "mtime": 1789213714.560403,
-    "seen": 1791628525.3809206,
-    "ast_hash": "dd7dd498fadfd9e12c97f4e647e1b4f5",
-    "semantic_hash": "dd7dd498fadfd9e12c97f4e647e1b4f5"
+    "mtime": 1791631645.2177122,
+    "seen": 1791646519.5199366,
+    "ast_hash": "3094639ecb641dbed3da80edbc4a04a0",
+    "semantic_hash": "3094639ecb641dbed3da80edbc4a04a0"
   },
   "src/services/auditService.test.ts": {
     "mtime": 1788585488.9205904,
@@ -1812,16 +1812,16 @@
     "semantic_hash": "70333b7f702e2530070e9d409b00fd3c"
   },
   "src/tests/firestore.rules.test.ts": {
-    "mtime": 1789214065.6799293,
-    "seen": 1791628525.3809206,
-    "ast_hash": "7e00f12e58030c2d4b37a0c2924019c8",
-    "semantic_hash": "7e00f12e58030c2d4b37a0c2924019c8"
+    "mtime": 1791631645.218627,
+    "seen": 1791646519.5199366,
+    "ast_hash": "8957814c48e32e59d01def3818098ff9",
+    "semantic_hash": "8957814c48e32e59d01def3818098ff9"
   },
   "src/types.ts": {
-    "mtime": 1789188737.9068608,
-    "seen": 1791628525.3809206,
-    "ast_hash": "944c44ddc4ca861c297bfd4ca425a5f4",
-    "semantic_hash": "944c44ddc4ca861c297bfd4ca425a5f4"
+    "mtime": 1791631645.218627,
+    "seen": 1791646519.5199366,
+    "ast_hash": "f0b8a4016d38d18550a7887687d45866",
+    "semantic_hash": "f0b8a4016d38d18550a7887687d45866"
   },
   "tests/design-lab/smoke.spec.ts": {
     "mtime": 1791557572.6278343,
@@ -1830,16 +1830,16 @@
     "semantic_hash": "470a448b32f38dd8a5dccd902310228d"
   },
   "tests/scenario-lab/attendance-draft.spec.ts": {
-    "mtime": 1788875279.6915827,
-    "seen": 1791628525.3809206,
-    "ast_hash": "9ed62256d10b65ea601e87323a386d0b",
-    "semantic_hash": "9ed62256d10b65ea601e87323a386d0b"
+    "mtime": 1791631645.2214098,
+    "seen": 1791646519.5199366,
+    "ast_hash": "004f298805278215cdfa463a7e549385",
+    "semantic_hash": "004f298805278215cdfa463a7e549385"
   },
   "tests/scenario-lab/attendance-import.spec.ts": {
-    "mtime": 1791541921.0843294,
-    "seen": 1791628525.3809206,
-    "ast_hash": "6c39dd264e5b80d2a78f5f6debbb7f50",
-    "semantic_hash": "6c39dd264e5b80d2a78f5f6debbb7f50"
+    "mtime": 1791631645.2214098,
+    "seen": 1791646519.5199366,
+    "ast_hash": "8617d135bb3798adee19bfefa445d79c",
+    "semantic_hash": "8617d135bb3798adee19bfefa445d79c"
   },
   "tests/scenario-lab/fixtures/attendance-draft.tsx": {
     "mtime": 1788873856.3719878,
@@ -1908,10 +1908,10 @@
     "semantic_hash": "1686226db71b58a6ad623ce06bd7eb99"
   },
   "docs/development.md": {
-    "mtime": 1791628015.4706645,
-    "seen": 1791628525.3809206,
-    "ast_hash": "37e051c6c576893715d5e96204e0a86b",
-    "semantic_hash": "37e051c6c576893715d5e96204e0a86b"
+    "mtime": 1791631645.1951597,
+    "seen": 1791646519.5199366,
+    "ast_hash": "44060fcfddfa8cff08c85692954c81c1",
+    "semantic_hash": "44060fcfddfa8cff08c85692954c81c1"
   },
   "docs/group-sizing-model.md": {
     "mtime": 1791443869.4263391,
@@ -1996,5 +1996,17 @@
     "seen": 1791628525.3809206,
     "ast_hash": "3808d42d1e9c396926c7698d125af419",
     "semantic_hash": "3808d42d1e9c396926c7698d125af419"
+  },
+  "src/domain/attendance/sessionGroups.test.ts": {
+    "mtime": 1791631645.2056272,
+    "seen": 1791646519.517932,
+    "ast_hash": "257d4c355d77fefe41e470feffa5a7de",
+    "semantic_hash": "257d4c355d77fefe41e470feffa5a7de"
+  },
+  "tests/design-lab/attendance-import.spec.ts": {
+    "mtime": 1791631645.218627,
+    "seen": 1791646519.5199366,
+    "ast_hash": "fbb3a6e90526e57a7382392293d461fb",
+    "semantic_hash": "fbb3a6e90526e57a7382392293d461fb"
   }
 }
