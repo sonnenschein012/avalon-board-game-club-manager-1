@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/Graphify-Labs/graphify",
+  "release": "v0.9.84",
+  "package": "graphifyy",
+  "version": "0.9.84",
+  "python": ">=3.10",
+  "testedPython": "3.12.10",
+  "directed": true,
+  "automaticHooks": false,
+  "semanticBackend": "current Codex session; no new API credentials",
+  "releaseNotes": "https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.84"
+}

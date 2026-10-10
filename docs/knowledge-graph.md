@@ -1,77 +1,68 @@
 # 코드 지식 그래프 운영
 
-Understand-Anything은 기능 설명과 코드·테스트 관계를 찾는 로컬 보조 도구입니다. 현재 동작은 소스·테스트·Firestore 규칙으로 확인하고, 설계 이유와 운영 절차는 [개발 가이드](development.md)와 [운영 가이드](operations.md)에서 관리합니다. `agent_docs/`는 기존 판단을 보완하는 로컬 자료이며 삭제하거나 생성 설명으로 덮어쓰지 않습니다.
+현재 프로젝트의 코드 탐색 도구는 Graphify입니다. 소스·테스트·Firestore 규칙은 최종 근거이며 그래프는 탐색 후보와 연결을 찾는 보조 자료입니다. 유지되는 설계·운영 결정은 docs/에 기록하고 agent_docs/는 선택적인 과거 기록으로 보존합니다.
 
 ## 설치와 재현
 
-검증 대상은 Egonex-AI/Understand-Anything 커밋 `5feed1f2ce4f9c368d860f4c0ebc36d98a4693fc`입니다. 자동 업데이트하지 않습니다. 새 버전을 채택하면 아래 검증을 반복합니다.
+2026-10-10 확인한 공식 최신 릴리스 Graphify-Labs/graphify v0.9.84를 채택했습니다. PyPI 패키지 이름은 graphifyy이며 graphify-toolchain.json에 버전을 고정합니다. 최근 변경에는 TypeScript 호출 해석, 경로·줄바꿈에 따른 결과 차이 감소, 증분 갱신과 정확한 파일::심볼 조회 보정이 포함됩니다. 공식 릴리스: https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.84 . 새 버전 채택 시 아래 검증을 반복합니다.
 
-Windows에서는 공식 저장소의 `install.ps1`을 파일로 다운로드하고 검토한 뒤 `& ./install.ps1 codex`로 설치합니다. 도구 저장소는 `$HOME/.understand-anything/repo`, Codex 스킬은 `$HOME/.agents/skills/`, 공통 junction은 `$HOME/.understand-anything-plugin`입니다. 이미 존재하는 경로와 다른 도구 연결을 덮어쓰지 마세요. 도구 체크아웃에서 검증된 SHA를 선택하고, 루트 packageManager에 지정된 pnpm 10.6.2로 `pnpm install --frozen-lockfile`을 실행합니다. core 빌드는 설치의 prepare 단계가 수행합니다. 앱 의존성과 lockfile은 바꾸지 않습니다.
+Node.js 22 이상, Git, Python 3.10 이상과 uv가 필요합니다. 이 환경에서는 Python 3.12.10을 검증합니다. 저장소 전용 런타임을 설치하며 다른 프로젝트의 전역 Graphify와 앱 npm 의존성을 바꾸지 않습니다.
 
-Node 22 이상, Git, pnpm 10 이상, 배치 병합용 Python 3이 필요합니다. 현재 Codex 모델·인증을 사용하며 별도 API 키를 추가하지 않습니다. 구조 추출·해시·검증은 로컬 계산이고, 설명·투어·업무 흐름·LLM 검토에는 Codex 사용량이 발생합니다. 정확한 소요량은 실행 결과로 기록합니다.
+```powershell
+uv venv .graphify-runtime --python 3.12
+uv pip install --python .graphify-runtime/Scripts/python.exe "graphifyy==0.9.84"
+node scripts/graphify.mjs --version
+node scripts/graphify.mjs install --project --platform codex
+```
 
-이 Windows 환경의 UA 분석·회귀 검증은 Node 22.23.2를 사용합니다. Node 24에서는 공식 증분 테스트의 하위 프로세스가 네이티브 오류로 종료되는 현상을 재현했습니다. 전역 앱 런타임은 바꾸지 않고 `npm exec --yes --package=node@22.23.2 -- node <공식 스크립트> <인자>` 또는 `.ua/installation.json`의 검증된 Node 실행 경로를 사용합니다. npm 캐시 경로는 다른 컴퓨터에서 재사용할 수 없으므로 재설치 시 다시 확인합니다.
+macOS/Linux에서는 Python 경로가 .graphify-runtime/bin/python입니다. wrapper는 운영체제별 경로와 고정 버전을 확인합니다. 공식 설치는 프로젝트의 .codex/skills/graphify/SKILL.md와 references/ 및 AGENTS.md 안내를 생성합니다. .codex/는 로컬 전용입니다. 설치가 덧붙인 일반 안내와 프로젝트 규칙이 겹치면 이 문서와 유지된 AGENTS.md의 후보 분석·검증 정책을 따릅니다. 개인 Codex 설정·모델·인증을 변경하거나 새 API 키를 추가하지 않습니다. 코드 AST는 로컬 계산, 문서 의미 분석은 현재 Codex 세션 사용량이며 정확한 토큰 합계가 노출되지 않으면 미측정으로 기록합니다.
 
-Codex 스킬 호출은 `$understand`처럼 채팅에서 합니다. PowerShell 명령이 아닙니다. 스킬 문서의 Bash 예제는 PowerShell로 변환하고 공식 Node/Python 스크립트를 실행합니다. junction 읽기가 제한되면 실제 플러그인 경로를 사용합니다. Windows ESM import는 `pathToFileURL`을 사용합니다. 실패 시 lockfile을 재작성하거나 새 분석기를 만들지 않습니다.
+## 범위와 공유 묶음
 
-## 입력과 출력
+src/, 모든 단위·규칙·Playwright 테스트와 합성 fixture, scripts/, docs/, .github/, .stitch/DESIGN.md, README, Firestore 규칙·인덱스, Firebase/Vite/TypeScript/ESLint 설정을 포함합니다. .mts/.cts 및 Python 운영 스크립트도 포함합니다. 실제 업무 자료·CSV/TSV, 인증/.env, 의존성·빌드·로그·이미지, agent_docs/, .ua/, .codex/, 도구 런타임·캐시와 로컬 배포 산출물은 .graphifyignore로 제외합니다. AGENTS.md는 그래프 노드 대신 최신성 제어 입력입니다.
 
-`.ua/`는 검증된 이식 가능 묶음만 Git에 공유합니다. `.gitignore`의 허용 목록은 그래프 두 개, fingerprints, meta, scan-result, 검증 상태, semantic-review, accepted-graph, 분석 설정과 toolchain입니다. installation.json, pending-input, 중간 배치와 임시·캐시 파일은 로컬 전용입니다. 기존 프로젝트 `.understand-anything/`가 있으면 공식 도구가 이를 우선하므로 두 디렉터리를 동시에 만들지 않습니다. `.ua/config.json`은 `{"autoUpdate":false,"outputLanguage":"ko"}`를 사용합니다. 커밋 훅이나 주기적 자동 분석은 설치하지 않습니다.
+공식 detect와 독립 목록의 차이를 확인합니다. Graphify가 분류하지 못하는 유지된 텍스트(예: Firestore Rules·CSS·webmanifest·확장자 없는 설정)와 AST가 노드로 표현하지 않는 Firebase·인덱스·도구 버전 JSON 설정은 의미 분석 대상으로 명시하여 source_file 근거를 남깁니다. 이를 AST 추출 성공으로 표현하지 않습니다. 민감 파일로 표시된 항목은 자동 강제 포함하지 않습니다.
 
-분석에는 `src/`(ESM/CJS의 `.mts`·`.cts` 선언 파일 포함), 모든 단위·통합·Playwright 테스트와 합성 fixture, `scripts/`, `docs/`, 공유 디자인 관찰 기록 `.stitch/DESIGN.md`, README, Firestore 규칙·인덱스, Firebase/Vite/TypeScript/ESLint/CI 설정을 포함합니다. 생성물, 의존성, 바이너리 이미지, 실제 업무 데이터, `.env*`, 인증 파일, 중복 백업과 과거 그래프는 제외합니다. `.codex-tmp-deploy-*`와 `.codex-deploy-audit-*` 로컬 배포 산출물도 분석·최신성 입력에서 제외합니다. `.ua/.understandignore`에 이를 기록하고 테스트 제외 제안을 활성화하지 않습니다. 초기 스캔의 파일 목록은 검증 스크립트의 독립 목록과 일치해야 합니다. 분석 범위를 바꾸면 두 목록을 함께 검토합니다.
+Git 공유 허용 목록은 graphify-out/graph.json, graph.html, GRAPH_REPORT.md, manifest.json, scope.json, semantic-review.json, verification-state.json입니다. interpreter/root 절대 경로, cache, 분석 중간 파일, work memory, 토큰 누계 파일은 공유하지 않습니다. manifest는 공식 Graphify가 생성한 저장소 상대 경로 목록입니다. 그래프는 방향을 보존하며 각 관계의 EXTRACTED/INFERRED/AMBIGUOUS와 신뢰도를 유지합니다.
 
-`agent_docs/`는 선택적인 과거 기록이며 공유 분석 입력에 포함하지 않습니다. 필요한 지속적 결정은 소스와 대조해 docs/에 기록합니다. Git에 공유하는 `AGENTS.md`, 제외 규칙, 분석 설정과 toolchain의 내용 해시는 별도로 감시합니다. AGENTS.md는 파일 노드가 아닌 검증 제어 입력입니다.
+## 일상적인 탐색과 갱신
 
-주요 산출물은 `knowledge-graph.json`, `domain-graph.json`, `fingerprints.json`, `meta.json`, `intermediate/scan-result.json`입니다. 이 묶음과 검증 상태를 함께 보관·복구합니다. 그래프의 노드 수는 정확성 점수가 아닙니다.
+```powershell
+node scripts/graphify.mjs status
+node scripts/graphify.mjs query "DailyPlannings sessions renameDailyPlanningGroup"
+node scripts/graphify.mjs path "convertAttendeeIdsToMemberIds" "getMemberFromAttendee"
+node scripts/graphify.mjs explain "src/services/dailyPlanningService.ts::renameDailyPlanningGroup"
+node scripts/graphify.mjs affected "renameDailyPlanningGroup"
+```
 
-## 세션 작업 순서
+query는 그래프 어휘를 함께 사용하고 필요하면 --budget로 범위를 제한합니다. path는 방향 있는 경로를 찾으므로 경로 부재를 기능·영향 부재로 해석하지 않습니다. 직접 import가 없는 공유 Firestore 소비자를 소스에서 추가 검색하고 삭제 심볼은 직전 정상 그래프와 diff를 함께 확인합니다. 그래프 전체나 보고서를 매 세션 읽지 않습니다.
 
-1. `node scripts/knowledge-graph.mjs status`로 파일 내용·목록·설정·산출물의 상태를 확인합니다. 0은 검증된 동일 입력, 2는 갱신 필요, 3은 오류입니다. 동일 HEAD만으로 최신이라고 판단하지 않습니다.
-2. 개발 가이드의 기능 시작점과 관련 규칙을 읽고 `$understand-chat`, `$understand-explain` 또는 JSON의 필요한 노드·관계만 조회합니다. 그래프 전체를 매번 읽지 않습니다.
-3. 수정 전에 호출자, 저장·조회 경계, 공유 Firestore 컬렉션, 권한, 테스트를 확인합니다. 수정 후에는 기준 브랜치 대비 diff와 staged·unstaged·신규 파일의 합집합을 사용합니다. 삭제 항목은 이전 정상 그래프도 확인합니다.
-4. `$understand-diff`는 기본 1-hop 후보입니다. 관련 화면까지 추가 추적하고 `DailyPlannings`, `sessions`, `members`, 면접 컬렉션의 모든 읽기·쓰기·구독 경로를 검색합니다. import가 없는 간접 소비자와 규칙 테스트를 확인합니다. 그래프 누락은 영향 없음의 근거가 아닙니다.
-5. 변경 경계에 맞는 테스트를 실행합니다. 규칙·권한은 `npm run test:rules`, 앱 기본 검증은 `npm run check`, 화면 연결은 해당 Playwright 시나리오를 사용합니다. 운영 데이터를 검증용으로 바꾸지 않습니다.
-6. 논리적 작업 완료 시 아래 정책으로 분석·검증하고 입력과 결과가 일치할 때만 정상 기준점을 갱신합니다.
+편집 중에는 stale을 허용합니다. 완료된 작업이나 사용자 요청 이정표에 갱신합니다. node scripts/graphify.mjs update .는 공식 AST 갱신을 .graphify-work/update-candidate에 실행하여 정상 공유 묶음을 보존합니다. 문서·Rules·업무 의미 변경은 공식 스킬의 의미 분석 및 검토도 필요합니다. AST 모양과 동일 함수 시그니처만으로 의미가 같다고 판단하지 않습니다. 자동 watcher, post-commit hook, Cloud 업로드와 운영 DB 분석은 사용하지 않습니다.
 
-## 갱신과 검증
+## 전체 분석과 승인
 
-최초에는 `node scripts/knowledge-graph.mjs begin`으로 입력 기준을 저장하고 `$understand --full --review --language ko --no-auto-update`를 실행합니다. 이후 편집 중이거나 일반적인 미커밋 작업을 마친 시점에는 전체 분석을 자동 실행하지 않습니다. `status`의 stale 상태를 유지하고, 마지막 정상 그래프와 실제 staged·unstaged·신규 파일의 차이를 함께 검토합니다. 오래된 그래프를 현재 코드의 설명으로 제시하지 않습니다.
+1. 정상 묶음을 프로젝트 밖에 백업하고 node scripts/graphify.mjs begin으로 입력 SHA-256을 저장합니다. 분석을 위해 사용자 작업을 commit/stash/reset하지 않습니다.
+2. .graphify-runtime/Scripts/python.exe scripts/graphify_pipeline.py scan으로 공식 detect/semantic cache 및 독립 목록을 대조합니다. 이어 ast로 공식 구조 추출을 실행합니다.
+3. 공식 Graphify Codex 스킬의 Part B와 references/extraction-spec.md를 읽고 문서·보완 텍스트를 최대 두 동시 작업자로 분석합니다. 결과는 .graphify-work/candidate/semantic-chunk-*.json에 저장합니다. 현재 세션 인증을 사용하며 실제 토큰 합계를 모르면 0원/0토큰으로 주장하지 않습니다.
+4. 완료된 의미 분석의 현재 소스 근거를 확인한 뒤 pipeline의 seal로 chunk와 근거 파일의 해시 영수증을 기록합니다. 오래된 chunk를 다시 봉인해 현재 분석으로 취급하지 않습니다. build는 영수증과 현재 소스를 대조하고 공식 build/cluster/analyze/report/export/diagnostics/save_manifest를 실행합니다. 추출기나 클러스터링을 재구현하지 않습니다. 커뮤니티 이름을 후보 community-labels.json에 작성하고 build를 다시 실행해 보고서와 graph.json에 반영합니다. 5,000개 초과 시 HTML의 집계 표시를 알리고 공식 export html을 실행합니다.
+5. 이전 대화 없는 독립 검토자가 아래 6개 사례를 현재 소스·테스트와 대조합니다. 그래프에서 찾은 내용과 원문 보완, 존재하는 테스트와 실제 실행 결과, 누락·한계를 구분합니다. graphHash/inputDigest에 연결된 semantic-review.json을 작성합니다.
+6. 완전히 검토한 후보의 공유 허용 목록만 graphify-out/로 옮기고 node scripts/graphify.mjs accept 및 verify를 실행합니다. 분석 중 입력 해시가 바뀌면 승인하지 않습니다. 실패·빈 그래프·누락된 의미 분석은 정상 묶음을 대체하지 않습니다.
 
-깨끗한 커밋 기준점 이후 작은 변경에는 공식 증분 `$understand`를 사용합니다. 주요 업무 규칙·권한·공유 데이터 계약 변경이나 정한 유지보수 이정표에서 전체 분석합니다. 내용이 동일하면 커밋 이동이나 dirty 해제만으로 기존 검증이 무효화되지는 않습니다. 다만 dirty 기준점에서 공식 증분 승인은 허용하지 않으며, 다음 전체 분석으로 깨끗한 기준점을 만듭니다. 분석을 위해 사용자 작업을 commit/stash/reset하지 않습니다. 미커밋 변경까지 최신 그래프가 꼭 필요하면 명시적으로 전체 분석을 실행합니다.
+status의 0/current는 같은 입력·제어·산출물 내용 해시이며 2/stale·artifact-drift·unverified는 갱신/복구 필요, 3/invalid는 읽기·검증 오류입니다. UTF-8 입력·제어 텍스트는 CRLF를 LF로 정규화하여 SHA-256을 계산합니다. 공유 산출물은 .gitattributes의 eol=lf에 맞춰 pipeline의 portable로 LF 저장하고 바이트 해시를 검사합니다. HEAD가 같아도 내용 변경은 stale, 그래프만 커밋한 뒤 HEAD가 달라도 같은 내용이면 current입니다. verify는 구조·경로 커버리지·버전·의미 검토·산출물 무결성을 확인하며 문장 의미를 자동 증명하지 않습니다.
 
-이 버전의 증분 처리기는 관련 미커밋 변경을 거부합니다. 부분 갱신은 투어 문장을 유지합니다. 함수 시그니처가 같아도 조건·반환값·업무 의미가 달라지면 설명을 직접 확인하고, 의미·권한·공유 데이터 계약·투어가 달라지는 경우 전체 분석으로 승격합니다. 업무 흐름은 지식 그래프 갱신 후 `$understand-domain`으로 별도 생성합니다. 파일이 분석 중 바뀌면 정상 기준점으로 승인하지 않습니다.
+검증 도구 테스트는 node --test scripts/graphify.test.mjs입니다. 도구 업그레이드는 별도 합성 복제본으로 body-only/staged/new/delete/rename, 한국어·공백 경로, 문서·제외 규칙 변경, warm/cold·줄바꿈·경로 차이, 정상 묶음 손상·중단, 유지해야 할 심볼·관계 누락을 확인합니다. 공식 update 결과와 의미 갱신 필요 플래그도 대조합니다.
 
-공식 `incremental-plan.json`의 `cosmeticFiles`는 구조가 같은 변경이며 의미까지 같다는 보장이 아닙니다. 해당 diff를 검토하고 `.ua/verification/semantic-review.json`의 `cosmeticReview`에 모든 파일의 `{path, unchangedMeaning: true, evidence: "검토한 변경과 의미 유지 근거"}`를 기록한 경우에만 증분 승인을 허용합니다. 의미가 달라졌거나 판단할 수 없으면 전체 분석합니다. 단순 주석·서식 변경 때문에 무조건 전체 분석하지 않습니다.
+## 필수 6개 사례
 
-비용을 줄이기 위해 일반 파일의 설명은 짧게 유지하고 업무 규칙·저장 계약·권한·필수 질의에 상세 설명을 집중합니다. 구조 추출 결과와 파일별 완료 산출물은 해시로 확인해 재사용하며, 분석 작업자는 최대 두 개로 제한합니다. 분석 범위와 필수 검증은 줄이지 않습니다. 모델·인증은 명시적인 사용자 결정 없이 바꾸지 않습니다.
+- attendee ID를 저장 member ID로 바꾸는 이유, 이름·학번 접두사 매칭, 미매칭 fallback을 찾는가? 직접 변환 테스트와 접두사 fallback 전용 테스트가 없으면 그 사실을 구분하는가?
+- boardMemberIds 부재는 현재 회원 fallback, 빈 배열은 당시 임원 없음이라는 차이를 CSV·저장·통계에서 유지하는가?
+- 계획/확정 기록을 구분하고 이름 수정이 게임·메모·다른 조를 덮어쓰지 않는 경로·테스트와 동시성 한계를 설명하는가?
+- 공유 Firestore로 연결된 출석·모임·세션·통계·내보내기와 간접 소비자를 찾는가?
+- 공개 token/관리자 권한, 규칙 테스트, scheduleId undefined/null/ID와 legacy 회차 fallback, 클라이언트/Rules 차이를 설명하는가?
+- body-only 의미 변경과 오래된 설명, 유지할 심볼·관계 소실, 입력/산출물 손상을 발견하는가?
 
-`node scripts/knowledge-graph.mjs verify`는 독립 파일 목록, 전체 fingerprint, 그래프 참조·레이어·투어, 변경되지 않은 노드·관계 보존을 검사합니다. 공식 스키마 검증과 LLM 검토도 수행합니다. 설명의 의미 정확성은 기계 검사만으로 판정할 수 없습니다.
+## 이전 도구와 복구
 
-LLM 검토 결과를 `.ua/verification/semantic-review.json`에 기록합니다. `status: "passed"`, 현재 `inputDigest`, `graphHash`, `domainHash`와 아래 사례별 답변·코드·테스트 근거·누락·한계를 포함해야 합니다. 해시는 SHA-256입니다. 전체 분석은 `node scripts/knowledge-graph.mjs accept . --full`, 깨끗한 증분은 `node scripts/knowledge-graph.mjs accept`로 승인합니다. 검토 기록이 없거나 해시가 다르면 실패합니다. 이 명령은 의미 검토를 대신하지 않습니다.
+2026-10-10 사용자 요청으로 UA에서 최신 Graphify 기준으로 전환했습니다. 기존 .ua/ 공유 묶음은 과거 검증 자료로 그대로 보존하며 현재 그래프라고 사용하지 않습니다. 과거 node scripts/knowledge-graph.mjs와 테스트는 UA 역사 묶음 검증 용도로 남깁니다. 개인 UA 스킬·전역 Graphify는 다른 프로젝트 사용 범위를 모르므로 제거/덮어쓰기하지 않습니다. 이전 Graphify→UA 백업과 이번 UA→Graphify 백업 모두 로컬 보존하며 실제 업무 자료는 이동하지 않습니다.
 
-검증 스크립트 테스트는 `node --test scripts/knowledge-graph.test.mjs`입니다. 도구 업그레이드는 독립 복제본에서 staged/unstaged/new/delete/rename, 한국어·공백 경로, 동일 시그니처의 의미 변경, 문서·제외 규칙·생성물만 변경, 부분·아키텍처 증분, 중단·손상·노드/관계 누락을 검증합니다. Git worktree를 사용한다면 `UNDERSTAND_NO_WORKTREE_REDIRECT=1`로 주 저장소 덮어쓰기를 막습니다.
-
-## 필수 질의
-
-- 출석자의 attendee ID를 저장 member ID로 바꾸는 이유, 이름·학번 접두사 매칭, 미매칭 fallback과 관련 테스트를 찾는가? 변환 함수 직접 테스트가 없는 경우 그 사실도 말하는가?
-- `boardMemberIds` 부재는 현재 회원 fallback, 빈 배열은 당시 임원 없음이라는 차이를 CSV·저장·통계에서 유지하는가?
-- 계획과 확정 기록을 구분하고 이름 수정이 게임·메모·다른 조를 덮어쓰지 않는 저장 경로와 테스트를 찾는가?
-- 공유 Firestore 데이터로 연결된 출석·모임·세션·통계·내보내기를 찾는가?
-- 공개 token과 관리자 권한, 규칙 테스트, `scheduleId`의 undefined/null/ID 및 기존 회차 fallback을 설명하는가?
-- 의미 변경 뒤 설명이 오래되거나 유지해야 할 심볼·관계가 사라졌을 때 발견하는가?
-
-최초에는 이전 대화가 없는 검토 작업자도 같은 질문에 답하게 합니다. 그래프에서 찾은 내용과 원문으로 보완한 내용을 구분하며, 테스트 존재와 실제 실행 성공도 구분합니다.
-
-## 실패와 복구
-
-갱신 전 정상 `.ua` 묶음을 프로젝트 밖에 백업합니다. 실패 결과는 진단용으로 남기되 정상본을 덮어쓰거나 최신으로 표시하지 않습니다. 정상본 복구 시 Git 허용 목록의 전체 묶음(그래프·fingerprints·meta·scan·검토·accepted-graph·검증 상태·설정)을 같은 검증 커밋에서 함께 복구합니다. 다른 작업이 진행된 뒤에는 이전 백업으로 사용자 파일 전체를 덮어쓰지 않습니다.
-
-이전 Graphify 통합과 산출물 백업은 사용자 홈의 `.codex/migration-backups/avalon-ua-20260910`에 있습니다. 전환 후 두 번의 실제 유지보수 세션이 성공할 때까지 보관합니다. 전역 Graphify CLI는 다른 프로젝트 사용 범위가 확인되지 않아 제거하지 않습니다. 이번 프로젝트는 UA를 사용하며 전역 CLI의 잔존은 병행 운영을 뜻하지 않습니다.
-
-## 컴퓨터 간 공유와 검증 기준
-
-새 컴퓨터 절차는 [새 컴퓨터에서 시작하기](new-computer.md)를 따릅니다. Git commit은 분석 대상 추적용이고 push는 배포가 아닌 저장소 공유입니다. `status`는 Node와 Git만으로 공유 입력의 SHA-256과 모든 필수 산출물 해시를 확인하며 개인 도구 설치와 agent_docs/에 의존하지 않습니다. 그래프만 저장한 후속 커밋에서도 입력이 같으면 current입니다. `.gitattributes`는 텍스트 checkout을 LF로 통일해 Windows와 다른 OS 사이의 줄바꿈 차이로 해시가 달라지는 것을 막습니다.
-
-`verify`는 설치된 고정 UA 스키마를 사용해 전체 구조·fingerprint·검증 묶음을 다시 검사합니다. 기존 묶음 검증에는 로컬 pending-input.json이 필요 없습니다. 새 분석 승인에는 begin으로 기록한 입력, 공식 스키마 검증과 해당 입력·그래프에 연결된 의미 검토가 모두 필요합니다. toolchain.json은 버전만 공유하고 installation.json의 실행 경로는 공유하지 않습니다.
-
-정책·소스·문서 변경을 먼저 커밋한 뒤 begin → 공식 분석·검토 → verify/accept 순서로 진행하고, 허용 목록의 산출물을 두 번째 커밋으로 저장해 함께 push합니다. 승인 이후 입력이나 산출물이 바뀌면 다시 검증합니다. CI는 그래프가 current일 때 verify를 실행하는 대신 로컬 도구 설치 없는 status로 입력·산출물 무결성을 검사할 수 있습니다. 일반 소스 작업의 stale은 재분석 필요 표시이며 앱 자체의 실패를 뜻하지 않습니다.
+복구는 같은 정상 커밋의 Graphify 허용 목록 묶음 전체로 수행합니다. 다른 작업 뒤에 사용자 파일 전체를 백업으로 덮어쓰지 않습니다. 새 컴퓨터는 docs/new-computer.md를 따릅니다. source/tests/docs와 그래프는 별도 커밋으로 공유할 수 있으나 commit/push는 최신성 검증을 대체하지 않습니다. 도구·문서·그래프 변경은 앱 배포를 요구하지 않습니다.

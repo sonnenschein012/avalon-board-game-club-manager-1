@@ -74,10 +74,10 @@ UI 개선 시 [목표 디자인 기준](design-guidelines.md)을 참고하세요
 
 1. `npm ci` 후 변경할 기능의 위 시작점을 읽습니다.
 2. 현재 동작은 Scenario Lab 또는 Design Lab에서 확인합니다.
-3. [코드 지식 그래프 운영](knowledge-graph.md)에 따라 `node scripts/knowledge-graph.mjs status`로 최신성을 확인하고 Understand-Anything의 조회·설명으로 연결을 좁힌 후 소스를 확인합니다. 일반 미커밋 작업은 오래된 그래프와 실제 diff를 함께 검토하며, 깨끗한 커밋에서는 공식 증분 갱신을 사용합니다. 주요 업무·권한 변경은 전체 분석과 업무 흐름 갱신 대상으로 검토합니다.
+3. [코드 지식 그래프 운영](knowledge-graph.md)에 따라 `node scripts/graphify.mjs status`로 최신성을 확인하고 Graphify의 query·path·explain·affected로 연결을 좁힌 후 소스를 확인합니다. 일반 미커밋 작업은 마지막 정상 그래프와 실제 diff를 함께 검토합니다. 완료된 작업에서 구조를 갱신하고 업무 의미·문서·권한 변경에는 의미 분석과 필수 사례 검토도 수행합니다.
 4. 변경한 경계에 맞는 검증을 선택하고, 구조나 운영 방법이 달라졌을 때 이 가이드를 갱신합니다.
 
-Understand-Anything의 검증된 `.ua/` 묶음은 Git에 공유하며 설치 경로와 임시 산출물은 제외합니다. `agent_docs/`는 Git 제외된 선택적 과거 기록입니다. 새 clone에서 필요한 개발·운영 정보는 이 `docs/`와 README를 기준으로 합니다.
+Graphify의 검증된 `graphify-out/` 허용 목록만 Git에 공유하며 설치 경로와 임시 산출물은 제외합니다. `.ua/`는 이전 UA의 역사 묶음으로 보존합니다. `agent_docs/`는 Git 제외된 선택적 과거 기록입니다. 새 clone에서 필요한 개발·운영 정보는 이 `docs/`와 README를 기준으로 합니다.
 
 ## 출석 등록·세션 삭제와 조회 오류
 

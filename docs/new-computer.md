@@ -4,13 +4,13 @@
 
 ## 최초 설치
 
-Git과 Node.js 22를 설치합니다. UA 재분석은 검증된 Node 22.23.2를 사용합니다. 아래는 PowerShell 예시입니다(macOS/Linux에서는 npm.cmd 대신 npm).
+Git과 Node.js 22를 설치합니다. Graphify를 직접 실행할 때는 Python 3.10 이상(이 환경의 검증 버전은 3.12.10)과 uv도 필요합니다. 아래는 PowerShell 예시입니다(macOS/Linux에서는 npm.cmd 대신 npm).
 
 ```powershell
 git clone https://github.com/sonnenschein012/avalon-board-game-club-manager-1.git
 cd avalon-board-game-club-manager-1
 npm.cmd ci
-node scripts/knowledge-graph.mjs status
+node scripts/graphify.mjs status
 npm.cmd run check
 ```
 
@@ -18,16 +18,24 @@ Firebase 연결 설정은 저장소에 있으며 별도 .env가 필요하지 않
 
 ## 지식 그래프 재사용
 
-clone에 .ua/의 검증된 그래프·fingerprints·스캔 목록·검토·설정이 포함됩니다. status와 JSON의 범위 조회에는 UA 설치가 필요 없습니다. 기존 컴퓨터의 installation.json이나 인증 파일을 복사하지 않습니다.
+clone에 graphify-out/의 검증된 graph.json·HTML·보고서·공식 manifest·범위·의미 검토·검증 상태가 포함됩니다. status는 Node와 Git만으로 내용 해시를 확인합니다. JSON 범위 조회도 Graphify 설치 없이 가능합니다. 이전 .ua/는 역사 자료입니다. 개인 interpreter/root 절대 경로와 인증 파일을 복사하지 않습니다.
 
-- current: 기존 분석 결과를 재사용합니다. 후속 그래프 커밋으로 HEAD가 달라도 입력 해시가 같으면 유효합니다.
-- stale: 소스·문서·설정이나 파일 목록이 다릅니다. 마지막 정상 그래프와 실제 diff를 함께 읽고, 필요 시 공식 갱신을 수행합니다.
-- artifact-drift: 공유 산출물이 변경되거나 빠졌습니다. 수정 작업을 보존한 뒤 같은 정상 커밋의 묶음 전체로 복구합니다.
-- unverified 또는 invalid: 정상 묶음이 없거나 읽을 수 없습니다. 검증된 Git 버전을 확인하거나 공식 분석을 수행합니다.
+- current: 같은 내용의 검증 결과를 재사용합니다. HEAD 이동만으로 무효화되지 않습니다.
+- stale: 소스·문서·제어 입력이나 파일 목록이 달라졌습니다. 정상 그래프와 실제 diff를 함께 확인합니다.
+- artifact-drift: 산출물 변경/누락입니다. 작업을 보존하고 같은 정상 커밋의 묶음으로 복구합니다.
+- unverified/invalid: 정상 묶음이 없거나 검증에 실패했습니다.
 
-전체 스키마 재검증, 그래프 갱신 또는 UA 대시보드/스킬이 필요할 때만 [지식 그래프 운영](knowledge-graph.md)의 설치 절차를 수행합니다. 고정 버전은 .ua/toolchain.json에 있습니다. 도구 저장소를 사용자 홈의 .understand-anything/repo에 설치하고 지정 커밋을 checkout한 뒤 고정 pnpm으로 빌드합니다. 이후 `node scripts/knowledge-graph.mjs verify`를 실행할 수 있습니다. 공유 검증은 로컬 pending-input.json을 요구하지 않습니다.
+query·path·explain·affected 또는 갱신이 필요하면 고정 프로젝트 런타임을 설치합니다.
 
-새 분석은 깨끗한 소스 커밋 → begin → 공식 UA 분석과 의미 검토 → accept → 산출물 커밋·push 순서입니다. 커밋·push만으로 검증 상태를 새로 작성하지 않습니다. 실패한 분석 결과를 정상 묶음으로 올리지 않습니다.
+```powershell
+uv venv .graphify-runtime --python 3.12
+uv pip install --python .graphify-runtime/Scripts/python.exe "graphifyy==0.9.84"
+node scripts/graphify.mjs install --project --platform codex
+node scripts/graphify.mjs query "members sessions"
+node scripts/graphify.mjs verify
+```
+
+macOS/Linux의 가상환경 Python 경로는 .graphify-runtime/bin/python이며 wrapper가 이를 선택합니다. 설치가 AGENTS.md에 일반 안내를 덧붙이면 유지된 프로젝트 지침의 분석 시점·후보·검증 정책을 따릅니다. source/tests/rules가 최종 근거입니다. 새 분석과 복구는 [지식 그래프 운영](knowledge-graph.md)의 공식 스킬 및 6개 검증 사례를 따릅니다. 자동 hook·watcher·Cloud 연결은 설치하지 않습니다.
 
 ## 로컬 실행과 테스트
 
