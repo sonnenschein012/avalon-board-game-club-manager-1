@@ -1,7 +1,7 @@
 {
   "version": 1,
   "status": "verified",
-  "verifiedAt": "2026-10-10T16:21:04.309Z",
+  "verifiedAt": "2026-10-10T17:26:46.841Z",
   "tool": {
     "repository": "https://github.com/Graphify-Labs/graphify",
     "release": "v0.9.84",
@@ -15,7 +15,7 @@
     "releaseNotes": "https://github.com/Graphify-Labs/graphify/releases/tag/v0.9.84"
   },
   "input": {
-    "head": "e770362453f4159ec07902c1b2b5d3b8627c4f6e",
+    "head": "4d2f8130a63d9fed0009fbc4ae15e355b0c2832f",
     "files": {
       ".firebaserc": "b068f6d3f9c997fa67e8d540a1f09365e3b18e4bbdf91ef3aaf126877865b8b6",
       ".gitattributes": "4de518e6dfe403f632645ef94d81ad80c6f66c5f9556ef5bc605fc2e511f829d",
@@ -28,7 +28,7 @@
       "docs/group-utility-model.md": "ab21ee7be62b04b4fa1d9fe40684be3d2524785756ba9051d9d1b2451806a2be",
       "docs/knowledge-graph.md": "ba24690d5436b7a806b4fca87115435881420b049075f58a4bb9ad6707795ad2",
       "docs/new-computer.md": "92a348b50068c848b6828cf45ca4ac2151ae84169893c195ae23c5086eab64d9",
-      "docs/operations.md": "ca508319e0d639b24f594c2c106102b9fb871dc3b3504f52427240dfa8473e22",
+      "docs/operations.md": "9160249804e170e703ae6cadb95e25ef7c4756071f975d5fb3cfddebdee5a3ca",
       "docs/product-completion.md": "7610ee6a1971d3cfcfd27daceaa86d0aa984e98982b1a80bab586b61f837c83d",
       "eslint.config.js": "fda4f03700d92fe3238e3c92319753d6f9dca996b88fe28bcb8744a03594325e",
       "firebase-applet-config.demo.json": "de5c384a4637f60ed07929e5cdd0e384885e8ae46a50436740ec65f471874da4",
@@ -301,7 +301,7 @@
       "src/hooks/usePublicInterviewLogic.ts": "63573d6060f38116f896a05715a400cd377e64b05338131b76728083cd31198d",
       "src/hooks/useSessionsLogic.test.tsx": "3d5db70b0966435577075045e4d76ca64f45141a1fa1bc1cca2b00e223b9914a",
       "src/hooks/useSessionsLogic.ts": "7aa09bbb752b6c74fca1bc8d3784598f4599f4b610e16e179d73f5fadd735d31",
-      "src/hooks/useSettingsAdmins.ts": "f1cb6593e1f876d60ecd8521e404e38e047f29b87f7ac44e7ec2b4a5110b433e",
+      "src/hooks/useSettingsAdmins.ts": "b1e457a14d7dc5b356e53f2d80bbfa9745df0627dd8a1522e685ead5abbf8df5",
       "src/index.css": "e983c09459e66dcbb3cc7c41819a691b8c967f90b2001ba90167a912d577ecc0",
       "src/lib/chunkBatch.ts": "f3928896c659fe5368dab9e3958c96a440a6d28ad585442f94f6a184d9b72c71",
       "src/lib/downloadCsv.ts": "735de766a544c61034921b898517ae9137829f76ab2536e67c2508695792037f",
@@ -337,7 +337,8 @@
       "src/services/publicInterviewService.ts": "31d44182a2513b205fd0959ffc857e7444288a0ab1677d86e990ac97f4c4a2d7",
       "src/services/sessionsService.test.ts": "43d1cf51d2b475948ace335224376daed9d2a265ee48fc4aa0a19ede7b0d3185",
       "src/services/sessionsService.ts": "40ba630f6c5ca3bb8d3b168ad2aa5716698b51bb4d1fa561ad282154feec2ce4",
-      "src/services/settingsService.ts": "4e33dad31ad53de867339ec3aed6d0f1c2fce587ca76a1c877342cb51f197242",
+      "src/services/settingsService.test.ts": "9c10f5c5ac79ac49b5efa8ca851a8d57c6b74b9f7158ca813e633b2bc722d2aa",
+      "src/services/settingsService.ts": "9dee1bfc0afa09c1a42b76803f76b83c37fc97966bd4add6cbd885384b0773dd",
       "src/tests/firestore.rules.test.ts": "005d9d45c382c1600944a348143c7b22531295fa4d46406456d96e8a689d6157",
       "src/types.ts": "8b74d16ee994fbc684646d64450d05cd93e0a5d0df9062f3d203ef688549034d",
       "tests/design-lab/attendance-import.spec.ts": "f32cb20b1d46a8a890e94e4e7c3886804e3a30c7899065050a4fe84e164cbb6a",
@@ -359,14 +360,14 @@
       "AGENTS.md": "5e56a5beafd96b2a3d678ccb8d37adb2b0f3f261c7e526679a2c887e1c8128ff",
       "graphify-toolchain.json": "55436424b97f30668bad740be89fd07679fcdd68b7086cecd95c9aaac60f9cc1"
     },
-    "digest": "12b47e58c017bce3c16e4233d24d13e170ac1e7732cc5f6c2f42881a0374daa3"
+    "digest": "00627fcf2050f538bc2592cac2f0fd574cd1b756a78f4fb5ca4bf6378942f6e3"
   },
   "artifacts": {
-    "graph.json": "87e8efeb49feb6e3ff440a01f102347ad60b936a1c892c8833cb57813f586517",
-    "graph.html": "3557f6296379d394b474935c0f6f1977afc456db27ac857b480020cb28775138",
-    "GRAPH_REPORT.md": "db517bf547312cf7caa6af595907e0f652774d978f5e651dcd27185e16e86365",
-    "manifest.json": "3e72ef4b56f3a0965cd4f1f0a30cf3149b8f903f80d2db0104043f847a54617b",
-    "scope.json": "c2b14672a80e8d3f37623194b2bc329cf2de7b3a401e6f04fb23a1de758ac7bc",
-    "semantic-review.json": "b863d0eec6193662f9b923a6741bfaaf1bc7eeda10c17c6f84b1c9fe38a79884"
+    "graph.json": "5ab120c019a30e08a280add6ebe51a60b8e1b19d49a4624ac3475213ce1d1e70",
+    "graph.html": "3006c2137c057f028adc4ca2eb847c51dde14cdfdd26999dd94c03526ca17913",
+    "GRAPH_REPORT.md": "afb73e8b74b3292cd863f058bd896816cc23b1735ab0ed7a825540d21053639d",
+    "manifest.json": "ccfe49a9b1e12fa24b03c87d772a1ed1e8139c84822705d40cf28e7c76052fa7",
+    "scope.json": "2c051218c1c5c27f03fd1f1a4036ad2f6a38c9fbff7de08261c03923ed90fa4c",
+    "semantic-review.json": "25b7b3cc5ccd8e5d7e9e8e4402f4ce0d282110b0babf67028cee598a5c4c59f2"
   }
 }
