@@ -151,6 +151,13 @@ CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운�
 - 기존 로그인으로 staging/운영에서 목록 마지막 게임의 인라인 수정 폼을 열고 저장 없이 취소했습니다. 운영 회원 추가 폼의 새 학기 라벨·이름/닉네임 예시와 공개 면접의 잘못된 링크 안내도 조회했습니다. 실제 업무 자료로 저장·전환을 시험하지 않았습니다.
 - package/lockfile 버전, annotated tag 및 [GitHub Release](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.3)는 `1.2.3`이며 태그는 앱 소스 `0cb6690`을 가리킵니다. 후속 문서 커밋은 배포된 앱 소스를 바꾸지 않습니다. 공유 Graphify 묶음은 기존 stale 상태를 보존하며 배포·CI 성공을 그래프 최신성 승인으로 간주하지 않습니다.
 
+### v1.2.4 (2026-10-24)
+
+- 앱 소스 `9beb1b6`을 main에 커밋·푸시하고 staging 확인 후 [운영 앱](https://avalondgu.web.app)에 Hosting만 배포했습니다. 앱 변경은 공통 오류 화면의 안내 문구·버튼 이름·클릭 동작 세 줄입니다. 면접 회차 목록으로 이동하는 대신 현재 URL에서 페이지 전체를 새로고침합니다. 오류 예방이나 자동 새로고침은 추가하지 않았습니다.
+- 로컬 Emulator의 합성 환경에서 화면 모듈 요청 실패를 재현하고 요청 차단 해제 후 새 버튼으로 같은 `/games` 화면이 정상 복구되는 것을 확인했습니다. lint·TypeScript·staging/운영 빌드·번들 분리 검사를 통과했습니다. staging의 기존 오류 탭을 새로고침해 면접 회차 목록 복구를 확인했고, 운영에서는 최신 진입 파일과 회원 관리 화면의 정상 로딩을 조회했습니다.
+- 운영 정적 파일 62개가 로컬 운영 빌드와 SHA-256 기준 모두 일치합니다. Firestore 규칙·인덱스·업무 데이터는 변경하지 않았습니다. 로컬 빌드·배포는 Node 24.19.0에서 실행했습니다. [앱 소스 CI](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/actions/runs/40014797257)는 lint·타입·단위 테스트·그래프 도구·보안 규칙·빌드·Emulator 화면 검사를 포함해 모두 성공했습니다.
+- package/lockfile 버전, annotated tag 및 [GitHub Release](https://github.com/sonnenschein012/avalon-board-game-club-manager-1/releases/tag/v1.2.4)는 `1.2.4`이며 태그는 앱 소스 `9beb1b6`을 가리킵니다. 후속 문서 변경은 배포된 앱 소스를 바꾸지 않습니다. 기존 공유 Graphify 묶음의 stale 상태를 보존하며 배포 성공을 그래프 최신성 승인으로 취급하지 않습니다.
+
 ### 이후 릴리스 절차
 
 릴리스는 검토된 커밋을 staging에 배포하고 주요 화면을 확인한 뒤 운영에 반영합니다. 운영 확인 후 package/lockfile의 버전, annotated tag, GitHub Release를 맞춥니다. 배포 이력과 Release가 같은 앱 소스를 가리키는지 확인하세요.
