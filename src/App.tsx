@@ -66,8 +66,8 @@ class RouteErrorBoundary extends Component<RouteErrorBoundaryProps, RouteErrorBo
     if (this.state.hasError) {
       return <div className="mx-auto flex min-h-64 max-w-lg flex-col items-center justify-center rounded-2xl border border-red-100 bg-red-50 p-8 text-center">
         <h2 className="text-lg font-black text-navy">화면을 열지 못했습니다.</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">다른 메뉴는 계속 사용할 수 있습니다. 면접 회차 목록으로 돌아간 뒤 다시 열어주세요.</p>
-        <button type="button" onClick={this.props.onRecover} className="mt-5 rounded-xl bg-navy px-4 py-2 text-sm font-bold text-white">면접 회차 목록으로</button>
+        <p className="mt-2 text-sm leading-6 text-slate-600">화면을 불러오는 중 오류가 발생했습니다. 새로고침하여 현재 화면을 다시 열어주세요.</p>
+        <button type="button" onClick={this.props.onRecover} className="mt-5 rounded-xl bg-navy px-4 py-2 text-sm font-bold text-white">새로고침</button>
       </div>;
     }
     return this.props.children;
@@ -242,7 +242,7 @@ export default function App() {
               transition={{ duration: 0.2 }}
               className="h-full"
             >
-              <RouteErrorBoundary resetKey={location.pathname} onRecover={() => navigate('/interviews')}>
+              <RouteErrorBoundary resetKey={location.pathname} onRecover={() => window.location.reload()}>
                 {children}
               </RouteErrorBoundary>
             </motion.div>
