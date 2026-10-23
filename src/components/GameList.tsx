@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { Gamepad2, Hash, Edit2, Trash2 } from 'lucide-react';
 import { Game } from '../types';
 
@@ -7,18 +7,30 @@ interface GameListProps {
   getPlayCount: (game: Game) => number;
   onEdit: (game: Game) => void;
   setItemToDelete: (val: { id: string, title: string }) => void;
+  editingId?: string | null;
+  renderEditForm?: (game: Game) => React.ReactNode;
 }
 
 export default function GameList({
   filteredGames,
   getPlayCount,
   onEdit,
-  setItemToDelete
+  setItemToDelete,
+  editingId = null,
+  renderEditForm,
 }: GameListProps) {
+  const editorId = useId();
+  const editorRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (editingId) editorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [editingId]);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {filteredGames.map(game => (
-        <div key={game.id} className="glass-panel p-5 hover:border-gold transition-all group relative overflow-hidden border border-slate-100">
+      {filteredGames.map((game, index) => (
+        <React.Fragment key={game.id}>
+        <div style={{ order: index * 2 }} className={`glass-panel p-5 hover:border-gold transition-all group relative overflow-hidden border ${editingId === game.id ? 'border-navy/40 ring-1 ring-navy/10' : 'border-slate-100'}`}>
           <div className="absolute -right-4 -top-4 w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
             <Gamepad2 size={24} className="text-navy opacity-20" />
           </div>
@@ -65,12 +77,34 @@ export default function GameList({
           )}
           <div className="flex justify-end gap-3 mt-4">
             <button 
+              type="button"
+              aria-label={`${game.title} 수정`}
+              aria-expanded={editingId === game.id}
+              aria-controls={editingId === game.id ? editorId : undefined}
               onClick={() => onEdit(game)}
               className="p-1.5 bg-slate-50 border border-transparent rounded-lg text-slate-400 hover:bg-slate-100 hover:text-gold transition-colors"
             ><Edit2 size={14} /></button>
             <button onClick={() => setItemToDelete({ id: game.id, title: game.title })} className="p-1.5 bg-slate-50 border border-transparent rounded-lg text-slate-400 hover:bg-slate-100 hover:text-crimson transition-colors"><Trash2 size={14} /></button>
           </div>
         </div>
+        {editingId === game.id && renderEditForm && (
+          <section
+            id={editorId}
+            ref={editorRef}
+            aria-label={`${game.title} 수정`}
+            className="col-span-full min-w-0 [order:var(--edit-order)] md:[order:var(--edit-order-md)] lg:[order:var(--edit-order-lg)]"
+            // Keep the editor below the selected row at the grid's 1/2/4-column breakpoints.
+            style={{
+              '--edit-order': index * 2 + 1,
+              '--edit-order-md': (Math.floor(index / 2) * 2 + 1) * 2 + 1,
+              '--edit-order-lg': (Math.floor(index / 4) * 4 + 3) * 2 + 1,
+            } as React.CSSProperties}
+          >
+            <h4 className="mb-2 text-sm font-semibold text-navy">{game.title} 수정</h4>
+            {renderEditForm(game)}
+          </section>
+        )}
+        </React.Fragment>
       ))}
       {filteredGames.length === 0 && (
         <div className="col-span-full h-40 flex items-center justify-center text-slate-300 font-bold uppercase tracking-widest text-xs">

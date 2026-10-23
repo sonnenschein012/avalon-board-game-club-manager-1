@@ -30,7 +30,7 @@ const MEMBER_AUDIT_FIELDS = [
   { key: 'gender', label: '성별' },
   { key: 'semester', label: '가입 학기' },
   { key: 'status', label: '활동 상태' },
-  { key: 'dormantSemester', label: '휴면 학기' },
+  { key: 'dormantSemester', label: '휴면 시작 학기' },
   { key: 'isBoardMember', label: '임원 여부' },
   { key: 'preferredGenre', label: '선호 장르' },
   { key: 'memo', label: '메모' },
@@ -59,7 +59,7 @@ export function useMembersLogic() {
   const handleBulkDormant = async (dormantSemester: string) => {
     if (selectedDocs.size === 0) return;
     if (!dormantSemester) {
-      toast.error('휴면 지정 학기를 입력해주세요.');
+      toast.error('휴면 시작 학기를 입력해주세요.');
       return;
     }
     if (isPending('member-bulk')) return;
@@ -76,7 +76,7 @@ export function useMembersLogic() {
         action: 'member.bulk_dormant',
         targetLabel: `동아리원 ${count}명`,
         count,
-        detail: `${selectedMembers.map(member => member.name).join(', ')} · 휴면 학기 ${dormantSemester}`,
+        detail: `${selectedMembers.map(member => member.name).join(', ')} · 휴면 시작 학기 ${dormantSemester}`,
       }));
       await commitBatchesInChunks(db, operations);
       setSelectedDocs(new Set());
@@ -90,7 +90,7 @@ export function useMembersLogic() {
   const handleBulkDormantSemesterChange = async (dormantSemester: string) => {
     if (selectedDocs.size === 0) return;
     if (!dormantSemester) {
-      toast.error('휴면 학기를 입력해주세요.');
+      toast.error('휴면 시작 학기를 입력해주세요.');
       return;
     }
     if (isPending('member-bulk')) return;
@@ -112,8 +112,8 @@ export function useMembersLogic() {
       await commitBatchesInChunks(db, operations);
       setSelectedDocs(new Set());
     }, {
-      successMessage: `${count}명의 휴면 학기가 변경되었습니다.`,
-      errorMessage: '휴면 학기 변경 중 오류가 발생했습니다.',
+      successMessage: `${count}명의 휴면 시작 학기가 변경되었습니다.`,
+      errorMessage: '휴면 시작 학기 변경 중 오류가 발생했습니다.',
       onError: console.error,
     });
   };

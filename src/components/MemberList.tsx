@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { Search, Edit2, Trash2, Info, Loader2, UserCheck, UserMinus } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -50,6 +50,7 @@ export default function MemberList({
   bulkPending = false,
 }: MemberListProps) {
   const [bulkDormantSemester, setBulkDormantSemester] = useState(defaultDormantSemester);
+  const dormantSemesterId = useId();
 
   const toggleAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -68,52 +69,67 @@ export default function MemberList({
   };
   return (
     <div className="glass-panel overflow-hidden border border-slate-100 p-0 md:p-0">
+      {isAdminModeActive && selectedDocs.size > 0 && (
+        <section aria-label="선택 동아리원 일괄 변경" className="relative rounded-xl border-b border-slate-200 bg-slate-50/80 p-4 sm:p-5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-x-4 lg:gap-y-1 lg:px-4 lg:py-3">
+          <div className="flex min-h-11 flex-wrap items-center justify-between gap-2 lg:contents">
+            <p className="text-sm font-semibold text-navy lg:col-start-1 lg:row-start-1 lg:text-xs">{selectedDocs.size}명 선택됨</p>
+          </div>
+          <p id={`${dormantSemesterId}-hint`} className="mt-1 text-xs leading-5 text-slate-600 lg:col-span-2 lg:col-start-1 lg:row-start-2 lg:mt-0 lg:pr-24">
+            입력한 학기부터 통계의 활동 인원에서 제외됩니다.
+            {currentTab === '활동' && <span className="block lg:inline"> 휴면 명부로는 실행 즉시 이동합니다.</span>}
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end lg:col-start-2 lg:row-start-1 lg:mt-0 lg:max-w-full lg:items-center lg:justify-end lg:justify-self-end">
+            <div className="w-full space-y-2 sm:w-44 lg:flex lg:w-auto lg:items-center lg:gap-2 lg:space-y-0">
+              <label htmlFor={dormantSemesterId} className="block text-sm font-semibold text-slate-700 lg:text-xs">휴면 시작 학기</label>
+              <input
+                id={dormantSemesterId}
+                type="text"
+                value={bulkDormantSemester}
+                onChange={(e) => setBulkDormantSemester(e.target.value)}
+                placeholder={`예: ${defaultDormantSemester}`}
+                aria-describedby={`${dormantSemesterId}-hint`}
+                disabled={bulkPending}
+                className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-navy/30 disabled:opacity-50 lg:min-h-9 lg:w-32 lg:py-2 lg:text-xs"
+              />
+            </div>
+            {currentTab === '활동' ? (
+              <button
+                type="button"
+                disabled={bulkPending}
+                onClick={() => handleBulkDormant(bulkDormantSemester)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy disabled:opacity-50 lg:min-h-9 lg:py-2 lg:text-xs"
+              >
+                {bulkPending ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
+                {bulkPending ? '전환 중…' : '선택 인원 휴면 전환'}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={bulkPending}
+                  onClick={() => handleBulkDormantSemesterChange(bulkDormantSemester)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy disabled:opacity-50 lg:min-h-9 lg:py-2 lg:text-xs"
+                >
+                  {bulkPending && <Loader2 size={14} className="animate-spin" />}
+                  {bulkPending ? '변경 중…' : '휴면 시작 학기 변경'}
+                </button>
+                <button
+                  type="button"
+                  disabled={bulkPending}
+                  onClick={() => handleBulkRestoreActive()}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy disabled:opacity-50 lg:min-h-9 lg:py-2 lg:text-xs"
+                >
+                  {bulkPending ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                  {bulkPending ? '복원 중…' : '활동으로 복원'}
+                </button>
+              </>
+            )}
+          </div>
+          <button type="button" disabled={bulkPending} onClick={() => setSelectedDocs(new Set())} className="absolute right-4 top-4 min-h-11 sm:right-5 sm:top-5 lg:static rounded-xl px-3 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy disabled:opacity-50 lg:col-start-2 lg:row-start-2 lg:min-h-7 lg:justify-self-end lg:px-2 lg:py-1">선택 해제</button>
+        </section>
+      )}
       <div className="overflow-x-auto min-w-full">
         <div className="min-w-full md:min-w-[600px]">
-          {isAdminModeActive && selectedDocs.size > 0 && (
-            <div className="bg-navy p-4 flex items-center justify-between text-white animate-in slide-in-from-top-2">
-              <div className="text-sm font-medium">
-                {selectedDocs.size}명 선택됨
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={bulkDormantSemester}
-                  onChange={(e) => setBulkDormantSemester(e.target.value)}
-                  placeholder={currentTab === '활동' ? '휴면 지정 학기' : '변경할 휴면 학기'}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-gold w-36"
-                />
-                {currentTab === '활동' ? (
-                  <button
-                    disabled={bulkPending}
-                    onClick={() => handleBulkDormant(bulkDormantSemester)}
-                    className="flex items-center gap-1.5 bg-gold hover:brightness-110 text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition"
-                  >
-                    {bulkPending ? <Loader2 size={14} className="animate-spin" /> : <UserMinus size={14} />}
-                    {bulkPending ? '전환 중…' : '선택 인원 휴면 전환'}
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      disabled={bulkPending}
-                      onClick={() => handleBulkDormantSemesterChange(bulkDormantSemester)}
-                      className="flex items-center gap-1.5 bg-gold hover:brightness-110 text-navy px-3 py-1.5 rounded-lg text-xs font-bold transition"
-                    >
-                      {bulkPending ? '변경 중…' : '휴면 학기 변경'}
-                    </button>
-                    <button
-                      disabled={bulkPending}
-                      onClick={() => handleBulkRestoreActive()}
-                      className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
-                    >
-                      {bulkPending ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
-                      {bulkPending ? '복원 중…' : '활동으로 복원'}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
           <div className="hidden md:flex bg-slate-50 items-center">
             {isAdminModeActive && (
               <div className="table-header w-12 flex justify-center border-r border-slate-100">

@@ -88,7 +88,7 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
         setSortOrder={setSortOrder}
       />
 
-      <GameForm
+      {!editingId && <GameForm
         formData={formData}
         setFormData={setFormData}
         handleSubmit={handleSubmit}
@@ -96,13 +96,25 @@ export default function GamesPage({ isAdminModeActive = false }: GamesPageProps)
         setIsAdding={setIsAdding}
         editingId={editingId}
         saving={gameSaving}
-      />
+      />}
 
       <GameList
         filteredGames={filteredGames}
         getPlayCount={getPlayCount}
         onEdit={startEditing}
         setItemToDelete={setItemToDelete}
+        editingId={isAdding ? editingId : null}
+        renderEditForm={() => (
+          <GameForm
+            formData={formData}
+            setFormData={setFormData}
+            handleSubmit={handleSubmit}
+            isAdding={isAdding}
+            setIsAdding={setIsAdding}
+            editingId={editingId}
+            saving={gameSaving}
+          />
+        )}
       />
       
       <ConfirmDeleteModal 

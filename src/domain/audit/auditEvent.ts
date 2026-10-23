@@ -24,7 +24,7 @@ export const AUDIT_ACTION_LABELS = {
   'member.deleted': '동아리원을 삭제했습니다.',
   'member.imported': '동아리원 CSV를 등록했습니다.',
   'member.bulk_dormant': '동아리원을 휴면 처리했습니다.',
-  'member.bulk_dormant_semester': '동아리원의 휴면 학기를 변경했습니다.',
+  'member.bulk_dormant_semester': '동아리원의 휴면 시작 학기를 변경했습니다.',
   'member.bulk_active': '동아리원을 활동 상태로 복원했습니다.',
   'member.created_from_attendance': '출석 명단에서 동아리원을 등록했습니다.',
   'member.created_from_applicant': '지원자를 동아리원으로 등록했습니다.',

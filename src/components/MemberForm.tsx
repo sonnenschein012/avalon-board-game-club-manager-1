@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { motion } from 'motion/react';
 import { Loader2 } from 'lucide-react';
 import { defaultDormantSemester, defaultSemester, type MemberFormData } from '../domain/members/memberForm';
@@ -23,6 +23,7 @@ export default function MemberForm({
   editingId,
   saving = false,
 }: MemberFormProps) {
+  const dormantSemesterId = useId();
   return (
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }}
@@ -34,11 +35,11 @@ export default function MemberForm({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase">이름</label>
-            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="input-field" placeholder="홍길동" />
+            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="input-field" placeholder="오장원" />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase">닉네임</label>
-            <input value={formData.nickname} onChange={e => setFormData({ ...formData, nickname: e.target.value })} className="input-field" placeholder="길동왕" />
+            <input value={formData.nickname} onChange={e => setFormData({ ...formData, nickname: e.target.value })} className="input-field" placeholder="20 오장원" />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase">학번</label>
@@ -61,8 +62,8 @@ export default function MemberForm({
             <input value={formData.semester} onChange={e => setFormData({ ...formData, semester: e.target.value })} className="input-field" placeholder={defaultSemester} />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase">휴면 학기 (선택)</label>
-            <input value={formData.dormantSemester} onChange={e => setFormData({ ...formData, dormantSemester: e.target.value })} className="input-field" placeholder={defaultDormantSemester} />
+            <label htmlFor={dormantSemesterId} className="text-xs font-semibold text-slate-600">휴면 시작 학기 (선택)</label>
+            <input id={dormantSemesterId} value={formData.dormantSemester} onChange={e => setFormData({ ...formData, dormantSemester: e.target.value })} className="input-field" placeholder={`예: ${defaultDormantSemester}`} />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase">임원 여부</label>

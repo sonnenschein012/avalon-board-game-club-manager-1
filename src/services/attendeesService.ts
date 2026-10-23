@@ -117,7 +117,7 @@ export async function manualAddAttendeeRecord(
         targetLabel: member.name,
         changes: [
           { field: 'status', label: '활동 상태', before: '휴면', after: '활동' },
-          { field: 'dormantSemester', label: '휴면 학기', before: member.dormantSemester || '없음', after: '없음' },
+          { field: 'dormantSemester', label: '휴면 시작 학기', before: member.dormantSemester || '없음', after: '없음' },
         ],
         detail: '출석 명단에 추가되어 자동으로 활동 상태로 복원했습니다.',
       });
