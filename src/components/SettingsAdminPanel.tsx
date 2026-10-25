@@ -10,7 +10,7 @@ interface SettingsAdminPanelProps {
   setNewAdminEmail: (email: string) => void;
   addingAdmin: boolean;
   addAdmin: () => Promise<void>;
-  removeAdmin: (email: string) => Promise<void>;
+  removeAdmin: (email: string) => void;
 }
 
 export default function SettingsAdminPanel({
@@ -35,7 +35,7 @@ export default function SettingsAdminPanel({
             <input 
               type="text" 
               placeholder="구글 이메일 주소 (예: user@gmail.com)" 
-              className="flex-1 input-field bg-slate-50 border border-slate-200"
+              className="min-w-0 flex-1 input-field bg-slate-50 border border-slate-200"
               value={newAdminEmail}
               onChange={e => setNewAdminEmail(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addAdmin()}
@@ -43,7 +43,7 @@ export default function SettingsAdminPanel({
             <button 
               onClick={addAdmin}
               disabled={addingAdmin || !newAdminEmail}
-              className="px-4 py-3 bg-navy text-white rounded-xl font-bold flex items-center gap-2 hover:bg-gold transition-colors disabled:opacity-50"
+              className="shrink-0 px-4 py-3 bg-navy text-white rounded-xl font-bold flex items-center gap-2 hover:bg-gold transition-colors disabled:opacity-50"
             >
               {addingAdmin ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
               추가
@@ -55,17 +55,17 @@ export default function SettingsAdminPanel({
           {loadingAdmins ? (
             <div className="p-8 flex justify-center text-slate-400"><Loader2 className="animate-spin" /></div>
           ) : (
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead className="bg-slate-100 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-bold text-slate-500">이메일</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold text-slate-500">관리</th>
+                  <th className="w-24 px-4 py-3 text-right text-xs font-bold text-slate-500">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {admins.map(admin => (
                   <tr key={admin.id} className={`border-b border-slate-100 last:border-0 ${admin.role === 'master' ? 'bg-emerald-50/50' : 'hover:bg-white'} transition-colors`}>
-                    <td className={`px-4 py-3 font-medium ${admin.role === 'master' ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    <td className={`px-4 py-3 font-medium break-all ${admin.role === 'master' ? 'text-emerald-700' : 'text-slate-700'}`}>
                       {admin.id}
                       {admin.role === 'master' && (
                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full ml-2 font-bold tracking-widest">MASTER</span>
@@ -78,7 +78,8 @@ export default function SettingsAdminPanel({
                         isMasterAdmin && (
                           <button 
                             onClick={() => removeAdmin(admin.id)}
-                            className="p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                            aria-label={`${admin.id} 관리자 권한 삭제`}
+                            className="inline-flex min-h-11 min-w-11 items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors border border-transparent hover:border-red-100"
                           >
                             <Trash2 size={16} />
                           </button>

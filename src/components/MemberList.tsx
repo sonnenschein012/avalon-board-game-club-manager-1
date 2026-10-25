@@ -151,32 +151,35 @@ export default function MemberList({
               <React.Fragment key={member.id}>
                 {/* Desktop View (md:flex) */}
                 <div className="hidden md:flex items-center hover:bg-slate-50/80 transition-all group">
-                  {isAdminModeActive && (
-                    <div className="table-cell w-12 flex justify-center border-r border-slate-100 mr-3">
-                      <input
-                        type="checkbox"
-                        className="rounded text-navy focus:ring-navy"
-                        checked={selectedDocs.has(member.id)}
-                        onChange={() => toggleOne(member.id)}
-                      />
-                    </div>
-                  )}
-                  <div className="table-cell w-12 text-[10px] font-bold text-slate-400">{idx + 1}</div>
-                  <div className="table-cell flex-1">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-navy font-bold text-xs uppercase shrink-0">
-                        {member.name?.[0] || '?'}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-black text-slate-800 flex items-center gap-1">
-                          {member.name} 
-                          {member.isBoardMember && <span title="임원" className="text-xs text-gold">👑</span>}
-                          {member.status === '휴면' && <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-500 rounded font-bold ml-1">휴면 ({member.dormantSemester})</span>}
-                        </h3>
-                        <p className="text-[10px] text-slate-400 font-mono italic">{member.nickname ? `@${member.nickname} • ` : ''}{member.studentId}</p>
-                      </div>
-                    </div>
-                  </div>
+                  <label className={cn('flex flex-1 items-center self-stretch', isAdminModeActive && 'cursor-pointer')}>
+                    {isAdminModeActive && (
+                      <span className="table-cell w-12 flex justify-center border-r border-slate-100 mr-3">
+                        <input
+                          type="checkbox"
+                          aria-label={`${member.name} 선택`}
+                          className="rounded text-navy focus:ring-navy"
+                          checked={selectedDocs.has(member.id)}
+                          onChange={() => toggleOne(member.id)}
+                        />
+                      </span>
+                    )}
+                    <span className="table-cell w-12 text-[10px] font-bold text-slate-400">{idx + 1}</span>
+                    <span className="table-cell flex-1">
+                      <span className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-navy font-bold text-xs uppercase shrink-0">
+                          {member.name?.[0] || '?'}
+                        </span>
+                        <span>
+                          <span role="heading" aria-level={3} className="text-sm font-black text-slate-800 flex items-center gap-1">
+                            {member.name}
+                            {member.isBoardMember && <span title="임원" className="text-xs text-gold">👑</span>}
+                            {member.status === '휴면' && <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-500 rounded font-bold ml-1">휴면 ({member.dormantSemester})</span>}
+                          </span>
+                          <span className="block text-[10px] text-slate-400 font-mono italic">{member.nickname ? `@${member.nickname} • ` : ''}{member.studentId}</span>
+                        </span>
+                      </span>
+                    </span>
+                  </label>
                   
                   <div className="table-cell w-32 shrink-0">
                     <span className={cn(

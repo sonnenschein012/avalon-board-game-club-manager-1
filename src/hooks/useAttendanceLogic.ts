@@ -20,6 +20,7 @@ import {
   clearAllAttendees
 } from '../services/attendeesService';
 import { getSizingNotices } from '../domain/matching/autoAssignAlgorithm';
+import { createAssignmentDiagnosticReport, type AssignmentDiagnosticRun } from '../domain/matching/assignmentDiagnostics';
 import { runAutoAssignment } from '../lib/runAutoAssignment';
 import { buildUtilityContext, getRequestNotices } from '../domain/matching/personalUtility';
 import { getLocalDateKey } from '../domain/attendance/sessionMetadata';
@@ -104,6 +105,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   };
   const [isAssigning, setIsAssigning] = useState(false);
   const assignmentController = useRef<AbortController | null>(null);
+  const [diagnosticRun, setDiagnosticRun] = useState<AssignmentDiagnosticRun | null>(null);
   useEffect(() => () => { assignmentController.current?.abort(); }, [groups, attendees, members, sessions, sessionDate, assignmentReady, requestSelections]);
   const [lastAssignment, setLastAssignment] = useState<{
     groups: SessionGroup[]; attendees: Attendee[]; members: Member[]; sessions: Session[];
@@ -183,7 +185,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     setImporting(true);
     try {
       const success = await importAttendanceRows(input, attendees, members);
-      if (success) { setGroups([]); setRequestSelections({}); setRequestChoiceKey(null); }
+      if (success) { setGroups([]); setRequestSelections({}); setRequestChoiceKey(null); setDiagnosticRun(null); }
       return success;
     } finally {
       setImporting(false);
@@ -194,6 +196,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     const success = await clearAllAttendees(attendees);
     if (success) {
       setGroups([]);
+      setDiagnosticRun(null);
       setRequestSelections({});
       setRequestChoiceKey(null);
     }
@@ -213,7 +216,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     setGroups(prev => prev.map(g => g.id === groupId ? { ...g, targetSize: size } : g));
   };
 
-  const performAssignment = async (exportOnly: boolean) => {
+  const performAssignment = async () => {
     if (assignmentController.current) return;
     if (!assignmentReady) { toast.error('출석 명단·회원 명부·세션 기록을 모두 불러온 뒤 편성해주세요.'); return; }
     if (!costContext) { toast.error(utilityState.error); return; }
@@ -223,28 +226,15 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     assignmentController.current = controller;
     setIsAssigning(true);
     try {
-      const result = await runAutoAssignment({ availableIds, initialGroups: groups, context: costContext, withHistory: exportOnly }, controller.signal);
+      const result = await runAutoAssignment({ availableIds, initialGroups: groups, context: costContext, withHistory: true }, controller.signal);
       if (controller.signal.aborted) return;
-      if (exportOnly) {
-        const report = {
-          model: 'personal-utility-v3-protect-then-attenuate-provisional', session_date: sessionDate,
-          parameters: costContext.parameters, sizes: result.sizing.sizes,
-          selected: { requestProduct: String(result.score.requestProduct), requestScore: result.score.requestScore,
-            boardMissing: result.score.boardMissing, boardMissingNonFour: result.score.boardMissingNonFour,
-            welfare: result.score.welfare, totalUtility: result.score.totalUtility },
-          samples: result.samples,
-          note: '탐색 중 채택된 배치의 기록이며, 전체 가능한 배치의 무작위 표본이나 전역 최적해가 아닙니다.',
-        };
-        const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
-        const link = document.createElement('a'); link.href = url; link.download = `simulation_${sessionDate}.json`; link.click(); URL.revokeObjectURL(url);
-        toast.success('개인 효용 평가 데이터가 다운로드되었습니다.');
-      } else {
-        setLastAssignment({ groups: result.updatedGroups, attendees, members, sessions, date: sessionDate,
-          sizingNotices: getSizingNotices(result.sizing, groups), fixed: result.fixed, context: costContext });
-        setGroups(result.updatedGroups);
-        setIsAutoMode(false);
-        toast.success('자동 편성되었습니다. 요청 및 인원 조정 안내를 확인해주세요.');
-      }
+      setDiagnosticRun(structuredClone({ sessionDate, scope: draftScope ?? null,
+        completedAt: new Date().toISOString(), context: costContext, result }));
+      setLastAssignment({ groups: result.updatedGroups, attendees, members, sessions, date: sessionDate,
+        sizingNotices: getSizingNotices(result.sizing, groups), fixed: result.fixed, context: costContext });
+      setGroups(result.updatedGroups);
+      setIsAutoMode(false);
+      toast.success('자동 편성되었습니다. 요청 및 인원 조정 안내를 확인해주세요.');
     } catch (error) {
       if (!controller.signal.aborted) toast.error(error instanceof Error ? error.message : '자동 편성에 실패했습니다.');
     } finally {
@@ -252,8 +242,24 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
       setIsAssigning(false);
     }
   };
-  const handleAutoAssign = () => { void performAssignment(false); };
-  const exportSimulationData = () => { void performAssignment(true); };
+  const handleAutoAssign = () => { void performAssignment(); };
+  const exportSimulationData = () => {
+    if (assignmentController.current) return;
+    if (!assignmentReady) { toast.error('출석 명단·회원 명부·세션 기록을 모두 불러온 뒤 추출해주세요.'); return; }
+    if (!costContext) { toast.error(utilityState.error); return; }
+    try {
+      const report = createAssignmentDiagnosticReport({ groups, context: costContext, sessionDate,
+        scope: draftScope ?? null, lastRun: diagnosticRun, exportedAt: new Date().toISOString() });
+      const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }));
+      try {
+        const link = document.createElement('a'); link.href = url; link.download = `assignment_diagnostics_${sessionDate}.json`; link.click();
+      } finally { URL.revokeObjectURL(url); }
+      toast.success(report.automaticRun ? '자동 편성 기록과 현재 편성 진단 데이터를 다운로드했습니다.' :
+        '현재 편성 진단 데이터를 다운로드했습니다. 보관된 자동 편성 기록은 없습니다.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '편성 진단 데이터 추출에 실패했습니다.');
+    }
+  };
 
   const assignToGroup = (memberId: string, groupId: string) => {
     setGroups(prev => prev.map(g =>
@@ -349,6 +355,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     });
     if (result.succeeded) {
       resetDraft();
+      setDiagnosticRun(null);
       onMoveToRecord?.();
     }
   };

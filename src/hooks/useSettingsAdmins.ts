@@ -9,6 +9,8 @@ export function useSettingsAdmins() {
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [addingAdmin, setAddingAdmin] = useState(false);
+  const [adminToDelete, setAdminToDelete] = useState<string | null>(null);
+  const [deletingAdmin, setDeletingAdmin] = useState(false);
 
   const fetchAdmins = useCallback(async () => {
     try {
@@ -51,19 +53,25 @@ export function useSettingsAdmins() {
     }
   };
 
-  const removeAdmin = async (email: string) => {
+  const removeAdmin = async () => {
+    if (!adminToDelete || deletingAdmin) return;
+    const email = adminToDelete;
     if (admins.find(admin => admin.id === email)?.role === 'master') {
       toast.error('마스터 관리자는 삭제할 수 없습니다.');
       return;
     }
 
+    setDeletingAdmin(true);
     try {
       await removeAdminRecord(email);
       toast.success('관리자 권한이 삭제되었습니다.');
+      setAdminToDelete(null);
       void fetchAdmins();
     } catch (error) {
       toast.error('관리자 삭제에 실패했습니다.');
       handleFirestoreError(error, OperationType.DELETE, `admins/${email}`);
+    } finally {
+      setDeletingAdmin(false);
     }
   };
 
@@ -75,5 +83,8 @@ export function useSettingsAdmins() {
     addingAdmin,
     addAdmin,
     removeAdmin,
+    adminToDelete,
+    setAdminToDelete,
+    deletingAdmin,
   };
 }

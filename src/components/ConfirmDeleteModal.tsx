@@ -30,7 +30,7 @@ export default function ConfirmDeleteModal({ isOpen, title, message, onConfirm, 
                 </div>
                 <h3 className="text-lg font-black text-navy">{title}</h3>
               </div>
-              {message && <p className="text-sm text-slate-500 font-medium mb-6">{message}</p>}
+              {message && <p className="text-sm text-slate-500 font-medium mb-6 break-words">{message}</p>}
               <div className="flex gap-3">
                 <button
                   onClick={onCancel}

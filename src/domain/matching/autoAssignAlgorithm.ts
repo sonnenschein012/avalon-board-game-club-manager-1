@@ -3,6 +3,7 @@ import { solveGroupSizes, type SizeSolution } from './groupSizing.mjs';
 import { combineScores, compareUtility, evaluateUtilityGroup, type AssignmentScore, type UtilityContext } from './personalUtility';
 
 export interface SimulationSample {
+  start: number; phase: 'initial' | 'search' | 'single_polish' | 'final'; step: number | null;
   requestProduct: string; requestScore: number; boardMissing: number; boardMissingNonFour: number; welfare: number;
 }
 export interface AutoAssignResult {
@@ -52,8 +53,8 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
     return result;
   };
   const samples: SimulationSample[] = [];
-  const sample = (score: AssignmentScore) => {
-    if (withHistory) samples.push({ requestProduct: String(score.requestProduct), requestScore: score.requestScore,
+  const sample = (score: AssignmentScore, start: number, phase: SimulationSample['phase'], step: number | null = null) => {
+    if (withHistory) samples.push({ start: start + 1, phase, step, requestProduct: String(score.requestProduct), requestScore: score.requestScore,
       boardMissing: score.boardMissing, boardMissingNonFour: score.boardMissingNonFour, welfare: score.welfare });
   };
   let best: { groups: SessionGroup[]; score: AssignmentScore } | undefined;
@@ -77,7 +78,7 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
       return true;
     };
     const swap = (a: number, ai: number, b: number, bi: number) => exchange(a, [ai], b, [bi]);
-    sample(currentScore);
+    sample(currentScore, start, 'initial');
     if (groups.length > 1 && availableIds.length > 1) {
       for (let step = 0; step < 2000; step++) {
         const a = Math.floor(random() * groups.length), b = Math.floor(random() * groups.length);
@@ -85,7 +86,7 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
         const ga = groups[a]!, gb = groups[b]!;
         const ai = Math.floor(random() * ga.memberIds.length), bi = Math.floor(random() * gb.memberIds.length);
         if (movable.has(ga.memberIds[ai]!) && movable.has(gb.memberIds[bi]!)) swap(a, ai, b, bi);
-        if (step % 100 === 0) sample(currentScore);
+        if (step % 100 === 0) sample(currentScore, start, 'search', step);
       }
       const polishSingles = () => {
         let improved = false;
@@ -98,6 +99,7 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
       };
       // Complete the existing search first, so additional moves cannot worsen its result.
       for (let pass = 0; pass < 3; pass++) if (!polishSingles()) break;
+      sample(currentScore, start, 'single_polish');
       // Fulfilled requests can otherwise trap single-person swaps. Move both endpoints
       // together, using the same whole-assignment comparator and a per-start budget.
       let pairAttempts = 0;
@@ -122,7 +124,7 @@ export function simulateAutoAssign({ availableIds, initialGroups, context, withH
       }
     }
     const score = currentScore;
-    sample(score);
+    sample(score, start, 'final');
     if (!best || compareUtility(score, best.score) < 0) best = { groups, score };
   }
   return { updatedGroups: best!.groups, score: best!.score, sizing, samples, fixed };

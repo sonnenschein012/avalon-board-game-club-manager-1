@@ -121,10 +121,11 @@ export default function GroupsCanvas({
             {isAdminModeActive && (
               <button 
                 onClick={onExportSimulation}
+                title="현재 개인별 평가와 보관된 자동 편성 기록을 추출합니다. 자동 편성 기록은 이 화면을 나가거나 새로고침하면 사라집니다."
                 disabled={isAssigning || !assignmentReady}
                 className="flex items-center gap-1 md:gap-2 px-3 py-2 md:px-5 md:py-2 bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 border border-slate-200 hover:border-emerald-200 rounded-lg text-xs font-bold shadow-sm transition whitespace-nowrap"
               >
-                <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">분포 데이터 추출</span><span className="sm:hidden">추출</span>
+                <Activity size={14} className="shrink-0" /> <span className="hidden sm:inline">편성 진단 데이터 추출</span><span className="sm:hidden">진단 추출</span>
               </button>
             )}
             <button 

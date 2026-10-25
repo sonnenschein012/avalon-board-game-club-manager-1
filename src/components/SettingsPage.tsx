@@ -4,6 +4,7 @@ import { useClubExports } from '../hooks/useClubExports';
 import SettingsAdminPanel from './SettingsAdminPanel';
 import SettingsExportPanel from './SettingsExportPanel';
 import SettingsAuditPanel from './SettingsAuditPanel';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 
 export default function SettingsPage({
   isAdminModeActive,
@@ -50,7 +51,15 @@ export default function SettingsPage({
         </div>
       )}
 
-      <SettingsAdminPanel isMasterAdmin={isMasterAdmin} {...adminSettings} />
+      <SettingsAdminPanel isMasterAdmin={isMasterAdmin} {...adminSettings} removeAdmin={adminSettings.setAdminToDelete} />
+      <ConfirmDeleteModal
+        isOpen={isMasterAdmin && !!adminSettings.adminToDelete}
+        title="관리자 권한 삭제"
+        message={`'${adminSettings.adminToDelete}' 계정의 관리자 권한을 삭제하시겠습니까? 삭제 후 이 계정은 관리 화면에 접근할 수 없습니다.`}
+        onConfirm={adminSettings.removeAdmin}
+        onCancel={() => adminSettings.setAdminToDelete(null)}
+        busy={adminSettings.deletingAdmin}
+      />
       {isMasterAdmin && isAdminModeActive && <SettingsAuditPanel />}
       <SettingsExportPanel {...clubExports} />
     </div>

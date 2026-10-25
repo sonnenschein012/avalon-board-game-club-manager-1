@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Calendar, Gamepad2 } from 'lucide-react';
+import { X, Calendar, Gamepad2, Pencil, Loader2 } from 'lucide-react';
 import { Member, Game, Session } from '../types';
 import { db } from '../lib/firebase';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { formatTimestamp } from '../lib/utils';
 import { toast } from 'sonner';
+import { useMemberMemo } from '../hooks/useMemberMemo';
 
 interface MemberProfileModalProps {
   member: Member | null;
@@ -14,36 +15,46 @@ interface MemberProfileModalProps {
   members: Member[];
 }
 
-export default function MemberProfileModal({ member, onClose, games, members }: MemberProfileModalProps) {
+export default function MemberProfileModal(props: MemberProfileModalProps) {
+  if (!props.member) return null;
+  const selectedId = props.member.id;
+  const member = props.members.find(current => current.id === selectedId) ?? props.member;
+  return <MemberProfileContent key={member.id} {...props} member={member} />;
+}
+
+function MemberProfileContent({ member, onClose, games, members }: Omit<MemberProfileModalProps, 'member'> & { member: Member }) {
   const [memberSessions, setMemberSessions] = useState<Session[]>([]);
+  const memberId = member.id;
+  const memo = useMemberMemo(member.id, member.memo ?? '');
+  const memoId = useId();
+  const close = () => { if (!memo.saving) onClose(); };
 
   useEffect(() => {
-    if (member) {
-      const fetchHistory = async () => {
-        try {
-          const q = query(collection(db, 'sessions'), orderBy('date', 'desc'));
-          const snap = await getDocs(q);
-          const filtered = snap.docs
-            .map(d => ({ id: d.id, ...d.data() } as Session))
-            .filter(s => s.groups.some(g => (g.memberIds as string[]).includes(member.id)));
-          setMemberSessions(filtered);
-        } catch (error) {
-          console.error(error);
-          toast.error('활동 기록을 불러오는 중 오류가 발생했습니다.');
-        }
-      };
-      fetchHistory();
-    }
-  }, [member]);
-
-  if (!member) return null;
+    let active = true;
+    const fetchHistory = async () => {
+      try {
+        const q = query(collection(db, 'sessions'), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        const filtered = snap.docs
+          .map(d => ({ id: d.id, ...d.data() } as Session))
+          .filter(s => s.groups.some(g => (g.memberIds as string[]).includes(memberId)));
+        if (active) setMemberSessions(filtered);
+      } catch (error) {
+        if (!active) return;
+        console.error(error);
+        toast.error('활동 기록을 불러오는 중 오류가 발생했습니다.');
+      }
+    };
+    void fetchHistory();
+    return () => { active = false; };
+  }, [memberId]);
 
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex justify-end">
         <motion.div 
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={close}
           className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         />
         <motion.div 
@@ -51,7 +62,8 @@ export default function MemberProfileModal({ member, onClose, games, members }: 
           className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col p-4 md:p-8 overflow-y-auto"
         >
           <button 
-            onClick={onClose}
+            onClick={close}
+            disabled={memo.saving}
             className="absolute top-4 right-4 md:top-6 md:right-6 p-2 hover:bg-slate-100 rounded-lg transition-colors z-10"
             title="닫기"
           >
@@ -102,8 +114,28 @@ export default function MemberProfileModal({ member, onClose, games, members }: 
                 </p>
               </div>
               <div className="col-span-2 md:col-span-4 p-4 bg-slate-50 rounded-xl">
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">메모</p>
-                <p className="text-xs text-slate-600 leading-relaxed italic">{member.memo || '기록된 메모가 없습니다.'}</p>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label htmlFor={memo.editing ? memoId : undefined} className="text-[10px] font-bold text-slate-400 uppercase">메모</label>
+                  {!memo.editing && <button type="button" onClick={memo.beginEdit} aria-label="메모 수정"
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-navy hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-navy">
+                    <Pencil size={14} />수정
+                  </button>}
+                </div>
+                {memo.editing ? <div className="space-y-3">
+                  <textarea id={memoId} value={memo.draft} onChange={event => memo.setDraft(event.target.value)} disabled={memo.saving}
+                    autoFocus rows={4} className="input-field w-full resize-y bg-white text-base! leading-relaxed disabled:opacity-60" />
+                  {memo.error && <p role="alert" className="text-xs leading-relaxed text-red-600">{memo.error}</p>}
+                  {memo.conflictMemo !== null && <button type="button" onClick={memo.loadLatest} disabled={memo.saving}
+                    className="min-h-11 rounded-lg px-3 text-xs font-bold text-navy underline">입력 대신 최신 메모 불러오기</button>}
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={memo.cancel} disabled={memo.saving} aria-label="메모 수정 취소"
+                      className="min-h-11 rounded-xl px-4 text-sm font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50">취소</button>
+                    <button type="button" onClick={() => { void memo.save(); }} disabled={!memo.canSave} aria-label="메모 저장"
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-navy px-4 text-sm font-bold text-white disabled:opacity-50">
+                      {memo.saving && <Loader2 size={14} className="animate-spin" />}{memo.saving ? '저장 중…' : '저장'}
+                    </button>
+                  </div>
+                </div> : <p className="whitespace-pre-wrap break-words text-xs text-slate-600 leading-relaxed italic">{memo.displayMemo || '기록된 메모가 없습니다.'}</p>}
               </div>
             </div>
 
