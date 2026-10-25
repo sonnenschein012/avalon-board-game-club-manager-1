@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
 import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { useAsyncActionState } from './useAsyncActionState';
-import { createGameFormData, type GameFormData } from '../domain/games/gameForm';
+import { createGameFormData, validateGamePlayerRanges, type GameFormData } from '../domain/games/gameForm';
 import { parseGameCsv } from '../domain/games/gameCsv';
 import { collectAuditChanges, type AuditFieldDefinition } from '../domain/audit/auditEvent';
 import { addAuditEventToBatch, createAuditEventOperation } from '../services/auditService';
@@ -107,12 +107,19 @@ export function useGamesLogic() {
     setImporting(true);
     Papa.parse<string[]>(file, {
       header: false,
-      skipEmptyLines: true,
+      skipEmptyLines: false,
       complete: async (results) => {
         try {
-          const { games: importedGames, skippedCount, error } = parseGameCsv(results.data, games);
+          const { games: importedGames, skippedCount, error, issues } = parseGameCsv(results.data, games);
           if (error) {
-            toast.error(error === 'empty' ? '데이터가 없습니다.' : '게임명(또는 이름), 최소인원, 최대인원 열은 필수입니다.');
+            if (error === 'invalid-players') {
+              toast.error('인원 입력 오류로 가져오기를 중단했습니다. CSV를 수정한 뒤 다시 올려주세요.', {
+                duration: Infinity,
+                description: issues?.map(issue => `${issue.row}행 · ${issue.message}`).join('\n'),
+              });
+            } else {
+              toast.error(error === 'empty' ? '데이터가 없습니다.' : '게임명(또는 이름), 최소인원, 최대인원 열은 필수입니다.');
+            }
             return;
           }
 
@@ -149,6 +156,12 @@ export function useGamesLogic() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPending('game-save')) return;
+    const playerError = validateGamePlayerRanges(formData);
+    if (playerError) { toast.error(playerError); return; }
+    if (!Number.isFinite(formData.complexity) || (formData.complexity !== 0 && (formData.complexity < 1 || formData.complexity > 5))) {
+      toast.error('난이도는 미평가(0) 또는 1~5로 입력해주세요.');
+      return;
+    }
     const isEditing = Boolean(editingId);
     await runAction('game-save', async () => {
       if (editingId) {

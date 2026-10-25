@@ -1,17 +1,18 @@
 import type { Game } from '../../types';
-import type { GameFormData } from './gameForm';
+import { validateGamePlayerRanges, type GameFormData } from './gameForm';
 
 interface GameCsvImport {
   games: GameFormData[];
   skippedCount: number;
-  error?: 'empty' | 'missing-columns';
+  error?: 'empty' | 'missing-columns' | 'invalid-players';
+  issues?: { row: number; message: string }[];
 }
 
 function recommendedPlayerRange(value: string, minPlayers: number, maxPlayers: number) {
-  const range = value.match(/(\d+)\s*~\s*(\d+)/);
-  if (range) return [parseInt(range[1] || ''), parseInt(range[2] || '')] as const;
+  const range = value.match(/(-?(?:\d+(?:\.\d*)?|\.\d+))\s*(?:~|-)\s*(-?(?:\d+(?:\.\d*)?|\.\d+))/);
+  if (range) return [Number(range[1]), Number(range[2])] as const;
 
-  const numbers = value.match(/\d+/g)?.map(number => parseInt(number));
+  const numbers = value.match(/-?(?:\d+(?:\.\d*)?|\.\d+)/g)?.map(Number);
   return numbers?.length
     ? [Math.min(...numbers), Math.max(...numbers)] as const
     : [minPlayers, maxPlayers] as const;
@@ -40,9 +41,11 @@ export function parseGameCsv(
   const memoIndex = headers.indexOf('메모');
   const currentTitles = new Set(existingGames.map(game => game.title));
   const games: GameFormData[] = [];
+  const issues: NonNullable<GameCsvImport['issues']> = [];
   let skippedCount = 0;
 
-  for (const row of rows.slice(1)) {
+  for (const [index, row] of rows.entries()) {
+    if (index === 0) continue;
     const rawTitle = row[titleIndex];
     if (!rawTitle) continue;
 
@@ -52,8 +55,8 @@ export function parseGameCsv(
       continue;
     }
 
-    const minPlayers = parseInt(row[minIndex] || '') || 0;
-    const maxPlayers = parseInt(row[maxIndex] || '') || 0;
+    const minPlayers = parseFloat(row[minIndex] || '') || 0;
+    const maxPlayers = parseFloat(row[maxIndex] || '') || 0;
     const complexity = parseFloat(row[difficultyIndex] || '') || 0;
     const rawGenre = row[genreIndex] || '';
     const genres = rawGenre.split(rawGenre.includes('/') ? '/' : ',').map(genre => genre.trim()).filter(Boolean);
@@ -61,18 +64,27 @@ export function parseGameCsv(
     let bestMinPlayers = minPlayers;
     let bestMaxPlayers = maxPlayers;
     if (recommendedMinIndex !== -1 && recommendedMaxIndex !== -1 && row[recommendedMinIndex] && row[recommendedMaxIndex]) {
-      bestMinPlayers = parseInt(row[recommendedMinIndex] || '') || minPlayers;
-      bestMaxPlayers = parseInt(row[recommendedMaxIndex] || '') || maxPlayers;
+      const parsedMin = parseFloat(row[recommendedMinIndex] || '');
+      const parsedMax = parseFloat(row[recommendedMaxIndex] || '');
+      bestMinPlayers = Number.isNaN(parsedMin) ? minPlayers : parsedMin;
+      bestMaxPlayers = Number.isNaN(parsedMax) ? maxPlayers : parsedMax;
     } else if (recommendedIndex !== -1 && row[recommendedIndex]) {
       [bestMinPlayers, bestMaxPlayers] = recommendedPlayerRange(row[recommendedIndex] || '', minPlayers, maxPlayers);
     }
 
-    games.push({
+    const game = {
       title, minPlayers, maxPlayers, bestMinPlayers, bestMaxPlayers, complexity, genres,
       memo: memoIndex !== -1 ? (row[memoIndex] || '').trim() : '',
-    });
+    };
+    const issue = validateGamePlayerRanges(game);
+    if (issue) {
+      issues.push({ row: index + 1, message: `${title}: ${issue}` });
+      continue;
+    }
+    games.push(game);
     currentTitles.add(title);
   }
 
-  return { games, skippedCount };
+  // Reject the file before any writes rather than silently importing only part of it.
+  return issues.length ? { games: [], skippedCount, error: 'invalid-players', issues } : { games, skippedCount };
 }

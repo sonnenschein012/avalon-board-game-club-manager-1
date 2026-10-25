@@ -36,24 +36,24 @@ export default function GameForm({
               <input required value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="input-field w-full" placeholder="e.g. 테라포밍 마스" />
             </div>
             <div className="md:col-span-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">가능 인원 <span className="text-slate-300 font-normal normal-case">(최소-최대)</span></label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">가능 인원 <span className="text-slate-300 font-normal normal-case">(최소-최대, 0: 미지정)</span></label>
               <div className="flex items-center gap-1">
-                <input type="number" value={formData.minPlayers} onChange={e => setFormData({ ...formData, minPlayers: parseInt(e.target.value) })} className="input-field w-full px-2" />
+                <input type="number" min="0" step="1" value={formData.minPlayers} onChange={e => setFormData({ ...formData, minPlayers: Number(e.target.value) })} className="input-field w-full px-2" />
                 <span className="text-slate-300">-</span>
-                <input type="number" value={formData.maxPlayers} onChange={e => setFormData({ ...formData, maxPlayers: parseInt(e.target.value) })} className="input-field w-full px-2" />
+                <input type="number" min="0" step="1" value={formData.maxPlayers} onChange={e => setFormData({ ...formData, maxPlayers: Number(e.target.value) })} className="input-field w-full px-2" />
               </div>
             </div>
             <div className="md:col-span-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">적정 인원 <span className="text-slate-300 font-normal normal-case">(최소-최대)</span></label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block flex justify-between">적정 인원 <span className="text-slate-300 font-normal normal-case">(최소-최대, 0: 미지정)</span></label>
               <div className="flex items-center gap-1">
-                <input type="number" value={formData.bestMinPlayers} onChange={e => setFormData({ ...formData, bestMinPlayers: parseInt(e.target.value) })} className="input-field w-full px-2" />
+                <input type="number" min="0" step="1" value={formData.bestMinPlayers} onChange={e => setFormData({ ...formData, bestMinPlayers: Number(e.target.value) })} className="input-field w-full px-2" />
                 <span className="text-slate-300">-</span>
-                <input type="number" value={formData.bestMaxPlayers} onChange={e => setFormData({ ...formData, bestMaxPlayers: parseInt(e.target.value) })} className="input-field w-full px-2" />
+                <input type="number" min="0" step="1" value={formData.bestMaxPlayers} onChange={e => setFormData({ ...formData, bestMaxPlayers: Number(e.target.value) })} className="input-field w-full px-2" />
               </div>
             </div>
             <div className="md:col-span-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">난이도 (1-5)</label>
-              <input type="number" step="0.1" min="1" max="5" value={formData.complexity} onChange={e => setFormData({ ...formData, complexity: parseFloat(e.target.value) })} className="input-field w-full" />
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">난이도 (0: 미평가, 1-5)</label>
+              <input type="number" step="0.1" min="0" max="5" value={formData.complexity} onChange={e => setFormData({ ...formData, complexity: Number(e.target.value) })} className="input-field w-full" />
             </div>
             <div className="md:col-span-1 flex-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">비고 (선택)</label>
