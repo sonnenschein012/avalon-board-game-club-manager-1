@@ -1,73 +1,73 @@
 {
   "version": 1,
   "status": "passed",
-  "reviewer": "Independent admin_graph_review agent; no prior conversation supplied",
-  "reviewedAt": "2026-10-10T17:25:30.362Z",
-  "graphHash": "5ab120c019a30e08a280add6ebe51a60b8e1b19d49a4624ac3475213ce1d1e70",
-  "inputDigest": "00627fcf2050f538bc2592cac2f0fd574cd1b756a78f4fb5ca4bf6378942f6e3",
-  "method": "Independent scoped pinned candidate CLI query/path/explain; current source, tests, Rules and tracked documentation inspection; previous verified baseline comparison. Graph findings distinguished from source supplementation; no production access.",
+  "reviewer": "Independent graph_independent_review agent; fresh task context, source-first six-case re-evaluation",
+  "reviewedAt": "2026-10-26T09:18:43.151Z",
+  "graphHash": "bba9d1bf37c2952bc24a95da3d6f40d84fd437a17eb22f82023864f6fb33811b",
+  "inputDigest": "21d2628c9143c4b32045ed9a0b9ba1777d7360e987bf56f31ff3a289b40549e9",
+  "method": "Read project instructions and maintained documentation, compared current input hashes to the 336-file previous verified baseline (353 current files, 46 changed/new paths, no deleted input files), inspected current source/tests/Rules and relevant source diffs. Ran scoped pinned candidate query/path/explain after final READY; distinguished EXTRACTED calls from inferred indirect consumers and source supplementation. Inspected staged/unstaged/untracked tree together; no production access.",
   "executionEvidence": {
     "reviewerExecuted": [
-      "Pinned candidate query/path/explain",
-      "Current snapshot equality with pending input: 00627fcf2050f538bc2592cac2f0fd574cd1b756a78f4fb5ca4bf6378942f6e3",
-      "validateGraph on 336 current inputs against previous verified baseline: []",
-      "Source/test/Rules inspection; staged, unstaged and untracked status/diff review"
+      "Pinned Graphify 0.9.84 candidate query/path/explain after READY: 1867 nodes",
+      "Current snapshot equals pending digest",
+      "validateGraph with current scope and previous verified baseline returned []",
+      "git diff --check passed; only docs/operations.md dirty at source review",
+      "Graph tool tests attempted in sandbox: four pure validators passed; five Git fixture tests failed before assertions because temporary .git/config writes were denied"
     ],
     "parentExecutedLogsInspected": [
-      "admin-fix-tests.log: 4 focused settingsService tests passed",
-      "admin-fix-check.log: lint, typecheck, 351 application tests, 58 Node tests, build and production bundle validation passed"
+      ".codex-tmp-deploy-game-check.log: lint, TypeScript, 397 Vitest tests, 58 Node tests, build and production bundle verification passed",
+      ".codex-deploy-audit-game-validation-production.json: all 63 static file SHA256 matches; reviewer only inspected local audit JSON",
+      ".graphify-work/reviews/graph-tool-test-20261026.log: parent elevated rerun, all nine Graphify tool tests passed"
     ],
     "notExecutedByReviewer": [
-      "App unit suite",
-      "Rules suite",
-      "Emulator Design Lab/UI suites",
-      "Production access",
+      "Application unit suites",
+      "Firestore Rules suite",
+      "Emulator Design Lab and Scenario Lab UI suites",
+      "Production reads/writes",
       "Deployment"
     ],
-    "notNewlyExecutedForThisChange": [
-      "Rules 24 and previous UI suites are historical, not current execution evidence"
-    ],
-    "finalValidation": "validateReview performed after exact graphHash/inputDigest binding"
+    "finalValidation": "validateReview and validateGraph executed against this exact graphHash/inputDigest before delivery"
   },
   "cases": [
     {
       "id": "attendee-member-conversion",
       "answer": [
-        "The planning canvas uses attendee IDs; convertAttendeeIdsToMemberIds copies group fields and persists resolved member IDs for roster-based session history/statistics/export. Failed resolution retains the attendee ID. Meeting-start rejects assigned unregistered people before conversion.",
-        "Explicit memberId resolves only that ID; null or a deleted ID never rematches a namesake. Only undefined permits isSameName normalization, full/two-digit student-prefix matching, then first namesake when the prefix misses."
+        "SessionGroup carries attendee IDs while stored history uses member IDs; conversion copies other group fields and retains the original attendee ID when resolution fails. Meeting start rejects assigned unregistered attendees before conversion.",
+        "An explicit memberId resolves only that member, null/deleted IDs do not rematch namesakes. Only undefined uses isSameName (space/leading two-digit name prefix/case normalization), full or two-digit student year matching, then first-name-match fallback when prefix lookup fails."
       ],
       "graphFinding": [
-        "Pinned candidate path shows an EXTRACTED conversion-to-helper call. Retained identity semantic supplements describe explicit-ID precedence and legacy fallback, confirmed independently in current source."
+        "Final pinned path is conversion --calls [EXTRACTED]--> getMemberFromAttendee. Identity rationale and meeting snapshot nodes supplement the AST and agree with inspected source."
       ],
       "limits": [
-        "First namesake fallback is inherently ambiguous in legacy data. Graph topology alone does not show field preservation or establish roster integrity.",
-        "Direct conversion and prefix-miss tests exist and were inspected. Parent unit-suite execution covers these; reviewer did not execute app tests."
+        "Legacy first-name fallback is ambiguous. Graph topology cannot establish correct identity in real data.",
+        "Direct conversion and dedicated prefix-miss fallback tests exist and were inspected, correcting any older assumption that these tests are absent. Parent executed the app suite; reviewer did not."
       ],
       "codeCitations": [
         "src/domain/attendance/sessionGroups.ts:5",
         "src/domain/matching/getMemberFromAttendee.ts:13",
-        "src/hooks/useAttendanceLogic.ts:286",
+        "src/domain/matching/isSameName.ts:10",
+        "src/hooks/useAttendanceLogic.ts:292",
         "src/domain/attendance/sessionGroups.test.ts:10",
-        "src/domain/matching/getMemberFromAttendee.test.ts:42"
+        "src/domain/matching/getMemberFromAttendee.test.ts:50"
       ],
       "graphNodeIds": [
         "src_domain_attendance_sessiongroups_convertattendeeidstomemberids",
-        "src_domain_attendance_sessiongroups_selected_identity_conversion",
-        "src_domain_matching_getmemberfromattendee_explicit_identity_and_legacy_fallback"
+        "src_domain_matching_getmemberfromattendee_explicit_identity_and_legacy_fallback",
+        "src_hooks_useattendancelogic_selected_identity_meeting_snapshot"
       ]
     },
     {
       "id": "board-member-snapshot",
       "answer": [
-        "Missing boardMemberIds uses current member.isBoardMember; [] returns false from includes and preserves an explicitly empty historical snapshot. Export, attendance ranking and core players use nullish fallback rather than treating an empty array as absent.",
-        "Current CSV with 세션명 initializes [] and accumulates marked members; legacy CSV leaves the field absent. Import spreads this shape, creation records a snapshot, and session updates preserve an existing snapshot."
+        "Missing boardMemberIds falls back to current member.isBoardMember; [] means no historical board members and must return false rather than fall back. CSV export, attendance ranking and core-player calculations use nullish fallback.",
+        "Current CSV with session-name column initializes [] and collects marked members; legacy CSV omits the property. Import spreads that distinction; creation stores a snapshot and update preserves an existing snapshot."
       ],
       "graphFinding": [
-        "The boardMemberIds semantic node states absent versus empty; CSV/statistics nodes expose consumers. Source supplementation confirms nullish operators, import spreading and update preservation."
+        "Final board snapshot documentation node, CSV functions and storage consumers locate the absent/empty contract; source confirms optional chaining and nullish operators rather than truthiness."
       ],
       "limits": [
-        "CSV uses names/nicknames and game names to rebuild links; it is not a full ID-preserving backup. Deleted members may export as Unknown or be filtered from statistics.",
-        "CSV tests explicitly cover absent/empty/nonempty; inspected statistics tests cover nonempty snapshot precedence, without a dedicated empty-array statistics assertion. Tests were not personally executed."
+        "CSV reconstructs links using names/nicknames and game names and is not an ID-preserving full backup.",
+        "Export/import tests cover missing, empty and nonempty snapshots. Inspected semester statistics test covers nonempty historical precedence; no dedicated empty-array statistics assertion was found."
       ],
       "codeCitations": [
         "src/domain/exports/clubCsv.ts:82",
@@ -77,136 +77,133 @@
         "src/domain/stats/getAttendanceRanking.ts:13",
         "src/domain/stats/getCorePlayers.ts:28",
         "src/domain/exports/clubCsv.test.ts:73",
-        "src/domain/sessions/sessionCsv.test.ts:25",
-        "src/services/sessionsService.test.ts:51"
+        "src/domain/sessions/sessionCsv.test.ts:28",
+        "src/domain/stats/semesterStatistics.test.ts:36"
       ],
       "graphNodeIds": [
-        "docs_development_boardmemberids_absent_empty",
+        "docs_development_board_member_snapshot",
         "src_domain_exports_clubcsv_buildsessionscsv",
-        "src_domain_stats_getattendanceranking_getattendanceranking",
+        "src_domain_sessions_sessioncsv_parsesessioncsvrows",
         "src_domain_stats_getcoreplayers_getcoreplayers"
       ]
     },
     {
       "id": "planning-confirmed-preservation",
       "answer": [
-        "DailyPlannings is operating state; sessions is independent confirmed history. Meeting-start archives/replaces planning but creates a confirmed session only if absent. Planning delete/restore leaves the confirmed session; restore carries only the current session link. Session deletion removes existing planning links with the delete in one batch.",
-        "Rename reads both current documents in a transaction and changes only the matching group name independently in each, preserving separately edited games, notes, member IDs and other groups. A removed confirmed group is not recreated; a missing linked session fails before writes."
+        "DailyPlannings is operating state and sessions is independently editable confirmed history. Starting again archives/replaces planning but creates a session only when absent. Planning deletion/restore preserves the confirmed session; session deletion detaches currently found planning links in the same batch.",
+        "Rename transaction reads both current documents and maps only the selected group name separately in each. Games, notes, IDs and other groups are preserved; a removed confirmed group is not recreated and a missing linked session fails before writes."
       ],
       "graphFinding": [
-        "Candidate retains EXTRACTED shares_data_with edges from renameDailyPlanningGroup to DailyPlannings and sessions, plus archive/audit calls. Their semantics were confirmed against the current transaction and preservation tests."
+        "Final candidate includes rename, DailyPlannings and sessions nodes and retained shared-data relations. Source preservation tests confirm the semantic claim independently of connectivity."
       ],
       "limits": [
-        "Mock preservation tests do not prove all concurrent edits safe. updateSessionRecord/updateSessionGroupGames read before a whole-group batch write and can overwrite a concurrent writer.",
-        "Session deletion queries links before batching and cannot protect a new link created afterward. This administrator fix does not resolve these session races. Existing UI regression is inspected historical evidence; UI suites were not newly executed for this change."
+        "Mock transaction tests are not a real multi-client concurrency proof. updateSessionRecord and updateSessionGroupGames read before whole-group batch writes and can overwrite a concurrent writer.",
+        "Session deletion queries links before its batch, so a subsequently created link is outside that query. These existing limits were not fixed by the game change."
       ],
       "codeCitations": [
         "src/services/dailyPlanningService.ts:27",
         "src/services/dailyPlanningService.ts:81",
-        "src/hooks/useAttendanceLogic.ts:294",
+        "src/hooks/useAttendanceLogic.ts:299",
         "src/services/sessionsService.ts:77",
         "src/services/sessionsService.ts:108",
         "src/services/sessionsService.ts:142",
-        "src/services/dailyPlanningService.test.ts:27",
-        "src/services/sessionsService.test.ts:28",
-        "tests/design-lab/smoke.spec.ts:56"
+        "src/services/dailyPlanningService.test.ts:26",
+        "src/services/dailyPlanningService.test.ts:50",
+        "src/services/dailyPlanningService.test.ts:99"
       ],
       "graphNodeIds": [
         "src_services_dailyplanningservice_renamedailyplanninggroup",
         "firestore_dailyplannings_collection",
         "firestore_sessions_collection",
-        "src_services_sessionsservice_updatesessionrecord"
+        "docs_development_planning_confirmed_separation"
       ]
     },
     {
       "id": "shared-firestore-consumers",
       "answer": [
-        "Attendance, meeting progress, session editing, archives/statistics, game popularity, member profiles and CSV exports share sessions/members/games through Firestore subscriptions and reads. Meeting records separately reads DailyPlannings and versions; imports write attendees. Direct imports between screens are not necessary for an impact path.",
-        "Changed settingsService still supplies useClubExports reads of members/sessions/games. Its administrator writes use admins and auditEvents; Firebase role lookup and Rules independently consume admins. New-email creation now reads admins inside a transaction and creates an ordinary admin with its audit event atomically. Existing documents throw before any writes."
+        "Attendance, meeting progress, sessions, archives/statistics, game popularity, member profiles and CSV exports share members/games/sessions through subscriptions and reads. Meeting records reads DailyPlannings and versions; attendee imports write attendees. Indirect storage consumers do not need imports between screens.",
+        "MemberProfileModal is shared by member, meeting and session screens. Its memo-only service transaction compares expected text, rejects deleted members, updates only memo and writes audit atomically. General member form submission still batch-writes full form data without this conflict protection.",
+        "Game zero/range validation reaches forms and CSV through the common validator, then games storage feeds catalog, recommendation, statistics and exports. New validation does not migrate existing stored games."
       ],
       "graphFinding": [
-        "Retained storage nodes and relations reveal sessions and planning consumers; settingsService export functions and useClubExports remain present despite the changed file. Source independently confirms indirect useGamesLogic and MemberProfileModal consumers."
+        "Final exact memo explain shows EXTRACTED audit/collect-change calls and INFERRED indirect test relationship; final game validator explain shows EXTRACTED callers from parseGameCsv and useGamesLogic. Shared collection nodes are navigation evidence, not a complete impact proof."
       ],
       "limits": [
-        "Graph absence and directed path absence do not establish no impact or exhaustive subscription coverage.",
-        "Firestore retry behavior is modeled in the new unit test; no live multi-client concurrency experiment was executed. No production data or deployment was used."
+        "Memo-only transaction protection must not be generalized to all member edits; a general form save can still overwrite a concurrently changed memo.",
+        "Game Rules check numeric types but do not enforce nonnegative integer/range ordering. These are client entry policy checks. CSV intentionally retains numeric-prefix and unspecified fallback parsing."
       ],
       "codeCitations": [
-        "src/hooks/useAttendanceLogic.ts:47",
-        "src/hooks/useMeetingProgressLogic.ts:22",
+        "src/hooks/useAttendanceLogic.ts:48",
+        "src/hooks/useMeetingProgressLogic.ts:20",
         "src/hooks/useMeetingRecords.ts:13",
         "src/hooks/useSessionsLogic.ts:16",
         "src/hooks/useArchiveLogic.ts:18",
-        "src/hooks/useGamesLogic.ts:32",
-        "src/components/MemberProfileModal.tsx:24",
-        "src/services/settingsService.ts:18",
+        "src/hooks/useGamesLogic.ts:31",
+        "src/components/MemberProfileModal.tsx:28",
         "src/services/settingsService.ts:63",
-        "src/hooks/useClubExports.ts:52",
-        "src/services/auditService.ts:85"
+        "src/services/memberMemoService.ts:14",
+        "src/hooks/useMembersLogic.ts:214",
+        "src/domain/games/gameCsv.ts:79",
+        "firestore.rules:162"
       ],
       "graphNodeIds": [
         "firestore_sessions_collection",
         "firestore_dailyplannings_collection",
-        "firestore_attendees_collection",
-        "src_services_settingsservice_loadsessionexportdata",
-        "src_hooks_useclubexports_useclubexports",
-        "src_services_settingsservice_addadminrecord"
+        "src_services_membermemoservice_updatemembermemo",
+        "src_services_membermemoservice_memo_only_compare_and_set",
+        "src_domain_games_gameform_validategameplayerranges"
       ]
     },
     {
       "id": "public-admin-legacy-schedule",
       "answer": [
-        "Public access tokens are bearer credentials for exact active reads and restricted response writes; enumeration and token creation/deletion remain administrator-only. Active public round/schedule documents can be fetched by exact path without token possession. Private interview operations require a registered operator or master.",
-        "Client undefined scheduleId uses legacy round, null shows unassigned without legacy subscription, and an ID uses the schedule with common round text. Migration accepts only undefined. Rules map missing/null/nonstring to null and allow legacy survey fallback, differing from the client null state. Rules enforce configured slots/server timestamps; the legacy dynamic four-day KST subset is client-only.",
-        "Settings creation is available through the master-only panel; Rules require master for administrator writes/list and permit self-document get. Normalized-email lookup in client differs from raw auth email in Rules. New transactional create-only policy preserves master/admin roles and createdAt on duplicates, with a distinct hook notice; Rules still allow master updates directly, so the create-only policy is the application addition behavior."
+        "Public token is a bearer credential for exact active token reads and restricted response updates; enumeration and token creation/deletion require interview management privileges. Active public round/schedule configuration allows exact gets independently of token possession. Private interview access requires a registered administrator or master.",
+        "Client scheduleId undefined selects legacy round, null means unassigned and skips legacy subscription, an ID selects schedule plus common round text. Migration accepts undefined only. Rules accessScheduleId maps missing/null/nonstring to null and permits legacy fallback, unlike client explicit-null behavior; server timestamps/configured slots are enforced while dynamic four-day legacy KST narrowing is client-only.",
+        "Current interview-note generation checks occur before queued work reads shared refs and before old subscription callbacks can affect the new applicant. Workspace close flushes and waits; failure preserves the screen/input. The previous review warning about queued A save reading B draft is stale and is not retained."
       ],
       "graphFinding": [
-        "Candidate schedule three-state/accessScheduleId/public configuration nodes preserve these distinctions. Fresh operations rationale has an EXTRACTED handover reference and INFERRED 0.95 link to addAdminRecord; AST includes AdminAlreadyExistsError, caller and transactional audit call."
+        "Pinned query locates accessScheduleId and the public client/rule boundary; source inspection supplies the three-state distinctions beyond topology. Fresh interview hook nodes must be interpreted with current implementation and regression tests."
       ],
       "limits": [
-        "UI restrictions are not authorization. Bootstrap master remains in client and Rules. Direct master API writes are not prevented by this fix.",
-        "Rules tests were inspected but not executed for this change. Empty-string schedule IDs have truthy/nullish edge behavior beyond the legitimate three-state contract.",
-        "The existing interview-note wrong-person queued-save risk is not fixed: queued execute reads shared draft/revision refs with a captured applicant ID and generation is checked after save. This administrator patch must not be represented as resolving stale interview saves."
+        "UI visibility is not authorization. Bootstrap-master handling remains in client and Rules, with normalized client email versus raw Rules auth-email lookup.",
+        "Rules tests were inspected but not newly executed by reviewer. Empty-string IDs are outside the legitimate three-state contract. An already issued old applicant save cannot be cancelled, but its generation prevents later state changes to the new applicant."
       ],
       "codeCitations": [
         "src/hooks/usePublicInterviewLogic.ts:24",
-        "src/hooks/usePublicInterviewLogic.ts:202",
         "src/services/publicInterviewService.ts:78",
         "src/services/interviews/schedulesService.ts:475",
-        "firestore.rules:21",
+        "firestore.rules:20",
         "firestore.rules:47",
         "firestore.rules:90",
-        "firestore.rules:253",
         "firestore.rules:353",
         "firestore.rules:369",
         "src/lib/firebase.ts:146",
-        "src/hooks/useSettingsAdmins.ts:36",
-        "src/services/settingsService.test.ts:19",
-        "src/components/SettingsAdminPanel.tsx:35",
-        "src/hooks/useInterviewNoteLogic.ts:96",
+        "src/hooks/useInterviewNoteLogic.ts:100",
+        "src/hooks/useInterviewNoteLogic.test.tsx:171",
+        "src/components/InterviewWorkspaceModal.tsx:76",
         "src/tests/firestore.rules.test.ts:417"
       ],
       "graphNodeIds": [
-        "docs_development_scheduleid_three_states",
         "firestore_accessscheduleid",
         "firestore_public_configuration_reads",
-        "docs_operations_administrator_create_only_transaction",
-        "src_services_settingsservice_addadminrecord",
-        "src_services_settingsservice_adminalreadyexistserror"
+        "src_hooks_useinterviewnotelogic_useinterviewnotelogic",
+        "src_services_publicinterviewservice_subscribetopublicinterview"
       ]
     },
     {
       "id": "freshness-semantic-and-omission",
       "answer": [
-        "Source/control snapshots hash normalized LF text; exact artifact bytes are hashed separately. Commit IDs give provenance, while body-only changes at the same HEAD invalidate freshness. Here unchanged addAdminRecord signature hides a material batch-to-read-transaction semantic change and must not certify unchanged meaning.",
-        "Current input digest equals pending-input digest. validateGraph against previous-verified checks coverage and unchanged symbols/relations and returned no issues. Changed service retains list/remove/export functions; new error and unit tests are represented. Fresh operations semantics correctly record absent-email creation and concurrency preservation."
+        "Current 353-file snapshot matches pending input digest. Exact graph SHA256 binds this review. validateGraph against the previous verified bundle returned [] for coverage, structure and unchanged-source symbol/relation preservation. No previous input file was deleted.",
+        "Unchanged function names/signatures do not imply unchanged meaning: game initialization now uses nullish defaults to preserve zero; common range validation rejects unsafe/negative/fractional or reversed positive bounds and allows unspecified zero; CSV rejects the whole file with row issues. The queued interview-save behavior changed despite retaining its public hook signature.",
+        "Reviewed current staged/unstaged/untracked work together, source diffs and updated docs. Old interview-save warning was corrected; general member form concurrency was not claimed fixed. Input hashes normalize CRLF/LF; artifact hashes cover bytes and commit IDs provide provenance only."
       ],
       "graphFinding": [
-        "Candidate has the new create-only rationale linked to the actual function, with correct confidence distinction. Retained identity/storage/public configuration supplements match inspected source. Reuse receipts explicitly label matching-source previous verified semantics as reuse, not fresh extraction."
+        "Final graph contains explicit zero/range and memo compare-and-set rationale with source-backed EXTRACTED implementation edges. Required unchanged nodes/relations survived baseline validation. Report candidly records extractor endpoint/self-loop/collapse diagnostics and source authority."
       ],
       "limits": [
-        "Structural validation cannot prove every sentence correct. Unchanged-baseline protection does not replace manual changed-source semantic inspection.",
-        "Known interview-note/session concurrency limits remain; no claim of broad race resolution. Prior Rules/UI results are historical and not newly executed. Accept/verify and shared bundle promotion remain parent responsibilities."
+        "Structural validation cannot prove every sentence or relation correct, and graph absence cannot prove no impact. Scoped query output was budget-truncated and was supplemented with exact explain, source and tests.",
+        "Official diagnostics report 100 prebuild undeclared endpoint refs (51 external), 8 selfloops and 150 directed same-endpoint collapses; final graph has no dangling edges. Code supplements are in the reviewed graph but intentionally outside the document-only semantic cache. Token totals are unmeasured.",
+        "Reviewer sandbox tool-test fixture failures were environment failures; parent elevated rerun passed all9. No new Rules/UI execution or production interaction is claimed. Promotion, accept and verify remain parent responsibilities."
       ],
       "codeCitations": [
         "scripts/graphify.mjs:35",
@@ -216,16 +213,21 @@
         "scripts/graphify.test.mjs:23",
         "scripts/graphify.test.mjs:79",
         "scripts/graphify.test.mjs:98",
-        "src/services/settingsService.ts:18",
-        "src/services/settingsService.test.ts:45",
-        "docs/operations.md:66"
+        "src/domain/games/gameForm.ts:16",
+        "src/domain/games/gameForm.ts:28",
+        "src/domain/games/gameCsv.ts:88",
+        "src/hooks/useGamesLogic.test.tsx:42",
+        "src/hooks/useInterviewNoteLogic.ts:100",
+        "docs/development.md:71",
+        "docs/operations.md:72"
       ],
       "graphNodeIds": [
         "scripts_graphify_snapshot",
         "scripts_graphify_freshness",
         "scripts_graphify_validategraph",
-        "docs_operations_administrator_create_only_transaction",
-        "src_services_settingsservice_addadminrecord"
+        "src_domain_games_gameform_zero_values_are_explicit",
+        "src_domain_games_gameform_nonnegative_integer_known_ranges",
+        "src_services_membermemoservice_memo_only_compare_and_set"
       ]
     }
   ]
