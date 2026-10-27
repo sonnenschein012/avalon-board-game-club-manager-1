@@ -35,6 +35,8 @@ React/Vite 단일 페이지 앱입니다. `src/main.tsx`가 앱을 시작하고 
 
 면접 서비스는 회차(`roundsService`), 일정(`schedulesService`), 실제 배정(`schedulingService`), 지원자, 면접관, 기록, 회원 등록으로 나뉩니다. `interviewsService.ts`는 이 공개 API를 모아 내보내는 진입점입니다. 배정 변경은 잠금·접근 문서·이력도 함께 바꾸므로 기존 트랜잭션 경로를 재사용하세요.
 
+면접 메시지 기본 문구는 `domain/interviews/messages.ts`에서 관리합니다. 새 회차에는 여섯 종류의 기본 문구를 저장하고, 기존 회차는 저장된 사용자 문구를 유지합니다. 면접 설정의 각 `기본 문구 적용`은 해당 초안만 교체하며 저장 시 반영됩니다. 선발·미선발 안내는 이름만 자동 치환하며, 기본 선발·미선발 문구의 `[모집 기수]`, 선발 문구의 `[은행명 및 계좌번호]`와 `[예금주]`는 자동 치환하지 않는 수동 편집 표시입니다. 운영자가 저장 전에 직접 바꾸며, 기본 회비 20,000원도 필요하면 편집합니다. 지원자 상세와 선발 상세는 같은 기본값 해석·치환 함수를 사용합니다.
+
 ## 데이터에서 유지해야 할 구분
 
 - `SessionGroup`은 조 편성 중의 **attendee ID**, `StoredSessionGroup`은 저장된 **member ID**를 담습니다. 변환은 `domain/attendance/sessionGroups`에서 합니다. `DailyPlannings`의 저장 타입은 `domain/attendance/dailyPlanning`에 있습니다.

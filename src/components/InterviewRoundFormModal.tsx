@@ -7,7 +7,7 @@ import {
   type InterviewDaySchedule,
 } from '../domain/interviews/scheduling';
 import type { InterviewRoundDraft } from '../services/interviewsService';
-import { resolveInterviewMessageTemplates } from '../domain/interviews/messages';
+import { DEFAULT_INTERVIEW_MESSAGE_TEMPLATES, resolveInterviewMessageTemplates } from '../domain/interviews/messages';
 import InterviewScheduleManagement from './InterviewScheduleManagement';
 
 export function roundToDraft(round?: InterviewRound | null): InterviewRoundDraft {
@@ -203,9 +203,10 @@ export default function InterviewRoundFormModal({ open, round, saving = false, o
 
           <section className="space-y-3 rounded-2xl bg-white p-5 shadow-sm md:col-span-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-navy">메시지 템플릿</h3>
+            <p className="text-[11px] text-slate-400">기본 문구 적용은 해당 입력란만 변경하며, 아래 저장 버튼을 눌러야 반영됩니다.</p>
             <p className="text-[11px] text-slate-400">사용 가능: {'{name} {link} {deadline} {interviewDate} {interviewTime} {oldInterviewDate} {oldInterviewTime} {interviewerName} {interviewerPhone} {roundName}'}</p>
-            <p className="text-[11px] text-slate-400">선발·미선발 안내에서는 {'{name}'}만 자동 치환됩니다. 회비 금액, 은행, 계좌번호와 예금주는 템플릿에 직접 입력해주세요.</p>
-            {(['availability', 'reminder', 'confirmation', 'reschedule', 'selected', 'rejected'] as const).map(kind => <label key={kind} className="block text-xs font-bold text-slate-500">{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : kind === 'reschedule' ? '일정 변경 안내' : kind === 'selected' ? '선발 안내' : '미선발 안내'}<textarea value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>)}
+            <p className="text-[11px] text-slate-400">선발·미선발 안내에서는 {'{name}'}만 자동 치환됩니다. 선발·미선발 문구의 [모집 기수]와 선발 문구의 [은행명 및 계좌번호], [예금주]는 저장 전에 직접 바꿔주세요. 대괄호 항목은 자동 치환되지 않습니다.</p>
+            {(['availability', 'reminder', 'confirmation', 'reschedule', 'selected', 'rejected'] as const).map(kind => <div key={kind} className="text-xs font-bold text-slate-500"><span className="flex items-center justify-between gap-3"><span>{kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : kind === 'reschedule' ? '일정 변경 안내' : kind === 'selected' ? '선발 안내' : '미선발 안내'}</span><button type="button" disabled={busy} onClick={() => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: DEFAULT_INTERVIEW_MESSAGE_TEMPLATES[kind] } })} className="rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-navy disabled:opacity-40">기본 문구 적용</button></span><textarea aria-label={kind === 'availability' ? '조사 안내' : kind === 'reminder' ? '재안내' : kind === 'confirmation' ? '최종 면접 안내' : kind === 'reschedule' ? '일정 변경 안내' : kind === 'selected' ? '선발 안내' : '미선발 안내'} value={draft.messageTemplates[kind]} onChange={event => setDraft({ ...draft, messageTemplates: { ...draft.messageTemplates, [kind]: event.target.value } })} className="mt-1 min-h-48 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm leading-relaxed" /></div>)}
           </section>
 
           {schedules && applicants && onDeleteSchedule && <div className="md:col-span-2"><InterviewScheduleManagement schedules={schedules} applicants={applicants} onDelete={onDeleteSchedule} /></div>}

@@ -104,7 +104,7 @@ describe('selection decision buttons', () => {
     ));
     expect(selected().className).toContain('bg-emerald-600');
     expect(rejected().className).toContain('bg-white');
-    expect(container.textContent).toContain('지원자 selected 님의 5기 신입부원 선발이 확정');
+    expect(container.textContent).toContain('지원자 selected 님의 [모집 기수] 신입부원 선발이 확정');
 
     act(() => root.render(
       <SelectionDetailModal
@@ -118,6 +118,6 @@ describe('selection decision buttons', () => {
     ));
     expect(rejected().className).toContain('bg-red-600');
     expect(selected().className).toContain('bg-white');
-    expect(container.textContent).toContain('지원자 rejected 님, 이번 5기 신입부원 모집에 지원');
+    expect(container.textContent).toContain('지원자 rejected 님, 이번 [모집 기수] 신입부원 모집에 지원');
   });
 });
