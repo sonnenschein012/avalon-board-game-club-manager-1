@@ -62,6 +62,8 @@ React/Vite 단일 페이지 앱입니다. `src/main.tsx`가 앱을 시작하고 
 
 모임 공지·음료 이미지 추출은 `services/captureService`에서 처리합니다. `html-to-image`로 PNG Blob을 만들고 Blob URL을 다운로드 링크에 전달합니다. Safari의 `data:` URL 다운로드 문제를 피하기 위한 변경이며, 확인창에서 브라우저가 URL을 사용할 시간을 주기 위해 클릭 직후 해제하지 않고 60초 뒤 해제합니다. 단위 테스트는 Blob 전달·지연 해제·생성 실패 시 다운로드 방지를 검증하며 실제 iPhone/iPad Safari의 저장 완료 여부는 별도 확인이 필요합니다.
 
+이미지 추출 브라우저 회귀 검사는 `tests/capture/`의 합성 fixture에서 실제 `MeetingCanvasTab`·`captureBoard`·이미지 렌더러를 사용합니다. `npm run test:capture`로 Chromium과 iPhone 13·iPad Pro 11 설정의 WebKit에서 실행하며 CI에도 포함합니다. 최초 실행 전 `npx playwright install chromium webkit`으로 브라우저를 설치하세요. Scenario 모드의 Vite에서 실행하고 Firebase는 초기화하지 않습니다. PNG 저장 완료·파일명·헤더·해상도·색상/밝은 내용·페이지 유지와 오류 부재를 확인합니다. 외부 Google Fonts는 빈 CSS로 대체해 네트워크 변동을 배제하므로 외부 글꼴 가용성을 검증하지 않습니다. Playwright 기기 설정은 에뮬레이션이며 실제 iOS/iPadOS Safari의 다운로드 확인창·파일 앱 저장 확인을 대체하지 않습니다.
+
 회원 세부 정보의 메모는 관리자 편집 모드 토글과 관계없이 `수정 → 저장/취소`로 바로 편집합니다. 로그인한 기존 운영 계정의 members 쓰기 권한을 사용합니다. 동아리원 관리·모임 진행·세션 기록이 같은 `MemberProfileModal`을 사용하며 최신 members 구독으로 표시를 갱신합니다. `useMemberMemo`는 회원별 초안을 격리하고 저장 실패 시 입력을 유지합니다. `memberMemoService`는 트랜잭션에서 편집 시작 시의 메모와 현재 값을 비교한 뒤 memo 필드와 `member.updated` 감사 기록만 함께 저장하며, 다른 필드를 덮어쓰거나 삭제된 회원을 다시 만들지 않습니다. 동시 수정 충돌 시 입력을 보존하고 사용자가 최신 메모를 불러와 다시 편집할 수 있습니다.
 
 동아리원 명부의 PC 레이아웃(md 이상)은 관리자 편집 모드에서 체크박스·순번·이름/학번 영역 전체를 하나의 선택 label로 사용합니다. 체크박스 크기는 유지하며 상세 기록·수정·삭제 버튼은 선택 영역 밖에 둡니다. 모바일은 기존 체크박스 선택 동작을 유지합니다.

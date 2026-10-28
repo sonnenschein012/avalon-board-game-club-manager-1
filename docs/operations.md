@@ -69,6 +69,12 @@ CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운�
 
 ## 릴리스와 개발 재개
 
+### 이미지 추출 WebKit 회귀 검사 추가 (2026-10-28)
+
+- 실제 공지 캔버스와 이미지 렌더러를 사용하는 독립 합성 fixture를 `tests/capture/`에 추가했습니다. Firebase를 초기화하지 않으며 외부 Google Fonts만 고정합니다. `npm run test:capture`는 Chromium·iPhone 13 WebKit·iPad Pro 11 WebKit에서 공지·음료 다운로드를 각각 검사합니다.
+- 로컬 브라우저 검사 6개·타입·변경 파일 lint가 통과했습니다. 다운로드 완료 후 PNG 헤더·파일명·3200px 너비·높이·색상/밝은 내용과 페이지 유지·오류 부재를 확인했고 WebKit의 공지 출력도 직접 열어 확인했습니다. 실제 iOS/iPadOS Safari의 다운로드 확인창·파일 앱 저장은 이 자동 검사의 범위에 포함되지 않습니다.
+- CI에 테스트 브라우저 설치와 `npm run test:capture`를 연결했습니다. 앱 동작·Firestore 규칙·인덱스·업무 데이터는 변경하지 않으며 테스트 추가만으로 재배포하지 않습니다.
+
 ### 공지 이미지 Blob 다운로드 운영 배포 (2026-10-28)
 
 - 스테이징에 반영한 이미지 다운로드 수정안을 운영 Hosting `avalondgu`에 배포했습니다. PNG를 Blob URL로 전달하고 다운로드 확인창에 사용할 URL을 60초 뒤 해제합니다. 단계별 진단 코드는 포함하지 않았습니다.

@@ -34,7 +34,16 @@ jobs:
       - run: node --test scripts/knowledge-graph.test.mjs scripts/graphify.test.mjs
       - run: npm run test:rules
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run design-lab:test
         env:
           TZ: Asia/Seoul
+      - run: npm run test:capture
+        env:
+          TZ: Asia/Seoul
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: test-results/
+          retention-days: 7
