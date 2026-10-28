@@ -6,7 +6,7 @@ export async function captureBoard(
   dateString: string
 ): Promise<void> {
   try {
-    const dataUrl = await htmlToImage.toPng(node, {
+    const blob = await htmlToImage.toBlob(node, {
       pixelRatio: 2,
       backgroundColor: '#000000',
       width: 1600,
@@ -24,10 +24,22 @@ export async function captureBoard(
         return true;
       },
     });
+    if (!blob || blob.size === 0) {
+      throw new Error('유효한 PNG 이미지를 만들지 못했습니다.');
+    }
     const link = document.createElement('a');
-    link.download = `AVALON_Notice_${dateString}.png`;
-    link.href = dataUrl;
-    link.click();
+    const url = URL.createObjectURL(blob);
+    try {
+      link.download = `AVALON_Notice_${dateString}.png`;
+      link.href = url;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+    } finally {
+      link.remove();
+      // Safari may still be using the URL while its download confirmation is open.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }
   } catch (e) {
     console.error(e);
     alert('이미지 생성에 실패했습니다.');
