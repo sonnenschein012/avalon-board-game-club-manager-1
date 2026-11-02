@@ -69,7 +69,11 @@ test('Google Form guests survive operating snapshots and become anonymous sessio
   expect(planning.attendees.find((a: { id: string }) => a.id === guest.id).name).toBe('초대게스트검증');
   await page.waitForURL('**/meeting');
   await page.locator('input[type="date"]').fill('2026-10-02');
-  await expect(page.getByText('초대게스트검증 · 게스트')).toBeVisible();
+  await expect(page.getByText('초대게스트검증', { exact: true })).toBeVisible();
+  await expect(page.getByText('초대게스트검증 · 게스트', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '공지 이미지 생성', exact: true }).click();
+  await expect(page.locator('li').filter({ hasText: /^초대게스트검증$/ })).toBeVisible();
+  await expect(page.getByText('초대게스트검증 (게스트)', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '음료 주문 리스트', exact: true }).click();
   await expect(page.locator('li').filter({ hasText: /^차$/ })).toBeVisible();
 });
@@ -86,7 +90,7 @@ test('manual guest addition uses an existing inviter and never creates a member'
   await form.locator('select').first().selectOption('guest');
   await form.locator('select').last().selectOption('attendee-01');
   await form.getByPlaceholder('홍길동').fill('수동초대검증');
-  await form.getByPlaceholder('음료명 입력').fill('레몬차');
+  await expect(form.getByPlaceholder('음료명 입력')).not.toHaveAttribute('required');
   await expect(form.getByPlaceholder('학번 앞의 2자리 (예: 25)')).not.toBeVisible();
   await expect(form.getByText('뒷풀이 참석', { exact: true })).not.toBeVisible();
   await form.getByRole('button', { name: '추가하기', exact: true }).click();
@@ -95,7 +99,7 @@ test('manual guest addition uses an existing inviter and never creates a member'
   const saved = readData();
   expect(saved.members.length).toBe(before.members.length);
   const guest = saved.attendees.find((a: { name: string }) => a.name === '수동초대검증');
-  expect(guest).toMatchObject({ participantType: 'guest', memberId: null, invitedByAttendeeId: 'attendee-01', drink: '레몬차' });
+  expect(guest).toMatchObject({ participantType: 'guest', memberId: null, invitedByAttendeeId: 'attendee-01', drink: '' });
   expect(guest).not.toHaveProperty('studentIdPrefix');
 });
 
@@ -115,6 +119,8 @@ test('manual sessions persist repeated guest tags across groups and restore them
   await page.getByRole('button', { name: '게스트 제거', exact: true }).first().click();
   await page.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.getByLabel('세션 명칭', { exact: true })).not.toBeVisible();
+  await expect(page.getByText('게스트', { exact: true })).toHaveCount(4);
+  await expect(page.getByText(/게스트 ×/)).toHaveCount(0);
   const saved = readData().sessions.find((s: { name: string }) => s.name === '수동 게스트 기록 검증');
   expect(saved.groups.map((g: { guestCount: number }) => g.guestCount)).toEqual([2, 2]);
   expect(saved.groups.flatMap((g: { memberIds: string[] }) => g.memberIds)).toEqual([]);

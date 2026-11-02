@@ -3,6 +3,8 @@ import { Calendar, Edit2, Trash2, History } from 'lucide-react';
 import { Session, Member, Game, StoredSessionGroup } from '../types';
 import { formatTimestamp } from '../lib/utils';
 
+const participantTagClassName = 'text-[10px] bg-slate-50 hover:bg-slate-200  px-1.5 py-0.5 rounded font-medium text-slate-600 transition-colors';
+
 interface SessionListProps {
   filteredSessions: Session[];
   members: Member[];
@@ -81,15 +83,17 @@ export default function SessionList({
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">조원 명단</p>
                     <div className="flex flex-wrap gap-1">
-                      {!!group.guestCount && <span className="text-[10px] bg-slate-50 px-1.5 py-0.5 rounded">게스트 ×{group.guestCount}</span>}
                       {groupMembers.map(m => (
                         <button 
                           key={m.id} 
                           onClick={() => setViewingMember(m)}
-                          className="text-[10px] bg-slate-50 hover:bg-slate-200  px-1.5 py-0.5 rounded font-medium text-slate-600 transition-colors"
+                          className={participantTagClassName}
                         >
                           {m.name}
                         </button>
+                      ))}
+                      {Array.from({ length: group.guestCount ?? 0 }, (_, index) => (
+                        <span key={`guest-${group.id || gIdx}-${index}`} className={participantTagClassName}>게스트</span>
                       ))}
                     </div>
                   </div>

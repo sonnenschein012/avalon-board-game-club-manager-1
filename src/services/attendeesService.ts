@@ -62,7 +62,7 @@ export async function manualAddAttendeeRecord(
   try {
     if (data.participantType === 'guest') {
       validateGuestInvitation(data.invitedByAttendeeId ?? '', attendees, members);
-      if (!name.trim() || !drink.trim()) { toast.error('게스트 이름과 음료를 입력해주세요.'); return false; }
+      if (!name.trim()) { toast.error('게스트 이름을 입력해주세요.'); return false; }
       const guestRef = doc(db, 'attendees', `guest-${data.invitedByAttendeeId}`);
       await runTransaction(db, async transaction => {
         const inviter = await transaction.get(doc(db, 'attendees', data.invitedByAttendeeId!));

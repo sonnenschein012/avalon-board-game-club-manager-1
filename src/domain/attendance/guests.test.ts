@@ -90,6 +90,10 @@ describe('guest attendance contract', () => {
     const input = { headers, mapping: detectAttendanceMapping(headers), rows: [['회원2', '23', '물', '아니오', '예', '친구', '차']] };
     expect(previewAttendanceCsv(input, members).rows[0]!.guest).toEqual({ name: '친구', drink: '차' });
     expect(previewAttendanceCsv(input, members).canImport).toBe(true);
+    const withoutDrink = { ...input, rows: [['회원2', '23', '물', '아니오', '예', '친구', '']] };
+    expect(previewAttendanceCsv(withoutDrink, members).canImport).toBe(true);
+    expect(previewAttendanceCsv(withoutDrink, members).rows[0]!.guest).toEqual({ name: '친구', drink: '' });
+    expect(previewAttendanceCsv({ ...input, rows: [['회원2', '23', '물', '아니오', '예', '', '']] }, members).canImport).toBe(false);
     expect(previewAttendanceCsv({ ...input, rows: [...input.rows, ...input.rows] }, members).canImport).toBe(false);
     expect(previewAttendanceCsv({ ...input, rows: [['모르는사람', '23', '물', '아니오', '예', '친구', '차']] }, members).canImport).toBe(false);
     const old = { headers: headers.slice(0, 4), mapping: detectAttendanceMapping(headers.slice(0, 4)), rows: [input.rows[0]!.slice(0, 4)] };

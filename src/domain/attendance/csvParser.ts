@@ -122,7 +122,7 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
     const hasGuest = guestResponse === true || Boolean(guestName || guestDrink);
     if (rawGuest && guestResponse === undefined) errors.push('게스트 동반 여부를 확인해주세요.');
     if (guestResponse === false && (guestName || guestDrink)) errors.push('게스트 불참 응답과 게스트 정보가 충돌합니다.');
-    if (hasGuest && (!guestName || !guestDrink)) errors.push('게스트 이름과 희망 음료는 필수입니다.');
+    if (hasGuest && !guestName) errors.push('게스트 이름은 필수입니다.');
     if (hasGuest && !memberId) errors.push('게스트 초대자를 회원 명부에서 먼저 확인해주세요.');
     if (mapping.drink >= 0 && !get('drink')) warnings.push('음료 미응답');
     if (mapping.afterparty >= 0 && !rawAfterparty) warnings.push('뒤풀이 미응답');

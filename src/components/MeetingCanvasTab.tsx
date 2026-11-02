@@ -200,7 +200,7 @@ export default function MeetingCanvasTab({
                   <h3 className="text-[32px] font-black text-white tracking-tight leading-tight mt-6" style={{ textShadow: '0 4px 10px rgba(0,0,0,0.3)' }}>{group.name || `TEAM ${idx + 1}`}</h3>
                   <div className="w-16 h-1 bg-white/50 rounded-full my-4" />
                   <ul className={`w-full px-2 ${groupMembers?.length >= 6 ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-4'}`}>
-                     {guests.map(a => <li key={a.id} className="text-[26px] font-bold text-white">{activeTab === 'drink' ? a.drink || '미선택' : `${a.name} (게스트)`}</li>)}
+                     {guests.map(a => <li key={a.id} className="text-[26px] font-bold text-white">{activeTab === 'drink' ? a.drink || '미선택' : a.name}</li>)}
                      {groupMembers?.map((m, i) => {
                        const a = getAttendeeFromMember(m);
                        const displayText = activeTab === 'drink' ? (a?.drink || '미선택') : m.name;

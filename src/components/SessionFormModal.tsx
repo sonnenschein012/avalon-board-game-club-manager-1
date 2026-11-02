@@ -7,6 +7,8 @@ import { DndContext, useDraggable, useDroppable, MouseSensor, TouchSensor, useSe
 import { CSS } from '@dnd-kit/utilities';
 import { sortUnassignedMemberIds } from '../domain/attendance/unassignedMemberOrder';
 
+const participantCardClassName = 'flex items-center gap-2 pl-2 pr-1 py-1 bg-white rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-transparent';
+
 export interface ModalControl {
   isAdding: boolean;
   editingSessionId: string | null;
@@ -153,9 +155,9 @@ export default function SessionFormModal({
                     id="unassigned"
                     className="p-4 space-y-2 grow transition-colors"
                   >
-                    <DraggableMember memberId={guestSource} source="unassigned" guest className="p-3 bg-slate-50 rounded-lg flex justify-between">
-                      <span className="text-xs font-bold">게스트</span>
-                      <div className="flex gap-1">{groups.map((g, i) => <button key={g.id} aria-label={`${g.name || `TEAM ${i + 1}`}에 게스트 추가`} onMouseDown={preventDragActivation} onTouchStart={preventDragActivation} onClick={() => changeGuests(g.id, 1)} className="bg-navy text-white px-2 rounded text-xs">{i + 1}</button>)}</div>
+                    <DraggableMember memberId={guestSource} source="unassigned" guest className="p-3 bg-slate-50 rounded-lg flex flex-wrap gap-2 justify-between items-center group cursor-grab active:cursor-grabbing hover:border-transparent transition-colors">
+                      <span className="text-xs font-black">게스트</span>
+                      <div className="flex flex-wrap gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">{groups.map((g, i) => <button key={g.id} aria-label={`${g.name || `TEAM ${i + 1}`}에 게스트 추가`} onMouseDown={preventDragActivation} onTouchStart={preventDragActivation} onClick={() => changeGuests(g.id, 1)} className="w-6 h-6 bg-navy hover:bg-gold text-white rounded flex items-center justify-center text-[10px] font-bold">{i + 1}</button>)}</div>
                     </DraggableMember>
                     {sortedUnassignedIds.map(id => {
                       const m = members.find(x => x.id === id);
@@ -254,7 +256,7 @@ export default function SessionFormModal({
                                    key={mId}
                                    memberId={mId}
                                    source={group.id}
-                                   className="flex items-center gap-2 pl-2 pr-1 py-1 bg-white rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-transparent"
+                                   className={participantCardClassName}
                                  >
                                    <span className="text-xs font-bold">{m?.name}</span>
                                    <button 
@@ -272,9 +274,9 @@ export default function SessionFormModal({
                                  </DraggableMember>
                                );
                              })}
-                             {Array.from({ length: group.guestCount ?? 0 }, (_, i) => <DraggableMember key={`guest-${group.id}-${i}`} memberId={`session-guest-${group.id}-${i}`} source={group.id} guest className="flex items-center gap-2 px-2 py-1 bg-white rounded shadow-sm cursor-grab">
+                             {Array.from({ length: group.guestCount ?? 0 }, (_, i) => <DraggableMember key={`guest-${group.id}-${i}`} memberId={`session-guest-${group.id}-${i}`} source={group.id} guest className={participantCardClassName}>
                                <span className="text-xs font-bold">게스트</span>
-                               <button aria-label="게스트 제거" onMouseDown={preventDragActivation} onTouchStart={preventDragActivation} onPointerDown={preventDragActivation} onClick={() => changeGuests(group.id, -1)}><X size={12} /></button>
+                               <button aria-label="게스트 제거" className="text-slate-300 hover:text-red-500" onMouseDown={preventDragActivation} onTouchStart={preventDragActivation} onPointerDown={preventDragActivation} onClick={() => changeGuests(group.id, -1)}><X size={12} /></button>
                              </DraggableMember>)}
                              {group.memberIds.length === 0 && !group.guestCount && (
                                <p className="m-auto text-[10px] text-slate-300 italic">멤버를 이쪽으로 배정하세요</p>

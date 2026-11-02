@@ -83,12 +83,11 @@ export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, atten
             />
           </div>}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase">{participantType === 'guest' ? '게스트 희망 음료 (필수)' : '음료 (선택)'}</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase">{participantType === 'guest' ? '게스트 희망 음료 (선택)' : '음료 (선택)'}</label>
             <input 
               type="text"
               className="w-full text-sm font-bold text-navy border-b-2 border-slate-200 focus:border-gold outline-none p-2 bg-transparent"
               placeholder="음료명 입력"
-              required={participantType === 'guest'}
               value={drink}
               onChange={(e) => setDrink(e.target.value)}
             />
@@ -118,7 +117,7 @@ export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, atten
           <div className="pt-4">
             <button 
               type="submit" 
-              disabled={isAdding || !name.trim() || (participantType === 'guest' && (!drink.trim() || !inviters.some(a => a.id === invitedByAttendeeId)))}
+              disabled={isAdding || !name.trim() || (participantType === 'guest' && !inviters.some(a => a.id === invitedByAttendeeId))}
               className="w-full bg-navy text-white font-bold py-2.5 rounded-xl hover:bg-slate-800 disabled:opacity-50 transition"
             >
               {isAdding ? '추가 중...' : '추가하기'}

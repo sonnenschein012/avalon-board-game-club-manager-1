@@ -120,7 +120,7 @@ export default function MeetingDashboardTab({
               <div>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">조원 명단</h3>
                 <div className="flex flex-wrap gap-2">
-                  {guests.map(a => <span key={a.id} className="px-4 py-2 bg-slate-50 rounded-xl text-sm">{a.name} · 게스트</span>)}
+                  {guests.map(a => <span key={a.id} className="px-4 py-2 bg-slate-50 rounded-xl text-sm">{a.name}</span>)}
                   {groupMembers.map(m => (
                     <button 
                       key={m.id}

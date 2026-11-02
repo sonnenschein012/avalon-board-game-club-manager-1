@@ -188,11 +188,17 @@ describe('guest registration persistence', () => {
     expect(batch.set).not.toHaveBeenCalled();
     expect(getDocs).not.toHaveBeenCalled();
   });
-  it('rejects missing inviter, second invitation, and empty drink before writing', async () => {
+  it('rejects missing inviter, second invitation, and empty name before writing', async () => {
     expect(await manualAddAttendeeRecord(input, [member], [])).toBe(false);
     expect(await manualAddAttendeeRecord(input, [member], [host, { ...host, id: 'guest', participantType: 'guest', memberId: null, invitedByAttendeeId: 'a1' }])).toBe(false);
-    expect(await manualAddAttendeeRecord({ ...input, drink: '' }, [member], [host])).toBe(false);
+    expect(await manualAddAttendeeRecord({ ...input, name: '' }, [member], [host])).toBe(false);
     expect(runTransaction).not.toHaveBeenCalled();
+  });
+  it('accepts a guest without a drink', async () => {
+    const transaction = { get: vi.fn().mockResolvedValueOnce({ exists: () => true, data: () => host }).mockResolvedValueOnce({ exists: () => false }), set: vi.fn() };
+    vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => callback(transaction as never));
+    expect(await manualAddAttendeeRecord({ ...input, drink: '' }, [member], [host])).toBe(true);
+    expect(transaction.set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ participantType: 'guest', drink: '' }));
   });
   it('rejects a concurrent invitation found inside the transaction', async () => {
     const transaction = { get: vi.fn().mockResolvedValueOnce({ exists: () => true, data: () => host }).mockResolvedValueOnce({ exists: () => true }), set: vi.fn() };
