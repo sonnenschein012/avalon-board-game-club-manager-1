@@ -2,6 +2,8 @@
 
 기존 회원 중심 구조를 유지하면서 게스트의 당일 운영 참여와 익명 세션 기록을 추가했습니다. 구현 브랜치는 `codex/guest-attendance`이며 운영·staging 배포는 실행하지 않았습니다.
 
+후속 변경: 회원당 게스트 1명 제한을 해제하고 동일 회원의 여러 게스트를 독립 ID로 지원합니다. 아래 최초 구현의 제한·검증 수치는 당시 기록입니다. 최신 UI와 데이터 계약은 `docs/guests.md`를 따릅니다.
+
 ## 기능별 변경
 
 - 공통 모델: `participantType?: 'member' | 'guest'`, `invitedByAttendeeId?: string`, 세션 조의 `guestCount?: number`를 추가했습니다. 필드 부재는 기존 회원/게스트 0명으로 해석하며 기존 `memberId`의 undefined/null 차이를 유지합니다.

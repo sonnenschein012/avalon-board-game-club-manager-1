@@ -188,9 +188,8 @@ describe('guest registration persistence', () => {
     expect(batch.set).not.toHaveBeenCalled();
     expect(getDocs).not.toHaveBeenCalled();
   });
-  it('rejects missing inviter, second invitation, and empty name before writing', async () => {
+  it('rejects missing inviter and empty name before writing', async () => {
     expect(await manualAddAttendeeRecord(input, [member], [])).toBe(false);
-    expect(await manualAddAttendeeRecord(input, [member], [host, { ...host, id: 'guest', participantType: 'guest', memberId: null, invitedByAttendeeId: 'a1' }])).toBe(false);
     expect(await manualAddAttendeeRecord({ ...input, name: '' }, [member], [host])).toBe(false);
     expect(runTransaction).not.toHaveBeenCalled();
   });
@@ -200,11 +199,18 @@ describe('guest registration persistence', () => {
     expect(await manualAddAttendeeRecord({ ...input, drink: '' }, [member], [host])).toBe(true);
     expect(transaction.set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ participantType: 'guest', drink: '' }));
   });
-  it('rejects a concurrent invitation found inside the transaction', async () => {
-    const transaction = { get: vi.fn().mockResolvedValueOnce({ exists: () => true, data: () => host }).mockResolvedValueOnce({ exists: () => true }), set: vi.fn() };
+  it('rejects an inviter deleted before the transaction commits', async () => {
+    const transaction = { get: vi.fn().mockResolvedValueOnce({ exists: () => false }), set: vi.fn() };
     vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => callback(transaction as never));
     expect(await manualAddAttendeeRecord(input, [member], [host])).toBe(false);
     expect(transaction.set).not.toHaveBeenCalled();
+  });
+  it('allows another same-name guest for the same inviter', async () => {
+    const transaction = { get: vi.fn().mockResolvedValue({ exists: () => true, data: () => host }), set: vi.fn() };
+    vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => callback(transaction as never));
+    const existingGuest = { ...host, id: 'existing-guest', participantType: 'guest' as const, name: input.name, memberId: null, invitedByAttendeeId: host.id };
+    expect(await manualAddAttendeeRecord(input, [member], [host, existingGuest])).toBe(true);
+    expect(transaction.set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ name: input.name, invitedByAttendeeId: host.id }));
   });
   it('never registers a guest as a regular member via quick add', async () => {
     const guest = { ...host, participantType: 'guest' as const, memberId: null };

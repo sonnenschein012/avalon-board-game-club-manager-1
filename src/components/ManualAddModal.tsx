@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import type { Attendee, Member } from '../types';
 import type { ManualAttendeeInput } from '../services/attendeesService';
-import { attendeeMember, isGuest } from '../domain/attendance/guests';
+import { attendeeMember } from '../domain/attendance/guests';
 
 interface ManualAddModalProps {
   isOpen: boolean;
@@ -16,7 +16,7 @@ interface ManualAddModalProps {
 export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, attendees = [], members = [] }: ManualAddModalProps) {
   const [participantType, setParticipantType] = useState<'member' | 'guest'>('member');
   const [invitedByAttendeeId, setInvitedByAttendeeId] = useState('');
-  const inviters = attendees.filter(a => a.status !== '결석' && attendeeMember(a, members) && !attendees.some(g => isGuest(g) && g.invitedByAttendeeId === a.id));
+  const inviters = attendees.filter(a => a.status !== '결석' && attendeeMember(a, members));
   const [name, setName] = useState('');
   const [studentIdPrefix, setStudentIdPrefix] = useState('');
   const [drink, setDrink] = useState('');
@@ -38,17 +38,16 @@ export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, atten
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col">
-        <div className="p-4 border-b flex justify-between items-center bg-navy text-white">
-          <h2 className="text-sm font-bold flex items-center gap-2">
-            <Plus size={16} className="text-gold" />
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col">
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex shrink-0 justify-between items-center">
+          <h2 className="text-sm font-bold text-slate-800">
             명단 추가
           </h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded-full transition">
+          <button onClick={onClose} aria-label="닫기" className="-mr-2 flex size-9 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors focus-visible:outline-2 focus-visible:outline-navy">
             <X size={16} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="min-h-0 overflow-y-auto p-6 space-y-4">
           <fieldset disabled={isAdding} className="space-y-2">
             <legend className="text-xs font-bold text-slate-400">참가자 유형</legend>
             <div className="relative isolate grid grid-cols-2 rounded-full bg-slate-50 p-1 ring-1 ring-inset ring-slate-200">
@@ -64,18 +63,22 @@ export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, atten
               ))}
             </div>
           </fieldset>
-          {participantType === 'guest' && <label className="block text-xs">초대한 동아리원
-            <select required value={invitedByAttendeeId} onChange={e => setInvitedByAttendeeId(e.target.value)} className="w-full p-2 border rounded">
-              <option value="">참석 중인 회원 선택</option>
-              {inviters.map(a => <option key={a.id} value={a.id}>{a.name} · {attendeeMember(a, members)?.nickname} · {attendeeMember(a, members)?.studentId}</option>)}
-            </select>
-            {!inviters.length && <p>초대한 회원을 먼저 추가해주세요. 한 회원은 게스트 1명만 초대할 수 있습니다.</p>}
-          </label>}
+          {participantType === 'guest' && <div className="space-y-1">
+            <label htmlFor="manual-inviter" className="text-[10px] font-bold text-slate-400 uppercase">초대한 동아리원</label>
+            <div className="relative">
+              <select id="manual-inviter" required value={invitedByAttendeeId} onChange={e => setInvitedByAttendeeId(e.target.value)} className={`input-field appearance-none pr-10 ${invitedByAttendeeId ? 'text-slate-800' : 'text-slate-400'}`}>
+                <option value="">참석 중인 회원 선택</option>
+                {inviters.map(a => <option key={a.id} value={a.id}>{a.name} · {attendeeMember(a, members)?.nickname} · {attendeeMember(a, members)?.studentId}</option>)}
+              </select>
+              <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+            {!inviters.length && <p className="pt-1 text-xs leading-relaxed text-slate-500">초대한 회원을 먼저 추가해주세요.</p>}
+          </div>}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase">이름</label>
             <input 
               type="text"
-              className="w-full text-sm font-bold text-navy border-b-2 border-slate-200 focus:border-gold outline-none p-2 bg-transparent"
+              className="input-field"
               placeholder="홍길동"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -83,41 +86,41 @@ export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, atten
             />
           </div>
           {participantType === 'member' && <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase">학번 (옵션, 예: 25)</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase">학번 (선택)</label>
             <input 
               type="text"
-              className="w-full text-sm font-bold text-navy border-b-2 border-slate-200 focus:border-gold outline-none p-2 bg-transparent"
-              placeholder="학번 앞의 2자리 (예: 25)"
+              className="input-field"
+              placeholder="예: 25"
               value={studentIdPrefix}
               onChange={(e) => setStudentIdPrefix(e.target.value)}
             />
           </div>}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase">{participantType === 'guest' ? '게스트 희망 음료 (선택)' : '음료 (선택)'}</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase">음료 (선택)</label>
             <input 
               type="text"
-              className="w-full text-sm font-bold text-navy border-b-2 border-slate-200 focus:border-gold outline-none p-2 bg-transparent"
+              className="input-field"
               placeholder="음료명 입력"
               value={drink}
               onChange={(e) => setDrink(e.target.value)}
             />
           </div>
           {participantType === 'member' && <><div className="space-y-1">
-            <label className="flex items-center gap-2 cursor-pointer p-2 bg-slate-50 border border-slate-200 rounded-lg">
+            <label className="flex min-h-11 items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                className="accent-gold w-4 h-4"
+                className="w-4 h-4 rounded border-slate-300 accent-navy focus:ring-navy"
                 checked={afterparty}
                 onChange={(e) => setAfterparty(e.target.checked)}
               />
-              <span className="text-sm font-bold text-navy">뒷풀이 참석</span>
+              <span className="text-xs font-bold text-slate-600">뒤풀이 참석</span>
             </label>
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase">희망사항 (선택)</label>
             <input 
               type="text"
-              className="w-full text-sm font-bold text-navy border-b-2 border-slate-200 focus:border-gold outline-none p-2 bg-transparent"
+              className="input-field"
               placeholder="예: 홍길동과 같은 조"
               value={request}
               onChange={(e) => setRequest(e.target.value)}

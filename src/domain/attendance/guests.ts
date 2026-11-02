@@ -9,8 +9,6 @@ export function validateGuestInvitation(inviterId: string, attendees: Attendee[]
   const inviter = attendees.find(a => a.id === inviterId);
   if (!inviter || inviter.status === '결석' || !attendeeMember(inviter, members))
     throw new Error('초대한 동아리원을 참석 명단에 먼저 추가해주세요.');
-  if (attendees.some(a => isGuest(a) && a.invitedByAttendeeId === inviterId))
-    throw new Error('한 회원은 게스트를 최대 1명만 초대할 수 있습니다.');
 }
 export function guestRelationLabel(attendee: Attendee, attendees: Attendee[]) {
   if (isGuest(attendee)) {

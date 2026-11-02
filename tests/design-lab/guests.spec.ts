@@ -40,10 +40,10 @@ test('Google Form guests survive operating snapshots and become anonymous sessio
   expect(inviter.memberId).toBe(host.id);
   expect(guest.memberId).toBeNull();
   expect(imported.members.length).toBe(before.members.length);
-  // The existing manual form offers no second invitation for this member.
+  // An existing invitation does not remove the host from the selector.
   await page.getByRole('button', { name: '+ 명단 추가' }).click();
   await page.getByRole('radio', { name: '게스트', exact: true }).check();
-  await expect(page.getByText('초대한 회원을 먼저 추가해주세요.', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('초대한 동아리원').locator(`option[value="${inviter.id}"]`)).toHaveCount(1);
   await page.locator('form').locator('..').getByRole('button').first().click();
   await page.getByRole('button', { name: '신규 팀 추가' }).click();
   for (const id of [inviter.id, guest.id]) {
@@ -100,8 +100,8 @@ test('manual guest addition uses an existing inviter and never creates a member'
   await form.locator('select').last().selectOption('attendee-01');
   await form.getByPlaceholder('홍길동').fill('수동초대검증');
   await expect(form.getByPlaceholder('음료명 입력')).not.toHaveAttribute('required');
-  await expect(form.getByPlaceholder('학번 앞의 2자리 (예: 25)')).not.toBeVisible();
-  await expect(form.getByText('뒷풀이 참석', { exact: true })).not.toBeVisible();
+  await expect(form.getByPlaceholder('예: 25')).not.toBeVisible();
+  await expect(form.getByText('뒤풀이 참석', { exact: true })).not.toBeVisible();
   await form.getByRole('button', { name: '추가하기', exact: true }).click();
   await expect(form).not.toBeVisible();
   await expect(page.getByRole('region', { name: '미배정 출석 명단' })).toContainText('수동초대검증');
@@ -110,6 +110,20 @@ test('manual guest addition uses an existing inviter and never creates a member'
   const guest = saved.attendees.find((a: { name: string }) => a.name === '수동초대검증');
   expect(guest).toMatchObject({ participantType: 'guest', memberId: null, invitedByAttendeeId: 'attendee-01', drink: '' });
   expect(guest).not.toHaveProperty('studentIdPrefix');
+  // Repeat the same name and inviter: identity comes from a fresh attendee ID.
+  await page.getByRole('button', { name: '+ 명단 추가' }).click();
+  await form.getByRole('radio', { name: '게스트', exact: true }).check();
+  await form.getByLabel('초대한 동아리원').selectOption('attendee-01');
+  await form.getByPlaceholder('홍길동').fill('수동초대검증');
+  await form.getByRole('button', { name: '추가하기', exact: true }).click();
+  await expect(form).not.toBeVisible();
+  const multiple = readData();
+  const invited = multiple.attendees.filter((a: { invitedByAttendeeId?: string }) => a.invitedByAttendeeId === 'attendee-01');
+  expect(invited).toHaveLength(2);
+  expect(new Set(invited.map((a: { id: string }) => a.id)).size).toBe(2);
+  expect(invited.map((a: { name: string }) => a.name)).toEqual(['수동초대검증', '수동초대검증']);
+  expect(multiple.members.length).toBe(before.members.length);
+
 });
 
 

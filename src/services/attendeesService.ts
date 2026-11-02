@@ -63,12 +63,10 @@ export async function manualAddAttendeeRecord(
     if (data.participantType === 'guest') {
       validateGuestInvitation(data.invitedByAttendeeId ?? '', attendees, members);
       if (!name.trim()) { toast.error('게스트 이름을 입력해주세요.'); return false; }
-      const guestRef = doc(db, 'attendees', `guest-${data.invitedByAttendeeId}`);
+      const guestRef = doc(collection(db, 'attendees'));
       await runTransaction(db, async transaction => {
         const inviter = await transaction.get(doc(db, 'attendees', data.invitedByAttendeeId!));
-        const existing = await transaction.get(guestRef);
         if (!inviter.exists() || inviter.data().status === '결석') throw new Error('초대한 회원의 참석 상태를 확인해주세요.');
-        if (existing.exists()) throw new Error('한 회원은 게스트를 최대 1명만 초대할 수 있습니다.');
         transaction.set(guestRef, { participantType: 'guest', memberId: null, invitedByAttendeeId: data.invitedByAttendeeId, name: name.trim(), drink: drink.trim(), request: '', importDate: Timestamp.now(), importId: crypto.randomUUID(), status: '대기' });
       });
       toast.success('게스트가 출석 명단에 추가되었습니다.');
@@ -191,7 +189,7 @@ export async function importAttendanceRows(
     preview.rows.forEach(row => {
       const inviterRef = doc(collection(db, 'attendees'));
       batch.set(inviterRef, { ...row.data, memberId: row.memberId ?? null, importDate, importId, status: '대기' });
-      if (row.guest) batch.set(doc(db, 'attendees', `guest-${inviterRef.id}`), {
+      if (row.guest) batch.set(doc(collection(db, 'attendees')), {
         participantType: 'guest', memberId: null, invitedByAttendeeId: inviterRef.id,
         name: row.guest.name, drink: row.guest.drink, request: '', importDate, importId, status: '대기',
       });

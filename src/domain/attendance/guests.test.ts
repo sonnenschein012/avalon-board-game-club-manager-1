@@ -21,10 +21,10 @@ const guest = (id = 'guest', inviter = 'a1'): Attendee => ({ id, memberId: null,
 const group = (ids: string[]): SessionGroup => ({ id: 'g', memberIds: ids, gameIds: ['game'] });
 
 describe('guest attendance contract', () => {
-  it('requires an attending registered inviter and rejects a second invitation', () => {
+  it('requires an attending registered inviter and allows multiple invitations', () => {
     expect(() => validateGuestInvitation('a1', attendees, members)).not.toThrow();
     expect(() => validateGuestInvitation('missing', attendees, members)).toThrow();
-    expect(() => validateGuestInvitation('a1', [...attendees, guest()], members)).toThrow('1명');
+    expect(() => validateGuestInvitation('a1', [...attendees, guest()], members)).not.toThrow();
     expect(() => validateGuestInvitation('a1', attendees.map(a => a.id === 'a1' ? { ...a, status: '결석' } : a), members)).toThrow();
     expect(() => validateGuestInvitation('a1', attendees.map(a => a.id === 'a1' ? { ...a, memberId: null } : a), members)).toThrow();
   });
@@ -36,7 +36,7 @@ describe('guest attendance contract', () => {
     expect(guestRelationWarnings([...attendees.filter(a => a.id !== 'a1'), guest()], members)).toHaveLength(1);
   });
   it('persists three real members and two anonymous guests, including separately assigned guests', () => {
-    const roster = [...attendees, guest(), guest('guest2', 'a2')];
+    const roster = [...attendees, guest(), guest('guest2', 'a1')];
     const converted = convertAttendeeIdsToMemberIds([group(['a0', 'a1', 'a2', 'guest', 'guest2'])], roster, members);
     expect(converted[0]).toMatchObject({ memberIds: ['m0', 'm1', 'm2'], guestCount: 2 });
     expect(JSON.stringify(converted)).not.toContain('invitedBy');
@@ -52,10 +52,12 @@ describe('guest attendance contract', () => {
     expect(context.requests.has(pairKey('guest', 'a0'))).toBe(false);
   });
   it('includes guests in sizing and requests without inventing attributes or history', () => {
-    const roster = [...attendees, guest(), guest('guest2', 'a2')];
+    const roster = [...attendees, guest(), guest('guest2', 'a1')];
     const context = buildUtilityContext({ attendees: roster, members, sessions: [], assignmentDate: '2026-10-02' });
     expect(context.people.get('guest')).toMatchObject({ memberId: null, gender: null, year: null, board: false });
     expect(context.exposures.get('guest')?.size).toBe(0);
+    expect(context.requests.has(pairKey('guest2', 'a1'))).toBe(true);
+    expect(context.requests.has(pairKey('guest', 'a1'))).toBe(true);
     const result = simulateAutoAssign({ availableIds: roster.map(a => a.id), initialGroups: [group([]), { ...group([]), id: 'other' }], context });
     expect(result.updatedGroups.map(g => g.memberIds.length)).toEqual([4, 4]);
     expect(result.updatedGroups.flatMap(g => g.memberIds)).toContain('guest');
