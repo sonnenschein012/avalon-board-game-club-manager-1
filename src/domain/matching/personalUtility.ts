@@ -1,5 +1,5 @@
 import type { Attendee, Member, Session, SessionGroup } from '../../types';
-import { getMemberFromAttendee } from './getMemberFromAttendee';
+import { attendeeMember, isGuest } from '../attendance/guests';
 import { getLocalDateKey } from '../attendance/sessionMetadata';
 import { resolveCompanionRequests, type AbsentRequest, type RequestChoice, type RequestSelections } from './companionRequests';
 
@@ -13,7 +13,7 @@ export const REVIEW_PARAMETERS = Object.freeze({
 });
 export type UtilityParameters = { [K in keyof typeof REVIEW_PARAMETERS]: number };
 export interface UtilityPerson {
-  id: string; memberId: string; name: string; gender: '남' | '여' | null;
+  id: string; memberId: string | null; name: string; gender: '남' | '여' | null;
   year: number | null; board: boolean;
 }
 export interface UtilityContext {
@@ -95,7 +95,11 @@ export function buildUtilityContext(input: {
   const memberToAttendee = new Map<string, string>();
   for (const attendee of attendees) {
     if (attendee.status === '결석') continue;
-    const member = getMemberFromAttendee(members, attendee.name, attendee.studentIdPrefix, attendee.memberId);
+    if (isGuest(attendee)) {
+      people.set(attendee.id, { id: attendee.id, memberId: null, name: attendee.name, gender: null, year: null, board: false });
+      continue;
+    }
+    const member = attendeeMember(attendee, members);
     if (!member) continue;
     if (memberToAttendee.has(member.id)) throw new Error(`${member.name}님의 출석 항목이 중복됩니다. 명단을 확인해주세요.`);
     const match = member.studentId?.match(/^20(\d{2})|^(\d{2})/);
@@ -118,7 +122,7 @@ export function buildUtilityContext(input: {
     const exposure = new Map<string, number>();
     let attendedSince = 0;
     for (const { session } of past) {
-      const group = session.groups.find(g => g.memberIds.includes(person.memberId));
+      const group = session.groups.find(g => person.memberId !== null && g.memberIds.includes(person.memberId));
       if (!group) continue;
       for (const memberId of new Set(group.memberIds)) {
         const peerId = memberToAttendee.get(memberId);
@@ -161,7 +165,7 @@ export function evaluateUtilityGroup(ids: string[], context: UtilityContext): As
     requestProduct: people.reduce((product, person) => product * BigInt(1 + person.requestCount), 1n),
     requestScore: people.reduce((sum, person) => sum + Math.log1p(person.requestCount), 0),
     boardMissing: Number(uncovered), boardMissingNonFour: Number(uncovered && ids.length !== 4),
-    totalUtility: people.reduce((sum, person) => sum + person.utility, 0), ...protectPeople(people, p),
+    totalUtility: people.reduce((sum, person) => sum + person.utility, 0), ...protectPeople(people.filter(person => context.people.get(person.id)!.memberId !== null), p),
   };
 }
 

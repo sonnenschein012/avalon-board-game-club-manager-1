@@ -55,8 +55,8 @@ function EvaluationDialog({ groups, context, onClose }: { groups: SessionGroup[]
   const activePerson = activePeople.find(person => person.id === personId) ?? activePeople[0];
   const requestPairs = [...(context?.requests.values() ?? [])];
   const fulfilled = requestPairs.filter(([first, second]) => groups.some(group => group.memberIds.includes(first) && group.memberIds.includes(second))).length;
-  const nonemptyGroupCount = breakdowns.filter(group => group.score.people.length > 0).length;
-  const partial = !context || people.size !== context.people.size || groups.some(group => group.memberIds.some(id => !context.people.has(id)));
+  const nonemptyGroupCount = breakdowns.filter(group => group.memberIds.some(id => context?.people.has(id))).length;
+  const partial = !context || people.size !== [...context.people.values()].filter(person => person.memberId !== null).length || groups.some(group => group.memberIds.some(id => !context.people.has(id)));
   useEffect(() => {
     const dialog = dialogRef.current!;
     const previousFocus = document.activeElement;
@@ -83,12 +83,13 @@ function EvaluationDialog({ groups, context, onClose }: { groups: SessionGroup[]
           <Metric label="전체 평가 합" value={total.welfare.toFixed(2)} note="보호·완화 적용 후 기여분의 합" />
         </section>}
         {context && partial && <p className="mt-4 text-xs leading-5 text-slate-500">미배정·미등록·결석 인원은 개인 평가에 포함하지 않습니다. 현재 배치된 등록 참석자 {people.size}명을 평가합니다.</p>}
+        {context && [...context.people.values()].some(person => person.memberId === null) && <p className="mt-4 text-xs text-slate-500">게스트는 인원·동반 요청 평가에 포함하며, 성별·학번·과거 이력에 따른 개인 효용에서는 제외합니다.</p>}
         <p className="mt-4 text-xs leading-5 text-slate-500">{context ? '동반 요청 → 운영진 배치 → 개인 효용 순으로 판단합니다.' : '평가 자료를 사용할 수 없습니다. 명단과 이력의 조회 상태를 확인해주세요.'}</p>
         <section className="mt-7" aria-label="조별 개인 평가">
           <div className="mb-6 flex flex-wrap gap-2" aria-label="평가할 조 선택">
             {breakdowns.map(group => <button type="button" key={group.id} aria-pressed={group.id === activeGroup?.id} onClick={() => { setGroupId(group.id); setPersonId(''); }}
               className={`inline-flex min-h-11 items-center gap-3 rounded-xl px-5 text-sm font-semibold transition-colors ${focus} ${group.id === activeGroup?.id ? 'bg-navy text-white' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}>
-              {group.name || '이름 없는 조'}<span className={`text-xs font-normal ${group.id === activeGroup?.id ? 'text-slate-200' : 'text-slate-500'}`}>{group.score.people.length}명</span>
+              {group.name || '이름 없는 조'}<span className={`text-xs font-normal ${group.id === activeGroup?.id ? 'text-slate-200' : 'text-slate-500'}`}>{group.memberIds.length}명</span>
             </button>)}
           </div>
           {activePerson ? <div className="grid gap-6 md:grid-cols-2">

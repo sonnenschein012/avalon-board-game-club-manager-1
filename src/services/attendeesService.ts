@@ -1,6 +1,8 @@
-import { writeBatch, doc, collection, getDocs, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
+import { runTransaction, writeBatch, doc, collection, getDocs, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Attendee, Member } from '../types';
+import { validateGuestInvitation, isGuest } from '../domain/attendance/guests';
+export interface ManualAttendeeInput { name: string; studentIdPrefix: string; drink: string; afterparty: boolean; request: string; participantType?: 'member' | 'guest'; invitedByAttendeeId?: string }
 import { toast } from 'sonner';
 import { isSameName } from '../domain/matching/isSameName';
 import { previewAttendanceCsv, type AttendanceImportInput } from '../domain/attendance/csvParser';
@@ -20,6 +22,7 @@ export async function deleteAttendeeRecord(attendeeToDelete: Attendee) {
 }
 
 export async function quickAddMemberRecord(attendee: Attendee, input: AttendanceMemberDraft) {
+  if (isGuest(attendee)) return false;
   try {
     const snapshot = await getDocs(collection(db, 'members'));
     const members = snapshot.docs.map(item => ({ ...item.data(), id: item.id }) as Member);
@@ -49,7 +52,7 @@ export async function quickAddMemberRecord(attendee: Attendee, input: Attendance
 }
 
 export async function manualAddAttendeeRecord(
-  data: { name: string; studentIdPrefix: string; drink: string; afterparty: boolean; request: string },
+  data: ManualAttendeeInput,
   members: Member[],
   attendees: Attendee[]
 ) {
@@ -57,6 +60,20 @@ export async function manualAddAttendeeRecord(
   if (!name) return false;
 
   try {
+    if (data.participantType === 'guest') {
+      validateGuestInvitation(data.invitedByAttendeeId ?? '', attendees, members);
+      if (!name.trim() || !drink.trim()) { toast.error('게스트 이름과 음료를 입력해주세요.'); return false; }
+      const guestRef = doc(db, 'attendees', `guest-${data.invitedByAttendeeId}`);
+      await runTransaction(db, async transaction => {
+        const inviter = await transaction.get(doc(db, 'attendees', data.invitedByAttendeeId!));
+        const existing = await transaction.get(guestRef);
+        if (!inviter.exists() || inviter.data().status === '결석') throw new Error('초대한 회원의 참석 상태를 확인해주세요.');
+        if (existing.exists()) throw new Error('한 회원은 게스트를 최대 1명만 초대할 수 있습니다.');
+        transaction.set(guestRef, { participantType: 'guest', memberId: null, invitedByAttendeeId: data.invitedByAttendeeId, name: name.trim(), drink: drink.trim(), request: '', importDate: Timestamp.now(), importId: crypto.randomUUID(), status: '대기' });
+      });
+      toast.success('게스트가 출석 명단에 추가되었습니다.');
+      return true;
+    }
     let matchedMembers = members.filter(m => isSameName(m.name, name));
     if (studentIdPrefix) {
       matchedMembers = matchedMembers.filter(m => {
@@ -81,9 +98,9 @@ export async function manualAddAttendeeRecord(
     }
     const actualStudentIdPrefix = member.studentId?.match(/^20(\d{2})|^(\d{2})/)?.slice(1).find(x=>x) || studentIdPrefix;
 
-    const isAlreadyInAttendees = attendees.some(a => a.memberId === undefined
+    const isAlreadyInAttendees = attendees.some(a => !isGuest(a) && (a.memberId === undefined
       ? isSameName(a.name, member.name) && (a.studentIdPrefix === actualStudentIdPrefix || !actualStudentIdPrefix)
-      : a.memberId === member.id);
+      : a.memberId === member.id));
 
     if (isAlreadyInAttendees) {
       toast.error('이미 출석 명단에 있는 동아리원입니다.');
@@ -132,7 +149,7 @@ export async function manualAddAttendeeRecord(
     return true;
   } catch (err) {
     handleFirestoreError(err, OperationType.CREATE, 'attendees');
-    toast.error('명단 추가 중 오류가 발생했습니다.');
+    toast.error(err instanceof Error ? err.message : '명단 추가 중 오류가 발생했습니다.');
     return false;
   }
 }
@@ -162,7 +179,7 @@ export async function importAttendanceRows(
   const wakingMembers = members.filter(member => member.status === '휴면'
     && preview.rows.some(row => row.memberId === member.id));
   // One commit prevents a failed import from deleting only part of the roster.
-  if (attendees.length + preview.rows.length + wakingMembers.length + 1 > 500) {
+  if (attendees.length + preview.rows.length + preview.rows.filter(r => r.guest).length + wakingMembers.length + 1 > 500) {
     toast.error('한 번에 교체할 수 있는 명단 크기를 초과했습니다. 기존 명단은 유지됩니다.');
     return false;
   }
@@ -171,19 +188,24 @@ export async function importAttendanceRows(
     const importDate = Timestamp.fromDate(new Date());
     const importId = crypto.randomUUID();
     attendees.forEach(attendee => batch.delete(doc(db, 'attendees', attendee.id)));
-    preview.rows.forEach(row => batch.set(doc(collection(db, 'attendees')), {
-      ...row.data, memberId: row.memberId ?? null, importDate, importId, status: '대기',
-    }));
+    preview.rows.forEach(row => {
+      const inviterRef = doc(collection(db, 'attendees'));
+      batch.set(inviterRef, { ...row.data, memberId: row.memberId ?? null, importDate, importId, status: '대기' });
+      if (row.guest) batch.set(doc(db, 'attendees', `guest-${inviterRef.id}`), {
+        participantType: 'guest', memberId: null, invitedByAttendeeId: inviterRef.id,
+        name: row.guest.name, drink: row.guest.drink, request: '', importDate, importId, status: '대기',
+      });
+    });
     wakingMembers.forEach(member => batch.update(doc(db, 'members', member.id), {
       status: '활동', dormantSemester: '',
     }));
     addAuditEventToBatch(batch, {
       category: 'attendance', action: 'attendance.imported',
-      targetLabel: `출석 명단 ${preview.rows.length}명`, count: preview.rows.length,
+      targetLabel: `출석 명단 ${preview.counts.total}명`, count: preview.counts.total,
       detail: `기존 ${attendees.length}명 교체 · 음료 ${preview.counts.drinks}명 · 뒤풀이 참석 ${preview.counts.attending}명${wakingMembers.length ? ` · 휴면 해제 ${wakingMembers.map(member => member.name).join(', ')}` : ''}`,
     });
     await batch.commit();
-    toast.success(`${preview.rows.length}명의 명단을 반영했습니다.${wakingMembers.length ? ` 휴면 부원 ${wakingMembers.length}명이 활동 상태로 전환되었습니다.` : ''}`);
+    toast.success(`${preview.counts.total}명의 명단을 반영했습니다.${wakingMembers.length ? ` 휴면 부원 ${wakingMembers.length}명이 활동 상태로 전환되었습니다.` : ''}`);
     return true;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'attendees (batch)');

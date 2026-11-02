@@ -1,3 +1,4 @@
+import { guestRelationLabel, isGuest } from '../domain/attendance/guests';
 import React from 'react';
 import { Attendee, Member } from '../types';
 import { X } from 'lucide-react';
@@ -8,6 +9,7 @@ import { AttendanceDraggableCard, AttendanceDropZone } from './AttendanceDragAnd
 
 export interface UnassignedPoolProps {
   unassignedAttendees: Attendee[];
+  attendees?: Attendee[];
   getMemberFromInfo: (name?: string, studentIdPrefix?: string, memberId?: string | null) => Member | undefined;
   memberAttendanceCount: Record<string, number>;
   onManualAddOpen: () => void;
@@ -17,6 +19,7 @@ export interface UnassignedPoolProps {
 
 export default function UnassignedPool({
   unassignedAttendees,
+  attendees = unassignedAttendees,
   getMemberFromInfo,
   memberAttendanceCount,
   onManualAddOpen,
@@ -44,8 +47,8 @@ export default function UnassignedPool({
           <p className="text-[10px] text-slate-300 italic text-center p-4">명단이 없습니다.</p>
         )}
         {unassignedAttendees.map(a => {
-          const m = getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId);
-          const isRegistered = !!m;
+          const m = isGuest(a) ? undefined : getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId);
+          const isRegistered = !!m || isGuest(a);
 
           return (
             <AttendanceDraggableCard
@@ -87,8 +90,9 @@ export default function UnassignedPool({
                 {a.drink && <span>🥤 {a.drink}</span>}
                 {a.afterparty && <span>🍻 뒷풀이참석</span>}
               </div>
+              <p className="text-[10px] text-slate-500">{guestRelationLabel(a, attendees)}</p>
               {a.request && <p className="text-[10px] text-orange-500 mt-1 italic leading-tight bg-orange-50 p-1.5 rounded">"{a.request}"</p>}
-              {(!isRegistered || memberAttendanceCount[m?.id || ''] === 0) && (
+              {!isGuest(a) && (!isRegistered || memberAttendanceCount[m?.id || ''] === 0) && (
                 <AttendanceNotice className="mt-1 w-fit">처음 왔어요</AttendanceNotice>
               )}
             </AttendanceDraggableCard>

@@ -71,7 +71,7 @@ export function createAssignmentDiagnosticReport(input: {
     const complete = !unassignedIds.length && !excludedIds.size && !duplicateIds.size && ctx.people.size > 0;
     const requests = [...ctx.requests.values()];
     return { score, report: {
-      complete, expectedPeople: ctx.people.size, evaluatedPeople: score.people.length,
+      complete, expectedPeople: ctx.people.size, evaluatedPeople: assigned.size,
       unassigned: unassignedIds.map(personAlias), excluded: [...excludedIds].map(personAlias), duplicates: [...duplicateIds].map(personAlias),
       parameters: ctx.parameters, summary: summary(score),
       requests: { totalPairs: requests.length,

@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { useFirestore } from './useFirestore';
 import { useAsyncActionState } from './useAsyncActionState';
 
+import { attendeeMember, isGuest, guestRelationWarnings } from '../domain/attendance/guests';
+import type { ManualAttendeeInput } from '../services/attendeesService';
 import { getMemberFromAttendee } from '../domain/matching/getMemberFromAttendee';
 import {
   deleteAttendeeRecord,
@@ -32,7 +34,7 @@ import {
 import { useAttendanceDraft } from './useAttendanceDraft';
 import { moveAttendee } from '../domain/attendance/moveAttendee';
 import { resolveDailySessionId } from '../domain/attendance/dailySession';
-import { convertAttendeeIdsToMemberIds } from '../domain/attendance/sessionGroups';
+import { convertAttendeeIdsToMemberIds, convertAttendeeIdsToPlanningGroups } from '../domain/attendance/sessionGroups';
 import { addAuditEventToTransaction } from '../services/auditService';
 import { archiveDailyPlanning } from '../services/dailyPlanningService';
 import type { AttendanceImportInput } from '../domain/attendance/csvParser';
@@ -73,7 +75,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
 
   const getMember = (attendeeId: string) => {
     const a = attendees.find(x => x.id === attendeeId);
-    return a ? getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId) : undefined;
+    return attendeeMember(a, members);
   };
 
   const memberAttendanceCount = useMemo(() => {
@@ -114,6 +116,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
   const currentRun = lastAssignment?.groups === groups && lastAssignment.attendees === attendees &&
     lastAssignment.members === members && lastAssignment.sessions === sessions && lastAssignment.date === sessionDate && lastAssignment.context === costContext ? lastAssignment : null;
   const assignmentNotices = [
+    ...guestRelationWarnings(attendees, members),
     ...(utilityState.error ? [utilityState.error] : []),
     ...(currentRun?.sizingNotices ?? []),
     ...(costContext?.absentRequests.filter(r => !groups.some(g => g.memberIds.includes(r.requesterId)))
@@ -172,13 +175,14 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     return success;
   };
 
-  const handleManualAdd = async (data: { name: string; studentIdPrefix: string; drink: string; afterparty: boolean; request: string }) => {
+  const handleManualAdd = async (data: ManualAttendeeInput) => {
     setIsManualAdding(true);
     const success = await manualAddAttendeeRecord(data, members, attendees);
     if (success) {
       setIsManualAddModalOpen(false);
     }
     setIsManualAdding(false);
+    return success;
   };
 
   const handleImportAttendance = async (input: AttendanceImportInput) => {
@@ -289,8 +293,12 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
       return;
     }
 
+    if (groups.some(group => group.memberIds.some(id => !attendees.some(a => a.id === id)))) {
+      toast.error('조 안에 삭제된 참석자가 있습니다. 명단을 확인해주세요.');
+      return;
+    }
     const assignedAttendees = groups.flatMap(g => g.memberIds.map(id => attendees.find(a => a.id === id)).filter(Boolean) as Attendee[]);
-    const unregistered = assignedAttendees.filter(a => !getMemberFromInfo(a.name, a.studentIdPrefix, a.memberId));
+    const unregistered = assignedAttendees.filter(a => !isGuest(a) && !attendeeMember(a, members));
 
     if (unregistered.length > 0) {
       toast.error(`${unregistered.map(u => u.name).join(', ')}님은 미등록 인원입니다. 먼저 조원 카드에서 추가해주세요!`);
@@ -320,10 +328,10 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
       transaction.set(planningRef, {
         name: sessionName,
         date: sessionDate,
-        groups: mappedGroups,
+        groups: convertAttendeeIdsToPlanningGroups(groups, attendees, members),
         attendees: [...new Map(assignedAttendees.map(attendee => [attendee.id, {
           ...attendee,
-          memberId: getMemberFromInfo(attendee.name, attendee.studentIdPrefix, attendee.memberId)!.id,
+          memberId: attendeeMember(attendee, members)?.id ?? null,
         }])).values()],
         sessionId,
         createdAt: planningSnapshot.exists() ? planningSnapshot.data().createdAt : serverTimestamp(),

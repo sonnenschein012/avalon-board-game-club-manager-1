@@ -1,3 +1,4 @@
+import { guestRelationLabel, isGuest } from '../domain/attendance/guests';
 import React from 'react';
 import { attendanceButtonStyles } from './attendanceButtonStyles';
 import { SessionGroup, Attendee, Member } from '../types';
@@ -206,10 +207,10 @@ export default function GroupsCanvas({
                   <div className="flex flex-wrap gap-2">
                     {Array.from(new Set<string>(group.memberIds)).map(aId => {
                       const a = attendees.find(x => x.id === aId);
-                      const m = getMemberFromInfo(a?.name, a?.studentIdPrefix, a?.memberId);
+                      const m = isGuest(a) ? undefined : getMemberFromInfo(a?.name, a?.studentIdPrefix, a?.memberId);
                       const borderColor = m?.isBoardMember 
                         ? 'border-l-gold' 
-                        : m?.gender === '여' ? 'border-l-crimson' : 'border-l-blue-400';
+                        : isGuest(a) ? 'border-l-slate-300' : m?.gender === '여' ? 'border-l-crimson' : 'border-l-blue-400';
                       return (
                         <AttendanceDraggableCard
                           key={aId} 
@@ -244,7 +245,8 @@ export default function GroupsCanvas({
                               </div>
                             )}
                           </div>
-                          {(!m || memberAttendanceCount[m.id] === 0) && (
+                          {a && <p className="text-[9px] text-slate-500">{guestRelationLabel(a, attendees)}</p>}
+                          {!isGuest(a) && (!m || memberAttendanceCount[m.id] === 0) && (
                             <AttendanceNotice>처음 왔어요</AttendanceNotice>
                           )}
                         </AttendanceDraggableCard>

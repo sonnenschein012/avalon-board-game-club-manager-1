@@ -4,10 +4,11 @@ import { isSameName } from '../matching/isSameName';
 export const attendanceFields = {
   name: '이름 또는 학번 및 이름', studentIdPrefix: '학번', drink: '음료',
   afterparty: '뒤풀이 참석 여부', request: '희망사항',
+  guestAccompany: '게스트 동반 여부', guestName: '게스트 이름', guestDrink: '게스트 희망 음료',
 } as const;
 export type AttendanceField = keyof typeof attendanceFields;
 // -1 needs a choice; -2 explicitly omits an optional field.
-export type AttendanceMapping = Record<AttendanceField, number>;
+export type AttendanceMapping = Record<Exclude<AttendanceField, 'guestAccompany' | 'guestName' | 'guestDrink'>, number> & Partial<Record<'guestAccompany' | 'guestName' | 'guestDrink', number>>;
 export interface AttendanceImportInput {
   headers: string[];
   rows: string[][];
@@ -25,6 +26,7 @@ export interface AttendanceImportRow {
 export interface AttendancePreviewRow {
   sourceRowNumber: number;
   data: AttendanceImportRow;
+  guest?: { name: string; drink: string };
   rawAfterparty: string;
   memberId?: string;
   candidates: Member[];
@@ -34,6 +36,7 @@ export interface AttendancePreviewRow {
 }
 
 const aliases: Record<AttendanceField, readonly string[]> = {
+  guestAccompany: ['게스트 동반 여부'], guestName: ['게스트 이름'], guestDrink: ['게스트 희망 음료'],
   name: ['학번 및 이름', '학번 이름', '이름', '성명', 'name'],
   studentIdPrefix: ['학번', '입학년도', 'student id'],
   drink: ['주문할 음료', '마시고 싶은 음료', '음료'],
@@ -46,7 +49,7 @@ const cleanHeader = (value: string) => value.normalize('NFKC').toLowerCase()
 export function detectAttendanceMapping(headers: readonly string[]): AttendanceMapping {
   return Object.fromEntries((Object.keys(attendanceFields) as AttendanceField[]).map(field => {
     const matches = headers.flatMap((header, index) => aliases[field].some(alias => cleanHeader(alias) === cleanHeader(header)) ? [index] : []);
-    return [field, matches.length === 1 ? matches[0]! : matches.length === 0 && (field === 'request' || field === 'studentIdPrefix') ? -2 : -1];
+    return [field, matches.length === 1 ? matches[0]! : matches.length === 0 && (field.startsWith('guest') || field === 'request' || field === 'studentIdPrefix') ? -2 : -1];
   })) as AttendanceMapping;
 }
 
@@ -54,7 +57,7 @@ export function attendanceMappingErrors(headers: readonly string[], mapping: Att
   const errors: string[] = [];
   const used = new Set<number>();
   for (const field of Object.keys(attendanceFields) as AttendanceField[]) {
-    const index = mapping[field];
+    const index = mapping[field] ?? -2;
     if (index === -2 && field !== 'name') continue;
     if (!Number.isInteger(index) || index < 0 || index >= headers.length) {
       errors.push(`${attendanceFields[field]} 열을 연결해주세요${field === 'name' ? '.' : '. 해당 질문이 없으면 사용 안 함을 선택하세요.'}`);
@@ -86,7 +89,7 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
   const previewRows: AttendancePreviewRow[] = mappingErrors.length ? [] : rows.flatMap((values, index) => {
     if (values.every(value => !value.trim())) return [];
     const review = input.review?.[index + 2];
-    const get = (field: AttendanceField) => (review?.fields?.[field] ?? values[mapping[field]] ?? '').trim();
+    const get = (field: AttendanceField) => (review?.fields?.[field] ?? values[mapping[field] ?? -2] ?? '').trim();
     const rawName = get('name').normalize('NFKC');
     const combined = rawName.match(/^(\d{2}|20\d{2}\d*)\s*(?=[^\d\s])(.+)$/);
     const name = (combined?.[2] ?? rawName).trim();
@@ -112,11 +115,21 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
       ? '이름은 있지만 학번이 일치하지 않습니다. 수정하거나 미등록 상태로 가져오세요.'
       : '명부에 이름이 없습니다. 수정하거나 미등록 상태로 가져오세요.');
     const memberId = selected?.id ?? (matches.length === 1 ? matches[0]!.id : undefined);
+    const guestName = get('guestName');
+    const guestDrink = get('guestDrink');
+    const rawGuest = get('guestAccompany');
+    const guestResponse = parseAfterparty(rawGuest);
+    const hasGuest = guestResponse === true || Boolean(guestName || guestDrink);
+    if (rawGuest && guestResponse === undefined) errors.push('게스트 동반 여부를 확인해주세요.');
+    if (guestResponse === false && (guestName || guestDrink)) errors.push('게스트 불참 응답과 게스트 정보가 충돌합니다.');
+    if (hasGuest && (!guestName || !guestDrink)) errors.push('게스트 이름과 희망 음료는 필수입니다.');
+    if (hasGuest && !memberId) errors.push('게스트 초대자를 회원 명부에서 먼저 확인해주세요.');
     if (mapping.drink >= 0 && !get('drink')) warnings.push('음료 미응답');
     if (mapping.afterparty >= 0 && !rawAfterparty) warnings.push('뒤풀이 미응답');
     return [{
       sourceRowNumber: index + 2,
       data: { name, studentIdPrefix, drink: get('drink'), request: get('request'), ...(afterparty === undefined ? {} : { afterparty }) },
+      ...(hasGuest ? { guest: { name: guestName, drink: guestDrink } } : {}),
       rawAfterparty, ...(memberId ? { memberId } : {}), candidates: matches,
       editableFields: Object.fromEntries((Object.keys(attendanceFields) as AttendanceField[]).map(field => [field, get(field)])) as Record<AttendanceField, string>,
       errors, warnings,
@@ -135,9 +148,9 @@ export function previewAttendanceCsv(input: AttendanceImportInput, members: read
     rows: previewRows, mappingErrors,
     canImport: !mappingErrors.length && previewRows.length > 0 && previewRows.every(row => !row.errors.length),
     counts: {
-      total: previewRows.length, errors: previewRows.filter(row => row.errors.length).length,
+      total: previewRows.length + previewRows.filter(row => row.guest).length, guests: previewRows.filter(row => row.guest).length, errors: previewRows.filter(row => row.errors.length).length,
       unregistered: previewRows.filter(row => !row.memberId && !row.candidates.length).length,
-      drinks: previewRows.filter(row => row.data.drink).length,
+      drinks: previewRows.filter(row => row.data.drink).length + previewRows.filter(row => row.guest?.drink).length,
       attending: previewRows.filter(row => row.data.afterparty === true).length,
       absent: previewRows.filter(row => row.data.afterparty === false).length,
       unanswered: previewRows.filter(row => row.data.afterparty === undefined).length,

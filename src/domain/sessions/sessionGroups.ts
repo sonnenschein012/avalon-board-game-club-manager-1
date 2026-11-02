@@ -1,8 +1,15 @@
 import type { StoredSessionGroup } from '../../types';
 
+export function normalizeGuestCount(value: number | undefined): number {
+  if (value === undefined) return 0;
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error('게스트 인원은 0 이상의 정수여야 합니다.');
+  return value;
+}
+
 export function normalizeSessionGroup(group: StoredSessionGroup): StoredSessionGroup {
   return {
     id: group.id,
+    guestCount: normalizeGuestCount(group.guestCount),
     name: group.name || '',
     memberIds: [...(group.memberIds || [])],
     targetSize: group.targetSize || 0,

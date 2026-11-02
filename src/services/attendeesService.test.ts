@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { importAttendanceRows, manualAddAttendeeRecord, quickAddMemberRecord } from './attendeesService';
 import { createAttendanceMemberDraft } from '../domain/members/attendanceRegistration';
-import { getDocs } from 'firebase/firestore';
+import { runTransaction, getDocs } from 'firebase/firestore';
 import { Member, type Attendee } from '../types';
 import { detectAttendanceMapping } from '../domain/attendance/csvParser';
 import type { Timestamp } from 'firebase/firestore';
@@ -26,9 +26,10 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({ id: 'new-document' })),
   getDocs: vi.fn(async () => ({ docs: [] })),
   writeBatch: vi.fn(() => batch),
+  runTransaction: vi.fn(),
   serverTimestamp: vi.fn(),
   deleteDoc: vi.fn(),
-  Timestamp: { fromDate: vi.fn() }
+  Timestamp: { fromDate: vi.fn(), now: vi.fn(() => 'now') }
 }));
 
 vi.mock('./auditService', () => ({
@@ -168,6 +169,40 @@ describe('attendeesService', () => {
 
   it('manual entry cannot arbitrarily choose a namesake', async () => {
     expect(await manualAddAttendeeRecord({ name: '김철수', studentIdPrefix: '23', drink: '', afterparty: false, request: '' }, [...members, { ...members[0]!, id: 'm2' }], [])).toBe(false);
+    expect(batch.set).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('guest registration persistence', () => {
+  const member = { id: 'm1', name: '초대자', status: '휴면' } as Member;
+  const host = { id: 'a1', memberId: 'm1', name: '초대자', status: '대기' } as Attendee;
+  const input = { participantType: 'guest' as const, invitedByAttendeeId: 'a1', name: '게스트이름', drink: '차', request: '', afterparty: false, studentIdPrefix: '' };
+  beforeEach(() => vi.clearAllMocks());
+  it('creates only a guest attendee with no registration or reactivation writes', async () => {
+    const transaction = { get: vi.fn().mockResolvedValueOnce({ exists: () => true, data: () => host }).mockResolvedValueOnce({ exists: () => false }), set: vi.fn() };
+    vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => callback(transaction as never));
+    expect(await manualAddAttendeeRecord(input, [member], [host])).toBe(true);
+    expect(transaction.set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ participantType: 'guest', memberId: null, invitedByAttendeeId: 'a1', name: '게스트이름', drink: '차' }));
+    expect(batch.update).not.toHaveBeenCalled();
+    expect(batch.set).not.toHaveBeenCalled();
+    expect(getDocs).not.toHaveBeenCalled();
+  });
+  it('rejects missing inviter, second invitation, and empty drink before writing', async () => {
+    expect(await manualAddAttendeeRecord(input, [member], [])).toBe(false);
+    expect(await manualAddAttendeeRecord(input, [member], [host, { ...host, id: 'guest', participantType: 'guest', memberId: null, invitedByAttendeeId: 'a1' }])).toBe(false);
+    expect(await manualAddAttendeeRecord({ ...input, drink: '' }, [member], [host])).toBe(false);
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+  it('rejects a concurrent invitation found inside the transaction', async () => {
+    const transaction = { get: vi.fn().mockResolvedValueOnce({ exists: () => true, data: () => host }).mockResolvedValueOnce({ exists: () => true }), set: vi.fn() };
+    vi.mocked(runTransaction).mockImplementationOnce(async (_db, callback) => callback(transaction as never));
+    expect(await manualAddAttendeeRecord(input, [member], [host])).toBe(false);
+    expect(transaction.set).not.toHaveBeenCalled();
+  });
+  it('never registers a guest as a regular member via quick add', async () => {
+    const guest = { ...host, participantType: 'guest' as const, memberId: null };
+    expect(await quickAddMemberRecord(guest, { ...createAttendanceMemberDraft(guest), gender: '남' })).toBe(false);
     expect(batch.set).not.toHaveBeenCalled();
   });
 });

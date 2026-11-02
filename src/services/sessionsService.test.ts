@@ -82,3 +82,15 @@ describe('session persistence boundaries', () => {
     expect(batch.update).toHaveBeenCalledTimes(1);
   });
 });
+
+it('preserves anonymous guests on game-only edits and includes guest changes in audit summaries', async () => {
+  vi.clearAllMocks();
+  const initial = { id: 'group', memberIds: ['member'], guestCount: 2, gameIds: [] };
+  vi.mocked(getDoc).mockResolvedValue({ exists: () => true, data: () => ({ name: '세션', groups: [initial] }) } as never);
+  await updateSessionGroupGames('session', 'group', ['new-game']);
+  expect(batch.update).toHaveBeenCalledWith(undefined, { groups: [{ ...initial, gameIds: ['new-game'] }] });
+  vi.clearAllMocks();
+  await updateSessionRecord('session', { name: '세션', date: '2026-10-01', groups: [{ ...initial, guestCount: 3 }] }, [initial]);
+  expect(batch.update).toHaveBeenCalledWith(undefined, expect.objectContaining({ groups: [expect.objectContaining({ guestCount: 3, memberIds: ['member'] })] }));
+  expect(addAuditEventToBatch).toHaveBeenCalledWith(batch, expect.objectContaining({ changes: expect.arrayContaining([expect.objectContaining({ field: 'groups', before: expect.stringContaining('게스트 2명'), after: expect.stringContaining('게스트 3명') })]) }));
+});

@@ -55,7 +55,9 @@ export function parseSessionCsvRows(
     }
 
     const memberIds: string[] = [];
+    let guestCount = 0;
     for (const token of splitNames(row['조원 명단'] || row['조원 명단(닉네임)'])) {
+      if (token === '게스트') { guestCount++; continue; }
       const member = findMember(token, members);
       if (!member) continue;
       memberIds.push(member.id);
@@ -67,11 +69,12 @@ export function parseSessionCsvRows(
     session.groups.push({
       name: (row['조 이름'] || '').trim(),
       memberIds,
+      ...(guestCount ? { guestCount } : {}),
       gameIds: splitNames(row['플레이한 게임들']).flatMap(name => {
         const game = findGame(name);
         return game ? [game.id] : [];
       }),
-      targetSize: memberIds.length || 4,
+      targetSize: (memberIds.length + guestCount) || 4,
       notes: '',
     });
   }

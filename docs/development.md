@@ -115,3 +115,7 @@ Graphify의 검증된 `graphify-out/` 허용 목록만 Git에 공유하며 설�
 - useFirestore는 error와 retry를 제공하고 조회 실패 시 지속되는 알림과 다시 시도 버튼을 표시합니다. 재구독할 때 로딩과 데이터를 초기화합니다.
 - members/games/sessions Rules는 새 문서의 핵심 필드·타입·enum을 검사합니다. 기존 문서는 변경한 필드만 검사하므로 누락된 과거 필드를 한꺼번에 채우지 않아도 휴면 전환 등의 작업이 가능합니다. 중첩 배열 항목 전체의 도메인 검증이나 모든 legacy 문서의 자동 이관을 의미하지 않습니다.
 - 기본 개발 명령은 npm run dev(Emulator Design Lab)이며 운영 연결은 npm run dev:prod로 명시합니다. 이번 변경은 세션 동시 편집 병합, export, 보관 정책 및 개인정보 로그 보존 정책을 바꾸지 않습니다.
+
+## 게스트 참석
+
+[게스트 참석과 익명 세션 기록](guests.md)에 당일 참석자/초대 관계, 운영 snapshot과 익명 세션의 경계, CSV 및 통계 호환을 정리했습니다.

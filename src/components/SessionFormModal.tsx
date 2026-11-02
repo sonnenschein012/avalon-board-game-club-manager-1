@@ -42,10 +42,10 @@ export interface DndHandlers {
   onDragEnd: (event: DragEndEvent) => void;
 }
 
-function DraggableMember({ memberId, source, children, className }: { memberId: string, source: string, children: React.ReactNode, className?: string }) {
+function DraggableMember({ memberId, source, children, className, guest = false }: { memberId: string, source: string, children: React.ReactNode, className?: string, guest?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: memberId,
-    data: { source }
+    data: { source, guest }
   });
   
   const style = {
@@ -93,6 +93,18 @@ export default function SessionFormModal({
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
+  const guestSource = 'session-guest-source';
+  const changeGuests = (id: string, delta: number) => setGroups(prev => prev.map(g => g.id === id ? { ...g, guestCount: Math.max(0, (g.guestCount ?? 0) + delta) } : g));
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (!event.over) return;
+    const source = event.active.data.current?.source as string;
+    const target = String(event.over.id);
+    if (event.active.data.current?.guest || event.active.id === guestSource) {
+      if (source === target) return;
+      if (source !== 'unassigned') changeGuests(source, -1);
+      if (target !== 'unassigned') changeGuests(target, 1);
+    } else onDragEnd(event);
+  };
   const sortedUnassignedIds = sortUnassignedMemberIds(unassignedIds, members);
 
   return (
@@ -109,7 +121,7 @@ export default function SessionFormModal({
                 <div className="space-y-1 w-full sm:w-auto">
                   <label className="text-xs font-bold text-navy hover:text-gold uppercase">세션 명칭</label>
                   <input 
-                    value={sessionName} onChange={e => setSessionName(e.target.value)}
+                    aria-label="세션 명칭" value={sessionName} onChange={e => setSessionName(e.target.value)}
                     className="text-3xl font-black bg-transparent border-none focus:ring-0 p-0 placeholder:text-slate-200 w-full min-w-[200px]"
                   />
                 </div>
@@ -130,7 +142,7 @@ export default function SessionFormModal({
               </div>
             </div>
 
-            <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <div className="flex-1 overflow-y-auto flex flex-col md:flex-row min-h-0 bg-slate-50/50">
                 {/* Unassigned Pool */}
                 <div className="w-full md:w-72 bg-white md:border-r border-slate-100 flex flex-col shrink-0 order-2 md:order-1">
@@ -141,6 +153,10 @@ export default function SessionFormModal({
                     id="unassigned"
                     className="p-4 space-y-2 grow transition-colors"
                   >
+                    <DraggableMember memberId={guestSource} source="unassigned" guest className="p-3 bg-slate-50 rounded-lg flex justify-between">
+                      <span className="text-xs font-bold">게스트</span>
+                      <div className="flex gap-1">{groups.map((g, i) => <button key={g.id} aria-label={`${g.name || `TEAM ${i + 1}`}에 게스트 추가`} onMouseDown={preventDragActivation} onTouchStart={preventDragActivation} onClick={() => changeGuests(g.id, 1)} className="bg-navy text-white px-2 rounded text-xs">{i + 1}</button>)}</div>
+                    </DraggableMember>
                     {sortedUnassignedIds.map(id => {
                       const m = members.find(x => x.id === id);
                       return (
@@ -226,7 +242,7 @@ export default function SessionFormModal({
 
                         {/* Member List */}
                         <div className="space-y-2">
-                           <label className="text-[10px] font-bold text-slate-400 uppercase">참여 멤버 ({group.memberIds.length})</label>
+                           <label className="text-[10px] font-bold text-slate-400 uppercase">참여 인원 ({group.memberIds.length + (group.guestCount ?? 0)})</label>
                            <DroppablePool 
                              id={group.id}
                              className="flex flex-wrap gap-2 min-h-[60px] bg-slate-50 p-2 rounded-xl border border-dashed border-transparent transition-colors hover:bg-slate-100"
@@ -256,7 +272,11 @@ export default function SessionFormModal({
                                  </DraggableMember>
                                );
                              })}
-                             {group.memberIds.length === 0 && (
+                             {Array.from({ length: group.guestCount ?? 0 }, (_, i) => <DraggableMember key={`guest-${group.id}-${i}`} memberId={`session-guest-${group.id}-${i}`} source={group.id} guest className="flex items-center gap-2 px-2 py-1 bg-white rounded shadow-sm cursor-grab">
+                               <span className="text-xs font-bold">게스트</span>
+                               <button aria-label="게스트 제거" onMouseDown={preventDragActivation} onTouchStart={preventDragActivation} onPointerDown={preventDragActivation} onClick={() => changeGuests(group.id, -1)}><X size={12} /></button>
+                             </DraggableMember>)}
+                             {group.memberIds.length === 0 && !group.guestCount && (
                                <p className="m-auto text-[10px] text-slate-300 italic">멤버를 이쪽으로 배정하세요</p>
                              )}
                            </DroppablePool>

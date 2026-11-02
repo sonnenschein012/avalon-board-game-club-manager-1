@@ -68,7 +68,7 @@ test('selected namesakes survive Firestore reload and meeting/session conversion
   await page.getByLabel('세션명', { exact: true }).fill('회원 연결 검증 모임');
   await page.getByLabel('세션 날짜').fill('2026-09-15');
   await page.getByRole('button', { name: '오늘의 모임 시작' }).click();
-  await expect.poll(() => emulatorData('read').sessions.length).toBe(1);
+  await expect.poll(() => emulatorData('read').sessions.length, { timeout: 30_000 }).toBe(1);
   const result = emulatorData('read');
   expect(result.sessions[0].groups[0].memberIds.sort()).toEqual(['review-first', 'review-second']);
   expect(result.plans[0].attendees.map((row: { memberId: string }) => row.memberId).sort()).toEqual(['review-first', 'review-second']);

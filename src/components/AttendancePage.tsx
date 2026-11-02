@@ -111,6 +111,7 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
       <AttendanceDragAndDrop onMoveAttendee={handleMoveAttendee}>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 min-h-[500px]">
         <UnassignedPool
+          attendees={attendees}
           unassignedAttendees={unassignedAttendees}
           getMemberFromInfo={getMemberFromInfo}
           memberAttendanceCount={memberAttendanceCount}
@@ -169,6 +170,8 @@ export default function AttendancePage({ draftScope, onMoveToRecord, isAdminMode
       {registeringAttendee && <AttendanceMemberRegistrationModal key={registeringAttendee.id} attendee={registeringAttendee}
         onSave={handleRegisterMember} onClose={() => setRegisteringAttendee(null)} />}
       <ManualAddModal
+        attendees={attendees}
+        members={members}
         isOpen={isManualAddModalOpen}
         onClose={() => setIsManualAddModalOpen(false)}
         onAdd={handleManualAdd}

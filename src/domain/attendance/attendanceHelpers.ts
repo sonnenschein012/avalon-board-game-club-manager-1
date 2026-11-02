@@ -6,11 +6,11 @@ export function calculateGroupAverageAttendance(
   memberAttendanceCount: Record<string, number>
 ) {
   if (attendeeIds.length === 0) return 0;
-  const sums = attendeeIds.map(id => {
+  const sums = attendeeIds.filter(id => getMember(id)).map(id => {
      const m = getMember(id);
      return m ? (memberAttendanceCount[m.id] || 0) : 0;
   });
-  return sums.reduce((a,b)=>a+b, 0) / sums.length;
+  return sums.reduce((a,b)=>a+b, 0) / (sums.length || 1);
 }
 
 export function calculateGroupAverageStudentId(

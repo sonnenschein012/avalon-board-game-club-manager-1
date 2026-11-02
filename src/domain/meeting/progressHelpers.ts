@@ -40,7 +40,8 @@ export const calculateGridPositions = (groups: StoredSessionGroup[]) => {
 export const generateDrinkOrderText = (
   groups: StoredSessionGroup[],
   members: Member[],
-  getAttendeeFromMember: (m: Member | undefined) => Attendee | undefined
+  getAttendeeFromMember: (m: Member | undefined) => Attendee | undefined,
+  attendees: Attendee[] = [],
 ) => {
   let text = `[AVALON] 오늘 음료 주문 내역입니다.\n\n`;
 
@@ -53,7 +54,7 @@ export const generateDrinkOrderText = (
     const drinks = groupMembers.map(m => {
       const a = getAttendeeFromMember(m);
       return a?.drink || '미선택';
-    }).sort((a, b) => a.localeCompare(b));
+    }).concat(attendees.filter(a => a.participantType === 'guest' && group.memberIds.includes(a.id)).map(a => a.drink || '미선택')).sort((a, b) => a.localeCompare(b));
 
     drinks.forEach(drink => {
       text += `${drink}\n`;

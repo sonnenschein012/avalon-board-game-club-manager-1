@@ -76,7 +76,7 @@ export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) =
   const handleCopyDrinkOrder = () => {
     if (!dailyPlanning) return;
     const getter = (m: Member | undefined) => m ? getAttendeeFromMember(m) : undefined;
-    const text = generateDrinkOrderText(dailyPlanning.groups, members, getter);
+    const text = generateDrinkOrderText(dailyPlanning.groups, members, getter, attendees);
     navigator.clipboard.writeText(text).then(() => {
       toast.success('복사되었습니다.');
     }).catch(() => {
@@ -128,8 +128,8 @@ export function useMeetingProgressLogic(onSidebarToggle?: (collapsed: boolean) =
     return attendees.find(attendee => attendee.memberId === m.id);
   };
 
-  const handleRecommendGames = (groupMembers: Member[], mode: RecMode, seed: number = 0) => {
-    return recommendGames(groupMembers, mode, seed, sessions, games, members);
+  const handleRecommendGames = (groupMembers: Member[], mode: RecMode, seed: number = 0, participantCount?: number) => {
+    return recommendGames(groupMembers, mode, seed, sessions, games, members, participantCount);
   };
 
   const handleGetMemberPlayedGames = (memberId: string) => {

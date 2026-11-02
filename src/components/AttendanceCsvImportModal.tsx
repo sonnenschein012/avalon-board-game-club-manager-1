@@ -123,6 +123,7 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
         </option>)}
       </select>
     </label>}
+    {row.guest && <span className="text-xs text-slate-500">게스트: {row.guest.name} · {row.guest.drink}</span>}
     {row.candidates.length === 1 && linked && <span className="min-w-0 flex-1 truncate font-bold text-emerald-700" title={attendanceMemberLabel(linked)}>{attendanceMemberLabel(linked)}</span>}
     <button type="button" title="행 수정" disabled={busy} onClick={() => startEdit(row)}
       className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-transparent bg-white text-slate-400 shadow-sm hover:border-slate-200 hover:text-gold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy disabled:opacity-40 sm:size-9"
@@ -152,8 +153,8 @@ export default function AttendanceCsvImportModal({ members, existingCount, group
             <p className="mt-1 mb-4 text-xs leading-relaxed text-slate-500">자동으로 연결된 질문을 확인하세요. 질문이 바뀌었다면 열을 직접 선택할 수 있습니다. 이름에 학번이 포함되어 있으면 별도 학번 열은 사용하지 않아도 됩니다.</p>
             <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {(Object.keys(attendanceFields) as AttendanceField[]).map(field => <CsvColumnSelect key={field}
-                label={attendanceFields[field]} headers={input.headers} value={input.mapping[field]} optional={field !== 'name'}
-                sample={input.mapping[field] >= 0 ? input.rows.find(row => row.some(value => value.trim()))?.[input.mapping[field]] : undefined}
+                label={attendanceFields[field]} headers={input.headers} value={input.mapping[field] ?? -2} optional={field !== 'name'}
+                sample={(input.mapping[field] ?? -2) >= 0 ? input.rows.find(row => row.some(value => value.trim()))?.[input.mapping[field] ?? -2] : undefined}
                 onChange={index => { setInput({ ...input, mapping: { ...input.mapping, [field]: index }, review: {} }); setConfirmedFor(''); setUnregisteredFor(''); setPage(0); setEditingRow(null); }} />)}
             </div>
           </fieldset>

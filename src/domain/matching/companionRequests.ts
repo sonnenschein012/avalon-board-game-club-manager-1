@@ -42,7 +42,8 @@ export function resolveCompanionRequests(input: {
       nickname: member?.nickname ?? '', memberId: member?.id ?? null };
   });
   const fullNames = [...new Set([...members.map(member => member.name), ...active.map(candidate => candidate.name)])].filter(Boolean);
-  const requests: [string, string][] = [];
+  const requests: [string, string][] = attendees.filter(a => a.participantType === 'guest' && a.status !== '결석' && a.invitedByAttendeeId && attendeeToMember.has(a.invitedByAttendeeId))
+    .map(a => [a.id, a.invitedByAttendeeId!]);
   const absentRequests: AbsentRequest[] = [];
   const choices: RequestChoice[] = [];
   for (const attendee of attendees) {

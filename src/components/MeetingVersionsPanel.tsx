@@ -107,7 +107,7 @@ export default function MeetingVersionsPanel({ planningId, members, onBack, onRe
         {selected.snapshot.groups.map((group, index) => <section key={group.id} className="space-y-2">
           <h4 className="break-words text-sm font-semibold text-navy">{group.name || `TEAM ${index + 1}`}</h4>
           {group.memberIds.map(id => {
-            const attendee = selected.snapshot.attendees?.find(item => item.memberId === id);
+            const attendee = selected.snapshot.attendees?.find(item => item.memberId === id || (item.participantType === 'guest' && item.id === id));
             const name = attendee?.name ?? members.find(member => member.id === id)?.name ?? '삭제된 동아리원';
             return <div key={id} className="space-y-1 rounded-xl bg-slate-50 p-3 text-sm leading-5"><p className="break-words font-semibold text-navy">{name}</p><p className="break-words">음료: {attendee?.drink || '없음'}</p><p className="whitespace-pre-wrap break-words">희망사항: {attendee?.request || '없음'}</p></div>;
           })}

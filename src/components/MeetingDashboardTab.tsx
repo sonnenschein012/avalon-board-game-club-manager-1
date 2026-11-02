@@ -20,7 +20,7 @@ interface MeetingDashboardTabProps {
   memberPlayedGames: (id: string) => Set<string>;
   groupRecModes: Record<string, RecMode>;
   setGroupRecModes: React.Dispatch<React.SetStateAction<Record<string, RecMode>>>;
-  recommendGames: (members: Member[], mode: RecMode, seed: number) => {game: Game, playedCount: number, score: number, reasons?: Reason[]}[];
+  recommendGames: (members: Member[], mode: RecMode, seed: number, participantCount?: number) => {game: Game, playedCount: number, score: number, reasons?: Reason[]}[];
 }
 
 export default function MeetingDashboardTab({
@@ -55,6 +55,7 @@ export default function MeetingDashboardTab({
   return (
     <div className="space-y-8">
       {dailyPlanning.groups.map((group, idx) => {
+        const guests = dailyPlanning.attendees?.filter(a => a.participantType === 'guest' && group.memberIds.includes(a.id)) ?? [];
         const groupMembers = Array.from(new Set(group.memberIds)).map(id => members.find(m => m.id === id)).filter(Boolean) as Member[];
         
         const groupRequests = groupMembers.map(m => {
@@ -67,7 +68,7 @@ export default function MeetingDashboardTab({
 
         const mode: RecMode = groupRecModes[group.id] || 'SIZE_MATCH';
         const seed = recSeeds[group.id] || 0;
-        const recommendations = recommendGames(groupMembers, mode, seed);
+        const recommendations = recommendGames(groupMembers, mode, seed, groupMembers.length + guests.length);
 
         return (
           <div key={group.id} className="bg-white rounded-[2rem] p-6 md:p-8 shadow-sm flex flex-col xl:flex-row gap-6 md:gap-8">
@@ -100,7 +101,7 @@ export default function MeetingDashboardTab({
                     </h2>
                   </div>
                 )}
-                <p className="text-sm font-bold text-slate-400 mt-1">{groupMembers.length}명 참여</p>
+                <p className="text-sm font-bold text-slate-400 mt-1">{groupMembers.length + guests.length}명 참여</p>
               </div>
 
               {groupRequests.length > 0 && (
@@ -119,6 +120,7 @@ export default function MeetingDashboardTab({
               <div>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">조원 명단</h3>
                 <div className="flex flex-wrap gap-2">
+                  {guests.map(a => <span key={a.id} className="px-4 py-2 bg-slate-50 rounded-xl text-sm">{a.name} · 게스트</span>)}
                   {groupMembers.map(m => (
                     <button 
                       key={m.id}

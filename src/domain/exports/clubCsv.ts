@@ -82,7 +82,7 @@ export function buildSessionsCsv(
         const isBoardMember = session.boardMemberIds?.includes(memberId) ?? member?.isBoardMember ?? false;
         const name = member?.nickname || member?.name || 'Unknown';
         return isBoardMember ? `${name}(임원)` : name;
-      }).join(', ');
+      }).concat(Array.from({ length: group.guestCount ?? 0 }, () => '게스트')).join(', ');
       const games = group.gameIds?.map(gameId => gameTitles.get(gameId) || gameId).join(', ') || '';
       rows.push([date, sessionName, group.name || `TEAM ${index + 1}`, members, games]);
     });

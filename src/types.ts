@@ -36,6 +36,10 @@ export interface Game {
 
 export interface Attendee {
   id: string;
+  /** Missing participantType denotes a legacy member attendee. */
+  participantType?: 'member' | 'guest';
+  /** Stable attendee ID of the inviting member; never inferred from a name. */
+  invitedByAttendeeId?: AttendeeId;
   /** undefined: legacy lookup; null: explicitly unregistered. */
   memberId?: MemberId | null;
   name: string;
@@ -58,6 +62,8 @@ export interface SessionGroup {
 }
 
 export interface StoredSessionGroup {
+  /** Anonymous guests only; absent in legacy documents means zero. */
+  guestCount?: number;
   id: string;
   name?: string;
   memberIds: MemberId[];

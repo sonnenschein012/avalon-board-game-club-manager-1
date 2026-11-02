@@ -31,9 +31,10 @@ export function recommendGames(
   seed: number,
   sessions: Session[],
   games: Game[],
-  members: Member[]
+  members: Member[],
+  participantCount?: number,
 ): { game: Game; playedCount: number; score: number; reasons: Reason[] }[] {
-  const groupSize = groupMembers.length;
+  const groupSize = participantCount ?? groupMembers.length;
   if (groupSize === 0) return [];
 
   const playedMaps = groupMembers.map(m => ({

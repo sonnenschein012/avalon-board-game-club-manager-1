@@ -20,7 +20,7 @@ function dateKey(value: Session['date'] | string): string {
 
 function groupsSummary(groups: readonly StoredSessionGroup[]): string {
   return groups.map((group, index) => (
-    `${group.name || `TEAM ${index + 1}`} ${group.memberIds.length}명 · 게임 ${group.gameIds.length}개`
+    `${group.name || `TEAM ${index + 1}`} ${group.memberIds.length + (group.guestCount ?? 0)}명 (게스트 ${group.guestCount ?? 0}명) · 게임 ${group.gameIds.length}개`
   )).join(' / ');
 }
 
@@ -40,7 +40,7 @@ export async function importSessionRecords(sessions: readonly ImportedSession[])
     data: {
       ...session,
       date: Timestamp.fromDate(new Date(session.date)),
-      groups: session.groups.map(group => ({ ...group, id: Math.random().toString(36).substring(7) })),
+      groups: session.groups.map(group => normalizeSessionGroup({ ...group, id: Math.random().toString(36).substring(7) })),
     },
   }));
   if (sessions.length > 0) {
@@ -69,7 +69,7 @@ export async function createSessionRecord(draft: SessionDraft, boardMemberIds: s
     action: 'session.created',
     targetId: sessionRef.id,
     targetLabel: draft.name,
-    detail: `${draft.date} · ${draft.groups.length}개 조`,
+    detail: `${draft.date} · ${groupsSummary(draft.groups)}`,
   });
   await batch.commit();
 }

@@ -30,6 +30,7 @@ export default function SessionList({
             </div>
             <div className="flex gap-2">
               <button 
+                aria-label={`세션 수정: ${session.name}`}
                 onClick={() => handleEdit(session)}
                 className="p-2 text-slate-300 hover:text-navy hover:text-gold transition-colors bg-white rounded-lg  hover:border-transparent"
               >
@@ -80,6 +81,7 @@ export default function SessionList({
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">조원 명단</p>
                     <div className="flex flex-wrap gap-1">
+                      {!!group.guestCount && <span className="text-[10px] bg-slate-50 px-1.5 py-0.5 rounded">게스트 ×{group.guestCount}</span>}
                       {groupMembers.map(m => (
                         <button 
                           key={m.id} 
