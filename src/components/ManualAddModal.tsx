@@ -49,11 +49,21 @@ export default function ManualAddModal({ isOpen, onClose, onAdd, isAdding, atten
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <label className="block text-xs">참가자 유형
-            <select value={participantType} onChange={e => setParticipantType(e.target.value as 'member' | 'guest')} className="w-full p-2 border rounded">
-              <option value="member">동아리원</option><option value="guest">게스트</option>
-            </select>
-          </label>
+          <fieldset disabled={isAdding} className="space-y-2">
+            <legend className="text-xs font-bold text-slate-400">참가자 유형</legend>
+            <div className="relative isolate grid grid-cols-2 rounded-full bg-slate-50 p-1 ring-1 ring-inset ring-slate-200">
+              <span aria-hidden="true" className={`pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-8px)/2)] rounded-full bg-white shadow-sm ring-1 ring-slate-100 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${participantType === 'guest' ? 'translate-x-full' : 'translate-x-0'}`} />
+              {([{ value: 'member', label: '동아리원' }, { value: 'guest', label: '게스트' }] as const).map(option => (
+                <label key={option.value} className="relative z-10 min-w-0 cursor-pointer rounded-full">
+                  <input type="radio" name="participant-type" value={option.value} checked={participantType === option.value}
+                    onChange={() => setParticipantType(option.value)} className="peer absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0" />
+                  <span className={`pointer-events-none flex min-h-11 items-center justify-center rounded-full px-4 text-sm transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-navy peer-disabled:opacity-50 motion-reduce:transition-none ${participantType === option.value ? 'font-bold text-navy' : 'font-medium text-slate-400 hover:text-slate-600'}`}>
+                    {option.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           {participantType === 'guest' && <label className="block text-xs">초대한 동아리원
             <select required value={invitedByAttendeeId} onChange={e => setInvitedByAttendeeId(e.target.value)} className="w-full p-2 border rounded">
               <option value="">참석 중인 회원 선택</option>

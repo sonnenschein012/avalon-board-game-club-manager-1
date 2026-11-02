@@ -42,7 +42,7 @@ test('Google Form guests survive operating snapshots and become anonymous sessio
   expect(imported.members.length).toBe(before.members.length);
   // The existing manual form offers no second invitation for this member.
   await page.getByRole('button', { name: '+ 명단 추가' }).click();
-  await page.locator('select').last().selectOption('guest');
+  await page.getByRole('radio', { name: '게스트', exact: true }).check();
   await expect(page.getByText('초대한 회원을 먼저 추가해주세요.', { exact: false })).toBeVisible();
   await page.locator('form').locator('..').getByRole('button').first().click();
   await page.getByRole('button', { name: '신규 팀 추가' }).click();
@@ -87,7 +87,16 @@ test('manual guest addition uses an existing inviter and never creates a member'
   await page.goto('/attendance');
   await page.getByRole('button', { name: '+ 명단 추가' }).click();
   const form = page.locator('form');
-  await form.locator('select').first().selectOption('guest');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(form.getByRole('radio', { name: '동아리원', exact: true })).toBeChecked();
+  await page.screenshot({ path: 'test-results/manual-add-member-segment.png', animations: 'disabled' });
+  await form.getByRole('radio', { name: '게스트', exact: true }).check();
+  await form.getByRole('radio', { name: '게스트', exact: true }).focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(form.getByRole('radio', { name: '동아리원', exact: true })).toBeChecked();
+  await page.keyboard.press('ArrowRight');
+  await expect(form.getByRole('radio', { name: '게스트', exact: true })).toBeChecked();
+  await page.screenshot({ path: 'test-results/manual-add-guest-segment.png', animations: 'disabled' });
   await form.locator('select').last().selectOption('attendee-01');
   await form.getByPlaceholder('홍길동').fill('수동초대검증');
   await expect(form.getByPlaceholder('음료명 입력')).not.toHaveAttribute('required');
