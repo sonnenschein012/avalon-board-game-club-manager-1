@@ -69,6 +69,13 @@ CI는 main push/PR에서 lint, 타입, 단위 테스트, 규칙 테스트, 운�
 
 ## 릴리스와 개발 재개
 
+### 게스트 참석·익명 세션 기록 운영 반영 (2026-11-02)
+
+- `codex/guest-attendance`의 4개 커밋을 로컬·원격 main에 fast-forward로 반영했습니다. 배포 소스는 `248034b`이며 회원당 여러 게스트 초대, 출석 CSV·자동 편성·당일 snapshot, 확정 세션의 익명 게스트 수, 수동 세션 편집과 회원/게스트 표시 통일을 포함합니다. 데이터 계약과 기존 형식 호환성은 [게스트 기능](guests.md)을 참조하세요.
+- lint·TypeScript, 변경 경계 13개 파일의 단위/UI/서비스 테스트 106개, 편성·개발환경 보조 검사 58개, Emulator 브라우저 시나리오 4개와 Chromium·iPhone/iPad WebKit 이미지 다운로드 검사 6개가 통과했습니다. 전체 단위 검사 일괄 실행은 로컬 worker 대기로 완료하지 못했으며, 변경 경계 검사는 thread worker 1개로 실행했습니다. 브라우저 재검증은 개발 서버 반복 새로고침·OneDrive 파일 감시 오류를 피하도록 `DISABLE_HMR=true`를 사용하고 수동 세션 검사는 `CHOKIDAR_USEPOLLING=true`와 저장소 밖 임시 결과 경로를 사용했습니다. 테스트 단언은 변경하지 않았습니다.
+- 운영 빌드·Scenario Lab 혼입 방지 검사 후 Hosting `avalondgu`에 배포했습니다. 게시된 정적 파일 63개가 로컬 빌드와 SHA-256 기준 모두 일치하며 운영 로그인 화면을 확인했습니다. 운영 로그인 후 게스트 저장은 합성 Emulator 검증과 구분하며 운영 데이터를 테스트에 사용하지 않았습니다. 실제 iOS/iPadOS Safari 저장 확인창·파일 앱 검증은 WebKit 자동 검사의 범위 밖입니다.
+- Hosting만 배포했으며 Firestore 규칙·인덱스는 변경하지 않았습니다. 기존 미커밋 설명서 작업은 보존했고 공유 Graphify 묶음은 기존 stale 상태를 유지합니다. 이 커밋·배포는 그래프 최신성 승인이 아닙니다. 최초 브랜치 구현 당시의 미배포 기록은 `guest-implementation-report.md`에 남아 있으며 현재 배포 상태는 이 운영 이력을 기준으로 합니다.
+
 ### 이미지 추출 WebKit 회귀 검사 추가 (2026-10-28)
 
 - 실제 공지 캔버스와 이미지 렌더러를 사용하는 독립 합성 fixture를 `tests/capture/`에 추가했습니다. Firebase를 초기화하지 않으며 외부 Google Fonts만 고정합니다. `npm run test:capture`는 Chromium·iPhone 13 WebKit·iPad Pro 11 WebKit에서 공지·음료 다운로드를 각각 검사합니다.
