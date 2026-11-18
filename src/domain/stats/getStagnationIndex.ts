@@ -1,3 +1,4 @@
+import { dailyAttendance } from './dailyAttendance';
 import { Session } from '../../types';
 import { getSemester } from '../semester/getSemester';
 
@@ -5,7 +6,7 @@ export function getStagnationIndex(chronologicalSessions: Session[], includeYear
   const cumulativeAttendanceBySemester: Record<string, Record<string, number>> = {};
   const semesterSessionCounts: Record<string, number> = {};
   
-  return chronologicalSessions.map((s, idx) => {
+  return dailyAttendance(chronologicalSessions).map((s, idx) => {
     const sDateObj = s.date?.toDate ? (s.date.toDate() as Date) : new Date();
     const semester = getSemester(sDateObj);
     const dateStr = sDateObj.toLocaleDateString('ko-KR', includeYear ? { year: 'numeric', month: '2-digit', day: '2-digit' } : { month: '2-digit', day: '2-digit' });

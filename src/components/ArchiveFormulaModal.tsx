@@ -76,8 +76,8 @@ export default function ArchiveFormulaModal({ formulaModal, setFormulaModal }: A
                     <h4 className="text-sm font-bold text-slate-500 uppercase tracking-widest">변수 정의</h4>
                     <ul className="space-y-3 font-mono text-sm md:text-base text-slate-700 bg-slate-50 p-6 rounded-xl border border-slate-100">
                       <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-rose-500 font-bold min-w-[80px]">A_t:</span> <span>당일 총 참석 인원</span></li>
-                      <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-rose-500 font-bold min-w-[80px]">x_&#123;i,t&#125;:</span> <span>당일 기준 멤버 i의 누적 출석 횟수</span></li>
-                      <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-rose-500 font-bold min-w-[80px]">S_t:</span> <span>당일(t)까지 열린 총 정기 모임 누적 횟수</span></li>
+                      <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-rose-500 font-bold min-w-[80px]">x_&#123;i,t&#125;:</span> <span>당일 기준 멤버 i의 누적 출석일 수</span></li>
+                      <li className="flex flex-col md:flex-row md:items-start gap-1 md:gap-4"><span className="text-rose-500 font-bold min-w-[80px]">S_t:</span> <span>당일(t)까지의 누적 개최일 수 (같은 날짜는 1일)</span></li>
                     </ul>
                   </div>
                 </>

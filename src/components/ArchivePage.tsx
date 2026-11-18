@@ -67,6 +67,8 @@ export default function ArchivePage() {
         }
       />
 
+      <p className="text-sm text-slate-500">참여 순위는 세션별 참여 횟수로 집계합니다. ※ 시계열은 동일 날짜에 여러 세션이 있는 경우, 해당 날짜의 모든 세션 기록을 바탕으로 출석자를 중복 없이 집계합니다.</p>
+
       <div className="flex-1 min-h-[400px]">
         <div className="space-y-6">
           <ArchiveWidgetRanking

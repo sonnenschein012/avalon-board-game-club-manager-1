@@ -1,3 +1,4 @@
+import { dailyAttendance } from './dailyAttendance';
 import { Member, Session } from '../../types';
 import { getSemester } from '../semester/getSemester';
 import { getActiveMembersAtSemester } from './getSemesterRosterCounts';
@@ -9,7 +10,7 @@ export function getAttendanceTrend(
 ) {
   const rosterCounts = new Map<string, number>();
 
-  return chronologicalSessions.map(s => {
+  return dailyAttendance(chronologicalSessions).map(s => {
     const attendees = new Set<string>();
     s.groups.forEach(g => g.memberIds.forEach(id => attendees.add(id)));
     

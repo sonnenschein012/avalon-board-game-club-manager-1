@@ -53,3 +53,21 @@ describe('semester statistics', () => {
     expect(data.map(item => item.정체성지수)).toEqual([1, 1]);
   });
 });
+
+ it('counts independent sessions separately but unions attendees per date in all trends', () => {
+   const records = [
+     session({ id: 'a', groups: [{ id: 'g', memberIds: ['continuing', 'newbie', 'newbie'], gameIds: [] }] }),
+     session({ id: 'b', groups: [{ id: 'h', memberIds: ['newbie', 'dormant'], gameIds: [] }] }),
+   ];
+   expect(getAttendanceRanking(records, members, true).find(row => row.id === 'newbie')?.count).toBe(2);
+   expect(getAttendanceTrend(records, members)).toHaveLength(1);
+   expect(getAttendanceTrend(records, members)[0]?.count).toBe(3);
+   expect(getNewcomerTrend(records, members, false)).toHaveLength(1);
+   expect(getNewcomerTrend(records, members, false)[0]?.신입).toBe(33);
+   expect(getStagnationIndex(records)).toHaveLength(1);
+   expect(getStagnationIndex(records)[0]?.정체성지수).toBe(1);
+   const next = session({ id: 'c', date: timestamp('2026-04-02T10:00:00+09:00') as unknown as Session['date'], groups: [{ id: 'i', memberIds: ['continuing'], gameIds: [] }] });
+   expect(getAttendanceTrend([...records, next], members).map(row => row.count)).toEqual([3, 1]);
+   expect(getStagnationIndex([...records, next]).map(row => row.정체성지수)).toEqual([1, 1]);
+   expect(getAttendanceTrend([...records].reverse(), members)).toEqual(getAttendanceTrend(records, members));
+ });

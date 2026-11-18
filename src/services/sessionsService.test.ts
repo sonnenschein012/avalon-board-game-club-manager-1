@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getDoc, getDocs } from 'firebase/firestore';
-import { commitBatchesInChunks } from '../lib/chunkBatch';
 import { deleteSessionRecord, importSessionRecords, updateSessionGroupGames, updateSessionRecord } from './sessionsService';
 
 const batch = vi.hoisted(() => ({
@@ -13,12 +12,13 @@ const addAuditEventToBatch = vi.hoisted(() => vi.fn());
 vi.mock('../lib/firebase', () => ({ db: {} }));
 vi.mock('../lib/chunkBatch', () => ({ commitBatchesInChunks: vi.fn() }));
 vi.mock('./auditService', () => ({
-  addAuditEventToBatch,
+  addAuditEventToBatch, addAuditEventToTransaction: vi.fn(),
   createAuditEventOperation: vi.fn(() => ({ type: 'set', ref: 'audit', data: {} })),
 }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(), doc: vi.fn(), getDoc: vi.fn(), writeBatch: vi.fn(() => batch),
   getDocs: vi.fn(), query: vi.fn(), where: vi.fn(), deleteField: () => 'delete-field',
+  runTransaction: async (_db: unknown, action: (tx: unknown) => Promise<void>) => action({ get: async () => ({ exists: () => false }), set: batch.set }),
   Timestamp: { fromDate: (date: Date) => date },
 }));
 
@@ -50,9 +50,8 @@ describe('session persistence boundaries', () => {
       { name: 'legacy', date: '2026-09-02', groups: [] },
       { name: 'current', date: '2026-09-02', groups: [], boardMemberIds: [] },
     ]);
-    const operations = vi.mocked(commitBatchesInChunks).mock.calls[0]?.[1];
-    expect(operations?.[0]?.data).not.toHaveProperty('boardMemberIds');
-    expect(operations?.[1]?.data).toHaveProperty('boardMemberIds', []);
+    expect(batch.set.mock.calls[0]?.[1]).not.toHaveProperty('boardMemberIds');
+    expect(batch.set.mock.calls[1]?.[1]).toHaveProperty('boardMemberIds', []);
   });
 
   it('keeps the stored board snapshot and untouched group edits when saving a session', async () => {

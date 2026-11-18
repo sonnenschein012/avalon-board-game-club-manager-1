@@ -1,3 +1,4 @@
+import { dailyAttendance } from './dailyAttendance';
 import { Session, Member } from '../../types';
 import { getSemester } from '../semester/getSemester';
 import { getActiveMembersAtSemester, getNewbieMembersAtSemester } from './getSemesterRosterCounts';
@@ -11,7 +12,7 @@ export function getNewcomerTrend(
   const activeCounts = new Map<string, number>();
   const newbieCounts = new Map<string, number>();
   
-  return chronologicalSessions.map((s, idx) => {
+  return dailyAttendance(chronologicalSessions).map((s, idx) => {
     const sDateObj = s.date?.toDate ? (s.date.toDate() as Date) : new Date();
     const sSemester = getSemester(sDateObj);
     const dateStr = sDateObj.toLocaleDateString('ko-KR', includeYear ? { year: 'numeric', month: '2-digit', day: '2-digit' } : { month: '2-digit', day: '2-digit' });

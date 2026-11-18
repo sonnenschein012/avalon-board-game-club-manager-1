@@ -29,3 +29,11 @@ export function resolveDailySessionId({
 
   return matchingSession?.id ?? `daily-${sessionDate}`;
 }
+
+export function nextSessionName(base: string, names: readonly string[]): string {
+  const used = new Set(names);
+  if (!used.has(base)) return base;
+  let number = 2;
+  while (used.has(`${base} (${number})`)) number++;
+  return `${base} (${number})`;
+}

@@ -1,9 +1,11 @@
+import { isSingleDocumentId } from '../shared/documentId';
 import type { Game, Member, StoredSessionGroup } from '../../types';
 
 export interface ImportedSession {
+  id?: string;
   name: string;
   date: string;
-  groups: Omit<StoredSessionGroup, 'id'>[];
+  groups: (Omit<StoredSessionGroup, 'id'> & { id?: string })[];
   boardMemberIds?: string[];
 }
 
@@ -33,6 +35,7 @@ export function parseSessionCsvRows(
   const findGame = (name: string) => games.find(game => cleanString(game.title) === cleanString(name));
   const missingGames = new Set<string>();
   for (const row of rows) {
+    if (row['조 데이터']) continue;
     for (const gameName of splitNames(row['플레이한 게임들'])) {
       if (!findGame(gameName)) missingGames.add(gameName);
     }
@@ -47,13 +50,28 @@ export function parseSessionCsvRows(
     const date = (row['날짜'] || '').trim();
     if (!date) continue;
     const name = (row['세션명'] || '').trim() || `${date} 정기 모임`;
-    const sessionKey = `${date}\u0000${name}`;
+    const id = row['세션 ID']?.trim();
+    if (id && !isSingleDocumentId(id)) throw new Error('잘못된 세션 ID입니다.');
+    const sessionKey = id ? `id:${id}` : `legacy:${date}\u0000${name}`;
     let session = sessions.get(sessionKey);
     if (!session) {
-      session = { date, name, groups: [], ...(hasSnapshotColumns ? { boardMemberIds: [] } : {}) };
+      session = { ...(id ? { id } : {}), date, name, groups: [], ...(hasSnapshotColumns ? { boardMemberIds: [] } : {}) };
       sessions.set(sessionKey, session);
     }
 
+    if (session.date !== date || session.name !== name) throw new Error('같은 ID의 세션 정보가 일치하지 않습니다.');
+    if (row['임원 ID 목록']) {
+      const ids: unknown = JSON.parse(row['임원 ID 목록']);
+      if (!Array.isArray(ids) || !ids.every(id => typeof id === 'string')) throw new Error('잘못된 임원 목록입니다.');
+      session.boardMemberIds = ids;
+    } else if (id) delete session.boardMemberIds;
+    if (row['조 데이터']) {
+      const group = JSON.parse(row['조 데이터']) as StoredSessionGroup | null;
+      if (group === null) continue;
+      if (!group || typeof group.id !== 'string' || !Array.isArray(group.memberIds) || !group.memberIds.every(id => typeof id === 'string') || !Array.isArray(group.gameIds) || !group.gameIds.every(id => typeof id === 'string')) throw new Error('잘못된 조 데이터입니다.');
+      session.groups.push(group);
+      continue;
+    }
     const memberIds: string[] = [];
     let guestCount = 0;
     for (const token of splitNames(row['조원 명단'] || row['조원 명단(닉네임)'])) {

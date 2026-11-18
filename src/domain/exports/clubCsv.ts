@@ -14,10 +14,8 @@ function serializeCsv(headers: string[], rows: unknown[][]): string {
 export function buildMembersCsv(members: Member[], sessions: Session[]): string {
   const attendanceCounts: Record<string, number> = {};
   sessions.forEach(session => {
-    session.groups.forEach(group => {
-      group.memberIds.forEach(memberId => {
-        attendanceCounts[memberId] = (attendanceCounts[memberId] || 0) + 1;
-      });
+    new Set(session.groups.flatMap(group => group.memberIds)).forEach(memberId => {
+      attendanceCounts[memberId] = (attendanceCounts[memberId] || 0) + 1;
     });
   });
 
@@ -75,7 +73,9 @@ export function buildSessionsCsv(
       : formatTimestamp(session.date);
     const sessionName = session.name || `${date} 정기 모임`;
 
-    session.groups.forEach((group, index) => {
+    (session.groups.length ? session.groups : [null]).forEach((group, index) => {
+      const metadata = [session.id, JSON.stringify(group), session.boardMemberIds === undefined ? '' : JSON.stringify(session.boardMemberIds)];
+      if (!group) { rows.push([date, sessionName, '', '', '', ...metadata]); return; }
       const members = group.memberIds.map(memberId => {
         const member = membersById.get(memberId);
         // An explicit empty snapshot means no board members, even if the current roster changed.
@@ -84,10 +84,10 @@ export function buildSessionsCsv(
         return isBoardMember ? `${name}(임원)` : name;
       }).concat(Array.from({ length: group.guestCount ?? 0 }, () => '게스트')).join(', ');
       const games = group.gameIds?.map(gameId => gameTitles.get(gameId) || gameId).join(', ') || '';
-      rows.push([date, sessionName, group.name || `TEAM ${index + 1}`, members, games]);
+      rows.push([date, sessionName, group.name || `TEAM ${index + 1}`, members, games, ...metadata]);
     });
   });
 
   rows.sort((a, b) => (b[0] ?? '').localeCompare(a[0] ?? ''));
-  return serializeCsv(['날짜', '세션명', '조 이름', '조원 명단', '플레이한 게임들'], rows);
+  return serializeCsv(['날짜', '세션명', '조 이름', '조원 명단', '플레이한 게임들', '세션 ID', '조 데이터', '임원 ID 목록'], rows);
 }

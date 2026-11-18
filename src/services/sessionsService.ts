@@ -1,10 +1,9 @@
-import { collection, doc, getDoc, getDocs, query, where, deleteField, Timestamp, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, deleteField, Timestamp, writeBatch, runTransaction } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { commitBatchesInChunks } from '../lib/chunkBatch';
 import type { Session, StoredSessionGroup } from '../types';
 import type { ImportedSession } from '../domain/sessions/sessionCsv';
 import { mergeSessionGroups, normalizeSessionGroup } from '../domain/sessions/sessionGroups';
-import { addAuditEventToBatch, createAuditEventOperation } from './auditService';
+import { addAuditEventToBatch, addAuditEventToTransaction } from './auditService';
 import type { AuditChange } from '../domain/audit/auditEvent';
 
 interface SessionDraft {
@@ -34,25 +33,23 @@ function sessionChanges(current: Session, draft: SessionDraft, nextGroups: Store
 }
 
 export async function importSessionRecords(sessions: readonly ImportedSession[]) {
-  const operations: Parameters<typeof commitBatchesInChunks>[1] = sessions.map(session => ({
-    type: 'set',
-    ref: doc(collection(db, 'sessions')),
-    data: {
-      ...session,
-      date: Timestamp.fromDate(new Date(session.date)),
-      groups: session.groups.map(group => normalizeSessionGroup({ ...group, id: Math.random().toString(36).substring(7) })),
-    },
-  }));
-  if (sessions.length > 0) {
-    operations.push(createAuditEventOperation({
-      category: 'session',
-      action: 'session.imported',
-      targetLabel: `모임 기록 ${sessions.length}개`,
-      count: sessions.length,
-      detail: sessions.map(session => `${session.date} ${session.name}`).join(', '),
-    }));
-  }
-  await commitBatchesInChunks(db, operations);
+  // A single atomic import rejects every collision rather than overwriting history.
+  if (sessions.length > 400) throw new Error('한 번에 400개 이하의 세션을 가져와 주세요.');
+  const records = sessions.map(session => ({ session, ref: session.id ? doc(db, 'sessions', session.id) : doc(collection(db, 'sessions')) }));
+  await runTransaction(db, async transaction => {
+    const snapshots = await Promise.all(records.map(record => transaction.get(record.ref)));
+    if (snapshots.some(snapshot => snapshot.exists())) throw new Error('이미 존재하는 세션 ID가 있습니다. 기존 기록 보호를 위해 가져오기를 취소했습니다.');
+    records.forEach(({ session, ref }) => {
+      const { id: _id, ...data } = session;
+      void _id;
+      transaction.set(ref, {
+        ...data,
+        date: Timestamp.fromDate(new Date(session.date)),
+        groups: session.groups.map(group => normalizeSessionGroup({ ...group, id: group.id || doc(collection(db, 'sessions')).id })),
+      });
+    });
+    if (records.length) addAuditEventToTransaction(transaction, { category: 'session', action: 'session.imported', targetLabel: `모임 기록 ${records.length}개`, count: records.length });
+  });
 }
 
 export async function createSessionRecord(draft: SessionDraft, boardMemberIds: string[]) {

@@ -73,6 +73,7 @@ export interface StoredSessionGroup {
 }
 
 export interface Session {
+  createdAt?: Timestamp;
   id: string;
   date: Timestamp;
   name: string; // e.g. "2025-04-24 정기 모임"

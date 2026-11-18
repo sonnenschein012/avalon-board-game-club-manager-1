@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase/firestore';
 import type { Session } from '../../types';
-import { resolveDailySessionId } from './dailySession';
+import { resolveDailySessionId, nextSessionName } from './dailySession';
 
 const existingSession = (id: string, name: string, date: Date) => ({
   id,
@@ -36,4 +36,12 @@ describe('daily planning session identity', () => {
       sessionName: '정기 모임',
     })).toBe('daily-2026-09-02');
   });
+});
+
+
+it('allocates suffixes without overwriting manually named records', () => {
+  expect(nextSessionName('Meeting', [])).toBe('Meeting');
+  expect(nextSessionName('Meeting', ['Meeting'])).toBe('Meeting (2)');
+  expect(nextSessionName('Meeting', ['Meeting', 'Meeting (2)'])).toBe('Meeting (3)');
+  expect(nextSessionName('Meeting', ['Meeting', 'Meeting (3)'])).toBe('Meeting (2)');
 });

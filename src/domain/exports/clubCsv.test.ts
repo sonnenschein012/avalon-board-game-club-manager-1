@@ -1,3 +1,5 @@
+import Papa from 'papaparse';
+import { parseSessionCsvRows } from '../sessions/sessionCsv';
 import { describe, expect, it } from 'vitest';
 import { Timestamp } from 'firebase/firestore';
 import type { Member, Session } from '../../types';
@@ -49,7 +51,7 @@ describe('club backup CSV', () => {
 
     expect(buildMembersCsv(members, sessions)).toBe([
       '이름,닉네임,학번,연락처,성별,가입학기,상태,휴면학기,임원여부,선호장르,누적참석횟수,메모',
-      '"Kim, ""A""",25 Kim,2501,010-1234-5678,남,2025-1,활동,,Y,"전략, 협력",3,"첫 줄\n다음 줄"',
+      '"Kim, ""A""",25 Kim,2501,010-1234-5678,남,2025-1,활동,,Y,"전략, 협력",2,"첫 줄\n다음 줄"',
       '휴면 회원,,,,기타,2024-2,휴면,2026-1,N,,0,',
     ].join('\n'));
   });
@@ -83,7 +85,7 @@ describe('club backup CSV', () => {
       session({ name: '이전 기록', groups, date: Timestamp.fromDate(new Date('2026-09-02T00:00:00Z')) }),
     ];
 
-    expect(buildSessionsCsv(sessions, membersById, new Map())).toBe([
+    expect(legacyColumns(sessions, membersById, new Map())).toBe([
       '날짜,세션명,조 이름,조원 명단,플레이한 게임들',
       '2026-09-03,빈 스냅샷,TEAM 1,"현재 임원, 전 임원, Unknown, Unknown",',
       '2026-09-02,이전 기록,TEAM 1,"현재 임원(임원), 전 임원, Unknown, Unknown",',
@@ -100,7 +102,7 @@ describe('club backup CSV', () => {
       ],
     })];
 
-    expect(buildSessionsCsv(sessions, new Map(), new Map([['game-1', '아발론']]))).toBe([
+    expect(legacyColumns(sessions, new Map(), new Map([['game-1', '아발론']]))).toBe([
       '날짜,세션명,조 이름,조원 명단,플레이한 게임들',
       '2026-09-01,2026-09-01 정기 모임,TEAM 1,,"아발론, 아발론, removed-game"',
       '2026-09-01,2026-09-01 정기 모임,"친구, 모임",,',
@@ -112,9 +114,26 @@ describe('club backup CSV', () => {
     const legacySession = session({ date: date as unknown as Timestamp, groups: [{ id: 'empty', memberIds: [], gameIds: [] }] });
     const expectedDate = date.toLocaleDateString();
 
-    expect(buildSessionsCsv([legacySession], new Map(), new Map())).toBe([
+    expect(legacyColumns([legacySession], new Map(), new Map())).toBe([
       '날짜,세션명,조 이름,조원 명단,플레이한 게임들',
       `${expectedDate},${expectedDate} 정기 모임,TEAM 1,,`,
     ].join('\n'));
   });
+});
+
+// Existing assertions retain the human-readable columns; identity is tested below.
+function legacyColumns(...args: Parameters<typeof buildSessionsCsv>): string {
+  const rows = Papa.parse<string[]>(buildSessionsCsv(...args)).data;
+  return Papa.unparse(rows.map(row => row.slice(0, 5)), { newline: '\n' });
+}
+
+it('round trips identical names, empty sessions, exact groups and independent identities', () => {
+  const records = [session({ id: 'old', name: 'Same', boardMemberIds: [] }), session({ id: 'new', name: 'Same', groups: [] })];
+  const csv = buildSessionsCsv(records, new Map(), new Map());
+  const parsed = Papa.parse<Record<string, string>>(csv, { header: true });
+  const imported = parseSessionCsvRows(parsed.data, parsed.meta.fields || [], [], []).sessions;
+  expect(imported).toHaveLength(2);
+  expect(imported[0]).toMatchObject({ id: 'old', name: 'Same', groups: records[0]?.groups, boardMemberIds: [] });
+  expect(imported[1]).toMatchObject({ id: 'new', name: 'Same', groups: [] });
+  expect(imported[1]).not.toHaveProperty('boardMemberIds');
 });

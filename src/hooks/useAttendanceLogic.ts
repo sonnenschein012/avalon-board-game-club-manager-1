@@ -1,6 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   runTransaction,
+  collection,
+  getDocs,
+  query,
+  where,
   doc,
   serverTimestamp,
   Timestamp,
@@ -33,7 +37,7 @@ import {
 } from '../domain/attendance/attendanceHelpers';
 import { useAttendanceDraft } from './useAttendanceDraft';
 import { moveAttendee } from '../domain/attendance/moveAttendee';
-import { resolveDailySessionId } from '../domain/attendance/dailySession';
+import { nextSessionName } from '../domain/attendance/dailySession';
 import { convertAttendeeIdsToMemberIds, convertAttendeeIdsToPlanningGroups } from '../domain/attendance/sessionGroups';
 import { addAuditEventToTransaction } from '../services/auditService';
 import { archiveDailyPlanning } from '../services/dailyPlanningService';
@@ -306,17 +310,15 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
     }
 
     const mappedGroups = convertAttendeeIdsToMemberIds(groups, attendees, members);
+    const sessionRef = doc(collection(db, 'sessions'));
+    const sessionId = sessionRef.id;
     const result = await runAction('attendance-save', () => runTransaction(db, async transaction => {
       const planningRef = doc(db, 'DailyPlannings', sessionDate);
       const planningSnapshot = await transaction.get(planningRef);
-      const sessionId = resolveDailySessionId({
-        planningSessionId: planningSnapshot.data()?.sessionId,
-        sessions,
-        sessionDate,
-        sessionName,
-      });
-      const sessionRef = doc(db, 'sessions', sessionId);
-      const sessionSnapshot = await transaction.get(sessionRef);
+      // Parent reads serialize concurrent starts, including retries of this query.
+      const sameDay = await getDocs(query(collection(db, 'sessions'), where('date', '>=', Timestamp.fromDate(new Date(sessionDate))), where('date', '<', Timestamp.fromMillis(new Date(sessionDate).getTime() + 86400000))));
+      const daySessions = sameDay.docs.map(item => ({ ...item.data(), id: item.id }) as Session);
+      const name = nextSessionName(sessionName.trim(), daySessions.map(item => item.name));
       if (planningSnapshot.exists()) {
         archiveDailyPlanning(transaction, sessionDate, planningSnapshot.data(), '모임 다시 시작 전');
       }
@@ -326,7 +328,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
       });
 
       transaction.set(planningRef, {
-        name: sessionName,
+        name,
         date: sessionDate,
         groups: convertAttendeeIdsToPlanningGroups(groups, attendees, members),
         attendees: [...new Map(assignedAttendees.map(attendee => [attendee.id, {
@@ -338,10 +340,11 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      if (!sessionSnapshot.exists()) {
+      {
         transaction.set(sessionRef, {
-          name: sessionName,
+          name,
           date: Timestamp.fromDate(new Date(sessionDate)),
+          createdAt: serverTimestamp(),
           groups: mappedGroups,
           boardMemberIds: members.filter(member => member.isBoardMember).map(member => member.id),
         });
@@ -351,7 +354,7 @@ export function useAttendanceLogic({ onMoveToRecord, draftScope }: UseAttendance
         category: 'session',
         action: planningSnapshot.exists() ? 'session.planning_overwritten' : 'session.meeting_started',
         targetId: sessionId,
-        targetLabel: sessionName,
+        targetLabel: name,
         count: assignedAttendees.length,
         detail: `${sessionDate} · ${mappedGroups.length}개 조 · 배정 ${assignedAttendees.length}명`,
       });

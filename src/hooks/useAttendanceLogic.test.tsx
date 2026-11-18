@@ -6,6 +6,7 @@ import { archiveDailyPlanning } from '../services/dailyPlanningService';
 import { createAttendanceMemberDraft } from '../domain/members/attendanceRegistration';
 
 const mocks = vi.hoisted(() => ({ commit: vi.fn(), get: vi.fn(), set: vi.fn(), update: vi.fn(), register: vi.fn(),
+  retry: false, dayNames: [] as string[],
   extraAttendees: [] as unknown[], extraMembers: [] as unknown[], primaryRequest: '쉬운 게임',
   clear: vi.fn(), remove: vi.fn(), navigate: vi.fn(), importRows: vi.fn() }));
 vi.mock('../lib/firebase', () => ({ db: {}, handleFirestoreError: vi.fn(), OperationType: { WRITE: 'write' } }));
@@ -17,8 +18,11 @@ vi.mock('../services/attendeesService', () => ({
 }));
 vi.mock('firebase/firestore', async importOriginal => ({
   ...await importOriginal<typeof import('firebase/firestore')>(),
-  doc: vi.fn((_db: unknown, collection: string, id: string) => `${collection}/${id}`), getDoc: vi.fn(async () => ({ exists: () => false, data: () => undefined })),
+  collection: (_db: unknown, name: string) => name,
+  query: () => 'same-day', where: vi.fn(), getDocs: async () => ({ docs: mocks.dayNames.map((name, index) => ({ id: `independent-${index}`, data: () => ({ name }) })) }),
+  doc: vi.fn((_db: unknown, collection?: string, id?: string) => collection ? `${collection}/${id}` : { id: 'new-session' }), getDoc: vi.fn(async () => ({ exists: () => false, data: () => undefined })),
   runTransaction: async (_db: unknown, callback: (transaction: unknown) => Promise<void>) => {
+    if (mocks.retry) await callback({ get: mocks.get, update: mocks.update, set: mocks.set });
     await callback({ get: mocks.get, update: mocks.update, set: mocks.set });
     await mocks.commit();
   },
@@ -54,6 +58,7 @@ describe('attendance working draft', () => {
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     vi.clearAllMocks();
+    mocks.retry = false; mocks.dayNames = [];
     mocks.extraAttendees = [];
     mocks.extraMembers = [];
     mocks.primaryRequest = '쉬운 게임';
@@ -89,6 +94,19 @@ describe('attendance working draft', () => {
     await act(async () => { await latest.handleMoveToRecord(); });
     expect(mocks.update.mock.calls).toEqual([['attendees/a1', { status: '편성됨' }]]);
     expect(mocks.set.mock.calls[0]![1].attendees.map((item: { id: string }) => item.id)).toEqual(['a1']);
+  });
+
+  it('retries with the same new ID and skips occupied suffixes without touching independent records', async () => {
+    arrange();
+    mocks.retry = true;
+    mocks.dayNames = ['편성하던 모임', '편성하던 모임 (2)', '편성하던 모임 (3)'];
+    await act(async () => { await latest.handleMoveToRecord(); });
+    const plannings = mocks.set.mock.calls.filter(call => call[0] === 'DailyPlannings/2026-09-12');
+    expect(plannings).toHaveLength(2);
+    expect(plannings.map(call => [call[1].sessionId, call[1].name])).toEqual([
+      ['new-session', '편성하던 모임 (4)'], ['new-session', '편성하던 모임 (4)'],
+    ]);
+    expect(mocks.update.mock.calls.every(call => call[0] === 'attendees/a1')).toBe(true);
   });
 
   it('restores all working fields and assignments after leaving the page', () => {
@@ -166,12 +184,14 @@ describe('attendance working draft', () => {
     arrange();
     const previous = { name: '이전 모임', date: '2026-09-12', sessionId: 'linked', groups: [], attendees: [], createdAt: 'original-time' };
     mocks.get.mockResolvedValueOnce({ exists: () => true, data: () => previous });
-    mocks.get.mockResolvedValueOnce({ exists: () => true, data: () => ({ groups: [{ gameIds: ['recorded-game'] }] }) });
+    mocks.get.mockResolvedValueOnce({ exists: () => true, data: () => ({ date: { toDate: () => new Date('2026-09-12') }, groups: [{ gameIds: ['recorded-game'] }] }) });
     await act(async () => { await latest.handleMoveToRecord(); });
     expect(archiveDailyPlanning).toHaveBeenCalledWith(expect.anything(), '2026-09-12', previous, '모임 다시 시작 전');
-    expect(mocks.set).toHaveBeenCalledTimes(1);
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    expect(mocks.update.mock.calls.every(call => call[0] === 'attendees/a1')).toBe(true);
+    expect(mocks.set).toHaveBeenCalledTimes(2);
     expect(mocks.set.mock.calls[0]![1]).toEqual(expect.objectContaining({
-      name: '편성하던 모임', sessionId: 'linked', createdAt: 'original-time',
+      name: '편성하던 모임', sessionId: 'new-session', createdAt: 'original-time',
       attendees: [expect.objectContaining({ drink: '아이스티' })],
     }));
   });
